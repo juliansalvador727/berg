@@ -3,12 +3,16 @@ name = "berg-geometry"
 version = "0.1.0"
 description = "One-off OSM job: rail graph → per-station-pair polylines → routes.bin."
 requires-python = ">=3.12"
+# pyosmium + scipy instead of the pyrosm + networkx the scaffold imagined: pyrosm has no
+# 3.12 wheels and drags in geopandas, and pure-Python Dijkstra over a ~1.5M-node rail graph
+# is hours where scipy's C implementation is minutes.
 dependencies = [
-    "pyrosm>=0.6",
-    "networkx>=3.3",
+    "osmium>=3.7",
+    "scipy>=1.14",
     "shapely>=2.0",
     "numpy>=2.0",
     "duckdb>=1.1",
+    "httpx>=0.27",
 ]
 
 [dependency-groups]

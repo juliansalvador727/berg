@@ -309,6 +309,35 @@ both because 2016–17 don't exist and because 2018 is a lighter feed.
 Also validated: **9,440 legs depart in the hour before 08:00**, matching the planned ~8–10k rows
 per one-hour row group almost exactly.
 
+## Geometry (M2): the rail graph is one component, so snap per pair, not per station
+
+Measured while routing the 4,614 pairs of 2018-05 against the Geofabrik Switzerland extract
+(403k nodes / 410k edges of `railway=rail|narrow_gauge|light_rail`):
+
+- **Nearest-node snapping is wrong at every multi-gauge station.** At Interlaken Ost the
+  metre-gauge track is meters closer than the standard-gauge one; snapping to it routed
+  West→Ost **187 km via Luzern** (Montreux and Göschenen→Andermatt failed the same way).
+- **Snapping per connected component doesn't fix it** — the Swiss networks touch somewhere
+  (dual gauge, shared crossing nodes), so it's all one giant component and the wrong-gauge
+  snap survives. What works is a **virtual node per station wired to all nearby tracks**
+  (≤300 m, cost = distance × 10): Dijkstra minimizes snap + rail + snap per pair and the
+  right network falls out of the shortest path. After the fix, Göschenen→Andermatt is 3.8 km
+  against the Schöllenenbahn's real 3.7, and ratio_p99 dropped 4.12 → 2.36.
+- **The extract is the coverage boundary, not the bbox.** 25 stations inside CH_BBOX have no
+  track: the Italian legs of the Simplon/Centovalli lines (Preglia, Varzo, Masera…). And two
+  pairs whose real track is missing — Bossonnens→Palézieux (line disused in current OSM) and
+  Neuhausen→Rafz (runs through Germany, clipped) — produced 55 km "shortest" paths. The
+  detour guard (ratio > 4 AND excess > 10 km → straight line + flag) catches those without
+  killing legitimate 6× mountain switchbacks like Chernex→Chamby.
+- **routes.bin is 413 KB**, not the ~20 MB planned: 4,614 polylines, 92,970 points after 10 m
+  Douglas-Peucker, uint16 quantization (~7 m). 79 routes flagged straight-fallback (1.7%).
+  Snap quality: p50 9.4 m, p95 30.9 m. Median rail path is 1.07× the straight line.
+- Full report: `data/publish/static/routes.report.json`; format in
+  `geometry/src/berg_geometry/binfmt.py` (byte-level contract test on the pipeline side).
+- Caveat for the backfill: routes are computed on **today's** OSM. A 2018 service over a
+  since-rebuilt alignment renders on the current track. Acceptable; revisit only if a whole
+  line's history matters.
+
 ## Stations: use GTFS, not DIDOK
 
 The CKAN API returns 403 and `atlas.api.opentransportdata.swiss` does not resolve. But the same
