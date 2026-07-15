@@ -286,8 +286,71 @@ naturally onto the SCD2 validity ranges `dim_station` needs.
 
 **The BPUIC is the numeric prefix of `stop_id`.** Both `8509404:0:1` (platform) and
 `Parent8509404` carry 8509404. Many stations — Buchs SG among them — exist *only* as platform
-rows, so matching plain 7-digit ids takes the join from **47% to 90%**. Platform coordinates
-differ by ~100 m; averaging them to a station centroid is fine at map zoom.
+rows, so matching plain 7-digit ids takes the join from **47% to 90%**.
 
 Of the 10% that miss, essentially all are distant foreign stations (Düsseldorf Hbf, St. Pölten
 Hbf) that the CH bounding box drops anyway. **Only 3 of 2,204 Swiss stops fail to match.**
+
+### The snapshot listing: 722 files, three filename shapes, one trap
+
+`timetable_gtfs.php` is a parseable HTML index — the authority on what exists. Shapes:
+
+```
+GTFS_FP2017_2017-01-23.zip          435×   hyphenated date
+GTFS_FP2021_2021-02-03_10-01.zip    202×   + publish TIME — a day can publish twice
+GTFS_FP2026_20260425.zip             85×   compact date
+```
+
+**The trap:** a date regex anchored `$` straight after the date matches the first and third
+shapes and **silently drops all 202 of the middle one** — which is every snapshot from 2021 to
+2023. It does not error; it just yields a station dimension that is quietly wrong for three
+years. `list_snapshots()` therefore *raises* on any listed `.zip` it cannot parse.
+
+`FP<year>` is the **timetable** year, distinct from the publication date, and two FP years
+publish concurrently around each December changeover. 722 files → **594 unique publication
+days**, median cadence **7 days**; the only gap >21 d is 2016-12-15 → 2017-01-23, before our
+range. The listing lags real time by ~2 months (last snapshot 2026-05-03 as of 2026-07).
+
+### One snapshot is truncated
+
+`GTFS_FP2018_2018-08-15.zip` is **67 MB of local-header stream with no central directory at
+all** — no EOCD, no ZIP64 record. It fails to open from local disk too, so it is a bad upload,
+not a range-request artifact. It is the **only** broken snapshot of 594 (`gtfs-census.json`).
+
+Skipping it is harmless at weekly cadence. Skipping many would not be — it would silently
+coarsen the dimension — so the builder fails if >2% are unusable.
+
+### stops.txt: stable schema, four id shapes, no row type in every era
+
+Fields `stop_id, stop_name, stop_lat, stop_lon, location_type, parent_station` are present in
+every era (2026 adds `platform_code`, `original_stop_id` — so select by name, never `SELECT *`).
+Rows grow 29k (2018) → 98k (2026). Four `stop_id` shapes:
+
+| Shape           | Meaning                       |
+| --------------- | ----------------------------- |
+| `8501008`       | bare station row              |
+| `Parent8501008` | parent station row (`location_type=1`) |
+| `8501008:0:1`   | platform                      |
+| `8004238P`      | 2018's station row (`location_type=1`) |
+
+**No single kind exists in every era**: 2018 has no `Parent` rows at all (station rows are bare,
+or `…P`), and by 2026 **15,465 stations have no bare row**. So the coordinate source must be a
+preference chain: bare → parent → `location_type=1` → platform centroid.
+
+### Don't average platforms, and round before comparing
+
+Two rules that only matter because this is SCD2 — either would be invisible in a single
+snapshot, and both would otherwise manufacture change events:
+
+- **Coordinate precision drifts**: `46.2102053471586` (2018, 13 dp) vs `46.21021156` (2026,
+  8 dp). Raw float comparison emits a change for nearly every station at the boundary. Round to
+  **5 dp (~1.1 m)** before diffing.
+- **Platform centroid ≠ station row, and the relationship changed.** The centroid matches the
+  station row for **86.5% of stations in 2023 but only 11.0% in 2026** (platforms share the
+  station's coordinate in 2023 and have distinct ones in 2026). So M0's "average the platforms,
+  it's fine at map zoom" — true for one map — would invent a coordinate change for ~89% of
+  stations at the era boundary. Station rows agree with each other **100%** of the time
+  (bare vs parent, at 5 dp), so the preference chain never jumps.
+
+Averaging is still the fallback for stations that have *only* platform rows (945 in 2018,
+including Buchs SG).

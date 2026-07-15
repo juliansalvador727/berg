@@ -1,0 +1,4159 @@
+{
+ "2016-11-30": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 1676159,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2016-11-30.zip"
+ },
+ "2016-12-15": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 1912287,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2016-12-15.zip"
+ },
+ "2017-01-23": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 1912079,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-01-23.zip"
+ },
+ "2017-01-27": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 1912287,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-01-27.zip"
+ },
+ "2017-02-03": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 1912287,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-02-03.zip"
+ },
+ "2017-02-24": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2430346,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-02-24.zip"
+ },
+ "2017-03-04": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2437978,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-03-04.zip"
+ },
+ "2017-03-09": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2428325,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-03-09.zip"
+ },
+ "2017-03-15": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2437236,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-03-15.zip"
+ },
+ "2017-03-22": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2438240,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-03-22.zip"
+ },
+ "2017-03-29": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2439768,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-03-29.zip"
+ },
+ "2017-04-06": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2455123,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-04-06.zip"
+ },
+ "2017-04-12": {
+  "fp_year": 2017,
+  "members": 7,
+  "ok": true,
+  "stops_bytes": 2457640,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-04-12.zip"
+ },
+ "2017-04-19": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2457640,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-04-19.zip"
+ },
+ "2017-05-04": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2414327,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-04.zip"
+ },
+ "2017-05-05": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2414327,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-05.zip"
+ },
+ "2017-05-11": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2414327,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-11.zip"
+ },
+ "2017-05-18": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2414834,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-18.zip"
+ },
+ "2017-05-24": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2414755,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-24.zip"
+ },
+ "2017-05-31": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2422316,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-05-31.zip"
+ },
+ "2017-06-06": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2422316,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-06-06.zip"
+ },
+ "2017-06-14": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2429857,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-06-14.zip"
+ },
+ "2017-06-20": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2431535,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-06-20.zip"
+ },
+ "2017-06-27": {
+  "fp_year": 2017,
+  "members": 8,
+  "ok": true,
+  "stops_bytes": 2431303,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-06-27.zip"
+ },
+ "2017-07-06": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2432784,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-07-06.zip"
+ },
+ "2017-07-07": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2432784,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-07-07.zip"
+ },
+ "2017-07-11": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2434615,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-07-11.zip"
+ },
+ "2017-07-18": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2435392,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-07-18.zip"
+ },
+ "2017-07-26": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2442528,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-07-26.zip"
+ },
+ "2017-08-01": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2442528,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-01.zip"
+ },
+ "2017-08-02": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2442528,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-02.zip"
+ },
+ "2017-08-08": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2625149,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-08.zip"
+ },
+ "2017-08-16": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2654695,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-16.zip"
+ },
+ "2017-08-22": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2442528,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-22.zip"
+ },
+ "2017-08-29": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2456602,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-29.zip"
+ },
+ "2017-08-30": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2456602,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-08-30.zip"
+ },
+ "2017-09-06": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2463361,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-09-06.zip"
+ },
+ "2017-09-13": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2465033,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-09-13.zip"
+ },
+ "2017-09-20": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2465187,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-09-20.zip"
+ },
+ "2017-09-27": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2465389,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-09-27.zip"
+ },
+ "2017-10-04": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2465389,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-10-04.zip"
+ },
+ "2017-10-11": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2466514,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-10-11.zip"
+ },
+ "2017-10-18": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 1943862,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2017-10-18.zip"
+ },
+ "2017-10-25": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2468283,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-10-25.zip"
+ },
+ "2017-11-01": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2469069,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-11-01.zip"
+ },
+ "2017-11-08": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2468931,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-11-08.zip"
+ },
+ "2017-11-15": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2459208,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-11-15.zip"
+ },
+ "2017-11-22": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2466250,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-11-22.zip"
+ },
+ "2017-11-29": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2466668,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-11-29.zip"
+ },
+ "2017-12-05": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2166183,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2017-12-05.zip"
+ },
+ "2017-12-06": {
+  "fp_year": 2017,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2466668,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2017-gtfs/GTFS_FP2017_2017-12-06.zip"
+ },
+ "2017-12-13": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2166183,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2017-12-13.zip"
+ },
+ "2017-12-14": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2275036,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2017-12-14.zip"
+ },
+ "2017-12-20": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2277078,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2017-12-20.zip"
+ },
+ "2018-01-03": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2277078,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-01-03.zip"
+ },
+ "2018-01-10": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2285923,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-01-10.zip"
+ },
+ "2018-01-17": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2289230,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-01-17.zip"
+ },
+ "2018-01-24": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2293593,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-01-24.zip"
+ },
+ "2018-01-31": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2298738,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-01-31.zip"
+ },
+ "2018-02-07": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2303714,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-02-07.zip"
+ },
+ "2018-02-14": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2305950,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-02-14.zip"
+ },
+ "2018-02-21": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2312759,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-02-21.zip"
+ },
+ "2018-02-28": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2315076,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-02-28.zip"
+ },
+ "2018-03-07": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2318779,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-03-07.zip"
+ },
+ "2018-03-14": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2321071,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-03-14.zip"
+ },
+ "2018-03-21": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2324148,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-03-21.zip"
+ },
+ "2018-04-04": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2329541,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-04-04.zip"
+ },
+ "2018-04-11": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2333092,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-04-11.zip"
+ },
+ "2018-04-18": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2334401,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-04-18.zip"
+ },
+ "2018-04-25": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2334338,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-04-25.zip"
+ },
+ "2018-05-02": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2331225,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-05-02.zip"
+ },
+ "2018-05-09": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2335868,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-05-09.zip"
+ },
+ "2018-05-16": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2335103,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-05-16.zip"
+ },
+ "2018-05-23": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2335103,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-05-23.zip"
+ },
+ "2018-05-30": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2341266,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-05-30.zip"
+ },
+ "2018-06-06": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2345265,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-06-06.zip"
+ },
+ "2018-06-13": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2345442,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-06-13.zip"
+ },
+ "2018-06-20": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2347424,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-06-20.zip"
+ },
+ "2018-06-27": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2349157,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-06-27.zip"
+ },
+ "2018-07-04": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2349532,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-07-04.zip"
+ },
+ "2018-07-11": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2350657,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-07-11.zip"
+ },
+ "2018-07-18": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2362536,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-07-18.zip"
+ },
+ "2018-07-25": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2363840,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-07-25.zip"
+ },
+ "2018-08-01": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2363840,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-01.zip"
+ },
+ "2018-08-08": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2368156,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-08.zip"
+ },
+ "2018-08-15": {
+  "error": "BadZipFile: File is not a zip file",
+  "fp_year": 2018,
+  "ok": false,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-15.zip"
+ },
+ "2018-08-16": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2370245,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-16.zip"
+ },
+ "2018-08-22": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2370972,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-22.zip"
+ },
+ "2018-08-29": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2372666,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-08-29.zip"
+ },
+ "2018-09-05": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2373258,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-09-05.zip"
+ },
+ "2018-09-12": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2364715,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-09-12.zip"
+ },
+ "2018-09-19": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2377041,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-09-19.zip"
+ },
+ "2018-09-26": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2378166,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-09-26.zip"
+ },
+ "2018-10-02": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2381147,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-10-02.zip"
+ },
+ "2018-10-03": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 1745745,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-10-03.zip"
+ },
+ "2018-10-12": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2381572,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-10-12.zip"
+ },
+ "2018-10-17": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2381512,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-10-17.zip"
+ },
+ "2018-10-18": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 1900561,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-10-18.zip"
+ },
+ "2018-10-24": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2381692,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-10-24.zip"
+ },
+ "2018-10-31": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2382914,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-10-31.zip"
+ },
+ "2018-11-07": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2383082,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-11-07.zip"
+ },
+ "2018-11-14": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2383329,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-11-14.zip"
+ },
+ "2018-11-21": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2384297,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-11-21.zip"
+ },
+ "2018-11-28": {
+  "fp_year": 2018,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2384297,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2018-gtfs/GTFS_FP2018_2018-11-28.zip"
+ },
+ "2018-12-05": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2316831,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-12-05.zip"
+ },
+ "2018-12-12": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2316831,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-12-12.zip"
+ },
+ "2018-12-19": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 1870302,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-12-19.zip"
+ },
+ "2018-12-26": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2334767,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2018-12-26.zip"
+ },
+ "2019-01-02": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2335064,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-01-02.zip"
+ },
+ "2019-01-09": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2340680,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-01-09.zip"
+ },
+ "2019-01-16": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2343633,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-01-16.zip"
+ },
+ "2019-01-24": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2346731,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-01-24.zip"
+ },
+ "2019-01-30": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2348775,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-01-30.zip"
+ },
+ "2019-02-06": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2352325,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-02-06.zip"
+ },
+ "2019-02-13": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2355521,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-02-13.zip"
+ },
+ "2019-02-20": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2360353,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-02-20.zip"
+ },
+ "2019-02-27": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2346175,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-02-27.zip"
+ },
+ "2019-03-06": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 1904202,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-03-06.zip"
+ },
+ "2019-03-13": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2368204,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-03-13.zip"
+ },
+ "2019-03-20": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2368204,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-03-20.zip"
+ },
+ "2019-03-27": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2374528,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-03-27.zip"
+ },
+ "2019-04-03": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2375234,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-04-03.zip"
+ },
+ "2019-04-10": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2377195,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-04-10.zip"
+ },
+ "2019-04-17": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2379963,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-04-17.zip"
+ },
+ "2019-04-24": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2380914,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-04-24.zip"
+ },
+ "2019-05-01": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2380914,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-01.zip"
+ },
+ "2019-05-02": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2380914,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-02.zip"
+ },
+ "2019-05-08": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2383999,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-08.zip"
+ },
+ "2019-05-15": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2384927,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-15.zip"
+ },
+ "2019-05-22": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2413947,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-22.zip"
+ },
+ "2019-05-29": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2416554,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-05-29.zip"
+ },
+ "2019-06-05": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2417151,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-06-05.zip"
+ },
+ "2019-06-12": {
+  "fp_year": 2019,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 2415597,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-06-12.zip"
+ },
+ "2019-06-19": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2416931,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-06-19.zip"
+ },
+ "2019-06-26": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2416931,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-06-26.zip"
+ },
+ "2019-07-03": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2419612,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-07-03.zip"
+ },
+ "2019-07-10": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2420488,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-07-10.zip"
+ },
+ "2019-07-17": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2420839,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-07-17.zip"
+ },
+ "2019-07-24": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2420937,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-07-24.zip"
+ },
+ "2019-07-31": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2422473,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-07-31.zip"
+ },
+ "2019-08-07": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2422473,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-08-07.zip"
+ },
+ "2019-08-14": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2424984,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-08-14.zip"
+ },
+ "2019-08-21": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2426464,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-08-21.zip"
+ },
+ "2019-08-28": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2427450,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-08-28.zip"
+ },
+ "2019-09-04": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2428297,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-09-04.zip"
+ },
+ "2019-09-11": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2427262,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-09-11.zip"
+ },
+ "2019-09-18": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2432183,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-09-18.zip"
+ },
+ "2019-09-19": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2020319,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-09-19.zip"
+ },
+ "2019-09-25": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2433006,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-09-25.zip"
+ },
+ "2019-10-02": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2434443,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-10-02.zip"
+ },
+ "2019-10-09": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2435245,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-10-09.zip"
+ },
+ "2019-10-16": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2434427,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-10-16.zip"
+ },
+ "2019-10-23": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2434490,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-10-23.zip"
+ },
+ "2019-10-30": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2435543,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-10-30.zip"
+ },
+ "2019-11-06": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2435506,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-11-06.zip"
+ },
+ "2019-11-13": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2435783,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-11-13.zip"
+ },
+ "2019-11-20": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2436732,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-11-20.zip"
+ },
+ "2019-11-27": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2437024,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-11-27.zip"
+ },
+ "2019-12-04": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2437268,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-12-04.zip"
+ },
+ "2019-12-11": {
+  "fp_year": 2019,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2438586,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2019-gtfs/GTFS_FP2019_2019-12-11.zip"
+ },
+ "2019-12-12": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2115175,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-12-12.zip"
+ },
+ "2019-12-18": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2116912,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-12-18.zip"
+ },
+ "2019-12-20": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2323485,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-12-20.zip"
+ },
+ "2019-12-21": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2344191,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-12-21.zip"
+ },
+ "2019-12-25": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2370654,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2019-12-25.zip"
+ },
+ "2020-01-01": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2370891,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-01-01.zip"
+ },
+ "2020-01-08": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2370862,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-01-08.zip"
+ },
+ "2020-01-15": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2372686,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-01-15.zip"
+ },
+ "2020-01-22": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2375429,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-01-22.zip"
+ },
+ "2020-01-29": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2377504,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-01-29.zip"
+ },
+ "2020-02-05": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2384109,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-02-05.zip"
+ },
+ "2020-02-12": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2384970,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-02-12.zip"
+ },
+ "2020-02-19": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2390284,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-02-19.zip"
+ },
+ "2020-02-26": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2389813,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-02-26.zip"
+ },
+ "2020-03-04": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2391238,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-03-04.zip"
+ },
+ "2020-03-11": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2393663,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-03-11.zip"
+ },
+ "2020-03-18": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2397895,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-03-18.zip"
+ },
+ "2020-03-25": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2377088,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-03-25.zip"
+ },
+ "2020-04-01": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2360178,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-04-01.zip"
+ },
+ "2020-04-08": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2362432,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-04-08.zip"
+ },
+ "2020-04-15": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2357408,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-04-15.zip"
+ },
+ "2020-04-22": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2348986,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-04-22.zip"
+ },
+ "2020-04-29": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2349985,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-04-29.zip"
+ },
+ "2020-05-06": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2356125,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-05-06.zip"
+ },
+ "2020-05-13": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2361041,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-05-13.zip"
+ },
+ "2020-05-20": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2364527,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-05-20.zip"
+ },
+ "2020-05-27": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2367306,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-05-27.zip"
+ },
+ "2020-06-03": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2375750,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-06-03.zip"
+ },
+ "2020-06-10": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2382838,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-06-10.zip"
+ },
+ "2020-06-17": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2468484,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-06-17.zip"
+ },
+ "2020-06-24": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2504182,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-06-24.zip"
+ },
+ "2020-07-01": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2511985,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-07-01.zip"
+ },
+ "2020-07-08": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2522520,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-07-08.zip"
+ },
+ "2020-07-09": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2530804,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-07-09.zip"
+ },
+ "2020-07-15": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2529157,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-07-15.zip"
+ },
+ "2020-07-22": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2529562,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-07-22.zip"
+ },
+ "2020-07-29": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2532105,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-07-29.zip"
+ },
+ "2020-08-05": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2532894,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-08-05.zip"
+ },
+ "2020-08-12": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2534185,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-08-12.zip"
+ },
+ "2020-08-19": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2538463,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-08-19.zip"
+ },
+ "2020-08-26": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2539021,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-08-26.zip"
+ },
+ "2020-09-02": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2543408,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-09-02.zip"
+ },
+ "2020-09-09": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2542606,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-09-09.zip"
+ },
+ "2020-09-16": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2655293,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-09-16.zip"
+ },
+ "2020-09-17": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2661782,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-09-17.zip"
+ },
+ "2020-09-23": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2660057,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-09-23.zip"
+ },
+ "2020-09-24": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2654997,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-09-24.zip"
+ },
+ "2020-09-30": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2787372,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-09-30.zip"
+ },
+ "2020-10-07": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2832754,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-10-07.zip"
+ },
+ "2020-10-14": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2833134,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-10-14.zip"
+ },
+ "2020-10-15": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2809001,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs/GTFS_FP2020_2020-10-15.zip"
+ },
+ "2020-10-21": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2833289,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-10-21.zip"
+ },
+ "2020-10-28": {
+  "fp_year": 2020,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2835484,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2020-gtfs2020/GTFS_FP2020_2020-10-28.zip"
+ },
+ "2020-11-04": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2401164,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-11-04.zip"
+ },
+ "2020-11-11": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2419890,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-11-11.zip"
+ },
+ "2020-11-18": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2461694,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-11-18.zip"
+ },
+ "2020-11-25": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2478827,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-11-25.zip"
+ },
+ "2020-12-02": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2728759,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-12-02.zip"
+ },
+ "2020-12-09": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2758669,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-12-09.zip"
+ },
+ "2020-12-16": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2848505,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-12-16.zip"
+ },
+ "2020-12-23": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2900329,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2020-12-23.zip"
+ },
+ "2021-01-13": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2907201,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-01-13.zip"
+ },
+ "2021-01-20": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2874819,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-01-20.zip"
+ },
+ "2021-01-21": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2925405,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-01-21.zip"
+ },
+ "2021-01-22": {
+  "fp_year": 2021,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 2925405,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-01-22.zip"
+ },
+ "2021-01-27": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2776733,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-01-27.zip"
+ },
+ "2021-02-03": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2810242,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-02-03_15-06.zip"
+ },
+ "2021-02-10": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2814245,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-02-10_09-40.zip"
+ },
+ "2021-02-17": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2821684,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-02-17_09-10.zip"
+ },
+ "2021-02-24": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2822813,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-02-24_09-10.zip"
+ },
+ "2021-03-03": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2828074,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-03_09-10.zip"
+ },
+ "2021-03-10": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2828943,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-10_09-10.zip"
+ },
+ "2021-03-11": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2828943,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-11_11-32.zip"
+ },
+ "2021-03-17": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2829894,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-17_09-10.zip"
+ },
+ "2021-03-24": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2832533,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-24_09-10.zip"
+ },
+ "2021-03-31": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2845666,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-03-31_09-10.zip"
+ },
+ "2021-04-07": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2844339,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-04-07_09-10.zip"
+ },
+ "2021-04-14": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2855461,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-04-14_09-10.zip"
+ },
+ "2021-04-21": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2859017,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-04-21_12-47.zip"
+ },
+ "2021-04-28": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2891464,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-04-28_09-10.zip"
+ },
+ "2021-05-05": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2893429,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-05-05_09-10.zip"
+ },
+ "2021-05-12": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2901266,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-05-12_09-10.zip"
+ },
+ "2021-05-19": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2904155,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-05-19_09-10.zip"
+ },
+ "2021-05-26": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2970993,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-05-26_14-37.zip"
+ },
+ "2021-06-02": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2974375,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-02_09-10.zip"
+ },
+ "2021-06-09": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2987105,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-09_09-10.zip"
+ },
+ "2021-06-16": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2999796,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-16_09-10.zip"
+ },
+ "2021-06-23": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3026155,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-23_09-10.zip"
+ },
+ "2021-06-24": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3026155,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-24_13-47.zip"
+ },
+ "2021-06-30": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3029405,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-06-30_09-10.zip"
+ },
+ "2021-07-07": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3035340,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-07-07_09-10.zip"
+ },
+ "2021-07-14": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3024813,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-07-14_09-10.zip"
+ },
+ "2021-07-21": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3046699,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-07-21_09-10.zip"
+ },
+ "2021-07-28": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3047201,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-07-28_09-10.zip"
+ },
+ "2021-08-04": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3051484,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-08-04_09-10.zip"
+ },
+ "2021-08-11": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3056738,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-08-11_09-46.zip"
+ },
+ "2021-08-18": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3057986,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-08-18_09-10.zip"
+ },
+ "2021-08-25": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3058547,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-08-25_09-10.zip"
+ },
+ "2021-09-01": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3062107,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-01_09-10.zip"
+ },
+ "2021-09-08": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2841744,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-08_09-10.zip"
+ },
+ "2021-09-09": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3094114,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-09_16-33.zip"
+ },
+ "2021-09-15": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3096543,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-15_09-10.zip"
+ },
+ "2021-09-22": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3098736,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-22_09-10.zip"
+ },
+ "2021-09-29": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3097226,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-09-29_09-10.zip"
+ },
+ "2021-10-06": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3097552,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-10-06_09-10.zip"
+ },
+ "2021-10-13": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3084672,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-10-13_09-10.zip"
+ },
+ "2021-10-20": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3083641,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-10-20_09-10.zip"
+ },
+ "2021-10-27": {
+  "fp_year": 2021,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3083872,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2021-gtfs2020/GTFS_FP2021_2021-10-27_09-10.zip"
+ },
+ "2021-11-03": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2594085,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-11-03_09-49.zip"
+ },
+ "2021-11-10": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2607614,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-11-10_09-15.zip"
+ },
+ "2021-11-17": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2641642,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-11-17_09-15.zip"
+ },
+ "2021-11-24": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2663317,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-11-24_09-15.zip"
+ },
+ "2021-12-01": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2673872,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-12-01_09-15.zip"
+ },
+ "2021-12-08": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3110546,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-12-08_09-15.zip"
+ },
+ "2021-12-15": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3039295,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-12-15_09-15.zip"
+ },
+ "2021-12-22": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3061833,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2021-12-22_09-15.zip"
+ },
+ "2022-01-05": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3061669,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-01-05_09-15.zip"
+ },
+ "2022-01-12": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3078210,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-01-12_09-15.zip"
+ },
+ "2022-01-19": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3088433,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-01-19_09-15.zip"
+ },
+ "2022-01-26": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3091570,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-01-26_09-15.zip"
+ },
+ "2022-02-02": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3093780,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-02-02_17-26.zip"
+ },
+ "2022-02-09": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3095703,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-02-09_09-15.zip"
+ },
+ "2022-02-16": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3100789,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-02-16_09-15.zip"
+ },
+ "2022-02-23": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3103520,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-02-23_09-15.zip"
+ },
+ "2022-03-02": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3105781,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-03-02_09-15.zip"
+ },
+ "2022-03-09": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3109338,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-03-09_09-15.zip"
+ },
+ "2022-03-16": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3111999,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-03-16_09-15.zip"
+ },
+ "2022-03-23": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3116398,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-03-23_09-15.zip"
+ },
+ "2022-03-30": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3124092,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-03-30_04-15.zip"
+ },
+ "2022-04-06": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3142965,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-04-06_04-15.zip"
+ },
+ "2022-04-13": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3141857,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-04-13_04-15.zip"
+ },
+ "2022-04-27": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3144640,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-04-27_04-15.zip"
+ },
+ "2022-05-04": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3152228,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-05-04_04-15.zip"
+ },
+ "2022-05-11": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3151590,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-05-11_04-15.zip"
+ },
+ "2022-05-18": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3172498,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-05-18_04-15.zip"
+ },
+ "2022-05-25": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3173708,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-05-25_04-15.zip"
+ },
+ "2022-06-01": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3176756,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-06-01_04-15.zip"
+ },
+ "2022-06-08": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3177704,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-06-08_04-15.zip"
+ },
+ "2022-06-15": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3178983,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-06-15_04-15.zip"
+ },
+ "2022-06-22": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3182269,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-06-22_04-15.zip"
+ },
+ "2022-06-29": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3185076,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-06-29_04-15.zip"
+ },
+ "2022-07-06": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3184859,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-07-06_04-15.zip"
+ },
+ "2022-07-13": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3186120,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-07-13_04-15.zip"
+ },
+ "2022-07-20": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3189084,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-07-20_04-15.zip"
+ },
+ "2022-07-27": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3190033,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-07-27_04-15.zip"
+ },
+ "2022-08-03": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3191763,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-08-03_04-15.zip"
+ },
+ "2022-08-10": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194899,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-08-10_04-15.zip"
+ },
+ "2022-08-17": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194731,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-08-17_04-15.zip"
+ },
+ "2022-08-24": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3196621,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-08-24_12-37.zip"
+ },
+ "2022-08-31": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3193027,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-08-31_04-15.zip"
+ },
+ "2022-09-07": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3195941,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-09-07_04-15.zip"
+ },
+ "2022-09-14": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3183257,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-09-14_04-15.zip"
+ },
+ "2022-09-21": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3183357,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-09-21_04-15.zip"
+ },
+ "2022-09-28": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3188354,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-09-28_04-15.zip"
+ },
+ "2022-10-05": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3203117,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-10-05_04-15.zip"
+ },
+ "2022-10-12": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3208152,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-10-12_04-15.zip"
+ },
+ "2022-10-18": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2500267,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-10-18_15-43.zip"
+ },
+ "2022-10-19": {
+  "fp_year": 2022,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3209287,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2022-gtfs2020/GTFS_FP2022_2022-10-19_04-15.zip"
+ },
+ "2022-10-26": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2515014,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-10-26_04-15.zip"
+ },
+ "2022-11-02": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2559808,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-11-02_04-15.zip"
+ },
+ "2022-11-09": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2605249,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-11-09_04-15.zip"
+ },
+ "2022-11-16": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2754326,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-11-16_04-15.zip"
+ },
+ "2022-11-23": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2791896,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-11-23_04-15.zip"
+ },
+ "2022-11-30": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2883338,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-11-30_04-15.zip"
+ },
+ "2022-12-07": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3164275,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-12-07_08-31.zip"
+ },
+ "2022-12-14": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3068917,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-12-14_04-15.zip"
+ },
+ "2022-12-21": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3081149,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2022-12-21_04-15.zip"
+ },
+ "2023-01-04": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3130763,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-01-04_04-15.zip"
+ },
+ "2023-01-11": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3068092,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-01-11_04-15.zip"
+ },
+ "2023-01-18": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3092294,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-01-18_04-15.zip"
+ },
+ "2023-01-25": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3081186,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-01-25_04-15.zip"
+ },
+ "2023-02-01": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3084969,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-02-01_04-15.zip"
+ },
+ "2023-02-08": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3105832,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-02-08_04-15.zip"
+ },
+ "2023-02-15": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3104706,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-02-15_04-15.zip"
+ },
+ "2023-02-22": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3109508,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-02-22_04-15.zip"
+ },
+ "2023-03-01": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3108858,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-03-01_04-15.zip"
+ },
+ "2023-03-08": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3116909,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-03-08_04-15.zip"
+ },
+ "2023-03-15": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3116119,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-03-15_04-15.zip"
+ },
+ "2023-03-22": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3124459,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-03-22_04-15.zip"
+ },
+ "2023-03-29": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3147856,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-03-29_04-15.zip"
+ },
+ "2023-04-05": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3151367,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-04-05_04-15.zip"
+ },
+ "2023-04-12": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3155782,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-04-12_04-15.zip"
+ },
+ "2023-04-19": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3156973,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-04-19_04-15.zip"
+ },
+ "2023-04-26": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3133493,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-04-26_04-15.zip"
+ },
+ "2023-05-03": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3167019,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-05-03_04-15.zip"
+ },
+ "2023-05-10": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3162002,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-05-10_04-15.zip"
+ },
+ "2023-05-17": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3161204,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-05-17_04-15.zip"
+ },
+ "2023-05-24": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3165794,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-05-24_04-15.zip"
+ },
+ "2023-05-31": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3164512,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-05-31_04-15.zip"
+ },
+ "2023-06-07": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3164751,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-06-07_04-15.zip"
+ },
+ "2023-06-14": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3171211,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-06-14_04-15.zip"
+ },
+ "2023-06-21": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3172897,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-06-21_04-15.zip"
+ },
+ "2023-06-28": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3175250,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-06-28_04-15.zip"
+ },
+ "2023-07-05": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3176850,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-07-05_04-15.zip"
+ },
+ "2023-07-12": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3175761,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-07-12_04-15.zip"
+ },
+ "2023-07-19": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3191570,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-07-19_04-15.zip"
+ },
+ "2023-07-26": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194612,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-07-26_04-15.zip"
+ },
+ "2023-08-02": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194240,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-08-02_04-15.zip"
+ },
+ "2023-08-09": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3196415,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-08-09_04-15.zip"
+ },
+ "2023-08-16": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3179531,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-08-16_04-15.zip"
+ },
+ "2023-08-23": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3195045,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-08-23_04-15.zip"
+ },
+ "2023-08-30": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194250,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-08-30_04-15.zip"
+ },
+ "2023-09-06": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3198518,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-09-06_04-15.zip"
+ },
+ "2023-09-13": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3194835,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-09-13_04-15.zip"
+ },
+ "2023-09-20": {
+  "fp_year": 2023,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3199840,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2023-gtfs2020/GTFS_FP2023_2023-09-20_04-15.zip"
+ },
+ "2023-09-27": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2300809,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-09-27_04-15.zip"
+ },
+ "2023-10-04": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2494294,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-10-04_04-15.zip"
+ },
+ "2023-10-11": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2567253,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-10-11_04-15.zip"
+ },
+ "2023-10-18": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2627133,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-10-18_04-15.zip"
+ },
+ "2023-10-25": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2639193,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-10-25_04-15.zip"
+ },
+ "2023-11-01": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2658635,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-11-01_04-15.zip"
+ },
+ "2023-11-08": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2707034,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-11-08_13-13.zip"
+ },
+ "2023-11-15": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2878199,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-11-15_04-15.zip"
+ },
+ "2023-11-22": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 2989366,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-11-22_04-15.zip"
+ },
+ "2023-11-29": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3128383,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-11-29_04-15.zip"
+ },
+ "2023-12-06": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3408548,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-12-06_04-15.zip"
+ },
+ "2023-12-13": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3265786,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-12-13_04-15.zip"
+ },
+ "2023-12-20": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3316802,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2023-12-20_04-15.zip"
+ },
+ "2024-01-03": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3423995,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-01-03_16-36.zip"
+ },
+ "2024-01-10": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3422950,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-01-10_04-15.zip"
+ },
+ "2024-01-17": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 3437700,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-01-17_04-15.zip"
+ },
+ "2024-01-24": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6486252,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-01-24_04-15.zip"
+ },
+ "2024-01-31": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6488961,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-01-31_04-15.zip"
+ },
+ "2024-02-07": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6456785,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-02-07_04-15.zip"
+ },
+ "2024-02-14": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6511166,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-02-14_04-15.zip"
+ },
+ "2024-02-21": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6497599,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-02-21_04-15.zip"
+ },
+ "2024-02-28": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6498234,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-02-28_04-15.zip"
+ },
+ "2024-03-06": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6503198,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-03-06_04-15.zip"
+ },
+ "2024-03-13": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6507447,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-03-13_04-15.zip"
+ },
+ "2024-03-20": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6511568,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-03-20_04-15.zip"
+ },
+ "2024-03-27": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6536226,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-03-27_04-15.zip"
+ },
+ "2024-04-03": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6543282,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-03_04-15.zip"
+ },
+ "2024-04-11": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6555616,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-11_09-11.zip"
+ },
+ "2024-04-15": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6550875,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-15_08-54.zip"
+ },
+ "2024-04-22": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6556250,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-22_08-54.zip"
+ },
+ "2024-04-25": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6555536,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-25_08-52.zip"
+ },
+ "2024-04-29": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6559068,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-04-29_08-52.zip"
+ },
+ "2024-05-02": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6560691,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-02.zip"
+ },
+ "2024-05-06": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6564869,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-06.zip"
+ },
+ "2024-05-13": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6563448,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-13.zip"
+ },
+ "2024-05-16": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6563448,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-16.zip"
+ },
+ "2024-05-23": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6572467,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-23.zip"
+ },
+ "2024-05-27": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6562089,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-27.zip"
+ },
+ "2024-05-30": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6577053,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-05-30.zip"
+ },
+ "2024-06-03": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6582714,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-03.zip"
+ },
+ "2024-06-06": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6585683,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-06.zip"
+ },
+ "2024-06-10": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6596767,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-10.zip"
+ },
+ "2024-06-13": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6595324,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-13.zip"
+ },
+ "2024-06-20": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6594637,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-20.zip"
+ },
+ "2024-06-24": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6599691,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-24.zip"
+ },
+ "2024-06-27": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6593730,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-06-27.zip"
+ },
+ "2024-07-01": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6594168,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-01.zip"
+ },
+ "2024-07-04": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6595730,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-04.zip"
+ },
+ "2024-07-08": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6596292,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-08.zip"
+ },
+ "2024-07-11": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6596292,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-11.zip"
+ },
+ "2024-07-15": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6596430,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-15.zip"
+ },
+ "2024-07-18": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6598436,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-18.zip"
+ },
+ "2024-07-22": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6602112,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-22.zip"
+ },
+ "2024-07-25": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6604832,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-25.zip"
+ },
+ "2024-07-29": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6638090,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-07-29.zip"
+ },
+ "2024-08-05": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6637284,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-05.zip"
+ },
+ "2024-08-08": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6637187,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-08.zip"
+ },
+ "2024-08-12": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6637451,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-12.zip"
+ },
+ "2024-08-15": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6638548,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-15.zip"
+ },
+ "2024-08-19": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6638374,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-19.zip"
+ },
+ "2024-08-22": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6638875,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-22.zip"
+ },
+ "2024-08-26": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6639585,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-08-26.zip"
+ },
+ "2024-09-02": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4846562,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-09-02.zip"
+ },
+ "2024-09-05": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6643926,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-09-05.zip"
+ },
+ "2024-09-09": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4862099,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-09-09.zip"
+ },
+ "2024-09-12": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6646206,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-09-12.zip"
+ },
+ "2024-09-16": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4860805,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-09-16.zip"
+ },
+ "2024-09-19": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6620284,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-09-19.zip"
+ },
+ "2024-09-23": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4866867,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-09-23.zip"
+ },
+ "2024-09-26": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5836190,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-09-26.zip"
+ },
+ "2024-09-30": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4276282,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-09-30.zip"
+ },
+ "2024-10-03": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5837427,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-10-03.zip"
+ },
+ "2024-10-07": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4282924,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-10-07.zip"
+ },
+ "2024-10-10": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5843529,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-10-10.zip"
+ },
+ "2024-10-14": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4446307,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-10-14.zip"
+ },
+ "2024-10-17": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5845575,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-10-17.zip"
+ },
+ "2024-10-21": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4510478,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-10-21.zip"
+ },
+ "2024-10-24": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6201505,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-10-24.zip"
+ },
+ "2024-10-28": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4794704,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-10-28.zip"
+ },
+ "2024-10-31": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6207580,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-10-31.zip"
+ },
+ "2024-11-04": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4806132,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-11-04.zip"
+ },
+ "2024-11-07": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6207914,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-11-07.zip"
+ },
+ "2024-11-11": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4971530,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-11-11.zip"
+ },
+ "2024-11-14": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6208253,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-11-14.zip"
+ },
+ "2024-11-18": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5174463,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-11-18.zip"
+ },
+ "2024-11-21": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6208240,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-11-21.zip"
+ },
+ "2024-11-25": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5312728,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-11-25.zip"
+ },
+ "2024-11-28": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6207408,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-11-28.zip"
+ },
+ "2024-12-02": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5714315,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-02.zip"
+ },
+ "2024-12-05": {
+  "fp_year": 2024,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6207489,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2024-gtfs2020/GTFS_FP2024_2024-12-05.zip"
+ },
+ "2024-12-09": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5720675,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-09.zip"
+ },
+ "2024-12-12": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5730854,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-12.zip"
+ },
+ "2024-12-16": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5732905,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-16.zip"
+ },
+ "2024-12-19": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5957947,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-19.zip"
+ },
+ "2024-12-23": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5958337,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2024-12-23.zip"
+ },
+ "2025-01-06": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5962714,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-06.zip"
+ },
+ "2025-01-09": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7078576,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-09.zip"
+ },
+ "2025-01-13": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5992218,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-13.zip"
+ },
+ "2025-01-16": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6014376,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-16.zip"
+ },
+ "2025-01-20": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6016708,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-20.zip"
+ },
+ "2025-01-24": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6034741,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-24.zip"
+ },
+ "2025-01-27": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6037492,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-27.zip"
+ },
+ "2025-01-30": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7193463,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-01-30.zip"
+ },
+ "2025-02-03": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7195372,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-03.zip"
+ },
+ "2025-02-06": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7201876,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-06.zip"
+ },
+ "2025-02-10": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7205917,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-10.zip"
+ },
+ "2025-02-13": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7210541,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-13.zip"
+ },
+ "2025-02-17": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7212589,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-17.zip"
+ },
+ "2025-02-20": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7232988,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-20.zip"
+ },
+ "2025-02-24": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7234306,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-24.zip"
+ },
+ "2025-02-27": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7295971,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-02-27.zip"
+ },
+ "2025-03-03": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7298963,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-03.zip"
+ },
+ "2025-03-06": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7306494,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-06.zip"
+ },
+ "2025-03-10": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7307480,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-10.zip"
+ },
+ "2025-03-13": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7312756,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-13.zip"
+ },
+ "2025-03-17": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7319290,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-17.zip"
+ },
+ "2025-03-20": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7325475,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-20.zip"
+ },
+ "2025-03-24": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7326499,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-24.zip"
+ },
+ "2025-03-27": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7330535,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-27.zip"
+ },
+ "2025-03-31": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7306615,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-03-31.zip"
+ },
+ "2025-04-03": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7313869,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-03.zip"
+ },
+ "2025-04-07": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7316777,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-07.zip"
+ },
+ "2025-04-10": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7408541,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-10.zip"
+ },
+ "2025-04-14": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7408862,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-14.zip"
+ },
+ "2025-04-17": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7415439,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-17.zip"
+ },
+ "2025-04-23": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7419932,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-23.zip"
+ },
+ "2025-04-24": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7417160,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-24.zip"
+ },
+ "2025-04-28": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7416804,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-04-28.zip"
+ },
+ "2025-05-05": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7431217,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-05.zip"
+ },
+ "2025-05-08": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7162964,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-08.zip"
+ },
+ "2025-05-12": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7164661,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-12.zip"
+ },
+ "2025-05-15": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7165260,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-15.zip"
+ },
+ "2025-05-19": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7168419,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-19.zip"
+ },
+ "2025-05-22": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7172353,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-22.zip"
+ },
+ "2025-05-26": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7197556,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-05-26.zip"
+ },
+ "2025-06-02": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7177311,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-06-02.zip"
+ },
+ "2025-06-05": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7180370,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-06-05.zip"
+ },
+ "2025-06-12": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7204349,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-06-12.zip"
+ },
+ "2025-06-16": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7205869,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-06-16.zip"
+ },
+ "2025-06-19": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7206858,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_2025-06-19.zip"
+ },
+ "2025-06-23": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4669587,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-06-23.zip"
+ },
+ "2025-06-26": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4673449,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-06-26.zip"
+ },
+ "2025-06-30": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4673436,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-06-30.zip"
+ },
+ "2025-07-03": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4675809,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-03.zip"
+ },
+ "2025-07-07": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4682987,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-07.zip"
+ },
+ "2025-07-10": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4693489,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-10.zip"
+ },
+ "2025-07-14": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4689014,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-14.zip"
+ },
+ "2025-07-17": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4706419,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-17.zip"
+ },
+ "2025-07-21": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4712285,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-21.zip"
+ },
+ "2025-07-24": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4723870,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-24.zip"
+ },
+ "2025-07-28": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 4725575,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-28.zip"
+ },
+ "2025-07-31": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5786934,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-07-31.zip"
+ },
+ "2025-08-04": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5789346,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-04.zip"
+ },
+ "2025-08-07": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5793337,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-07.zip"
+ },
+ "2025-08-11": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5799629,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-11.zip"
+ },
+ "2025-08-14": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5810535,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-14.zip"
+ },
+ "2025-08-18": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5815199,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-18.zip"
+ },
+ "2025-08-21": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5820400,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-21.zip"
+ },
+ "2025-08-25": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5941267,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-25.zip"
+ },
+ "2025-08-28": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5945877,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-08-28.zip"
+ },
+ "2025-09-01": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5947239,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-01.zip"
+ },
+ "2025-09-04": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5948637,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-04.zip"
+ },
+ "2025-09-08": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5960259,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-08.zip"
+ },
+ "2025-09-11": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5962949,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-11.zip"
+ },
+ "2025-09-16": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5963265,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-16.zip"
+ },
+ "2025-09-18": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5963536,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-18.zip"
+ },
+ "2025-09-22": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5821635,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_2025-09-22.zip"
+ },
+ "2025-09-25": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5836858,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20250925.zip"
+ },
+ "2025-09-27": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 5838849,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20250927.zip"
+ },
+ "2025-10-02": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6307883,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251002.zip"
+ },
+ "2025-10-04": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6311719,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251004.zip"
+ },
+ "2025-10-09": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6311827,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251009.zip"
+ },
+ "2025-10-11": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 6319159,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251011.zip"
+ },
+ "2025-10-15": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7942862,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251015.zip"
+ },
+ "2025-10-18": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 7992748,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251018.zip"
+ },
+ "2025-10-22": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8001920,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251022.zip"
+ },
+ "2025-10-25": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8062051,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251025.zip"
+ },
+ "2025-10-29": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8081387,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251029.zip"
+ },
+ "2025-11-01": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8092533,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251101.zip"
+ },
+ "2025-11-05": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8138796,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251105.zip"
+ },
+ "2025-11-08": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8524112,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251108.zip"
+ },
+ "2025-11-12": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8848890,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251112.zip"
+ },
+ "2025-11-15": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8914930,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251115.zip"
+ },
+ "2025-11-20": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9169816,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251120.zip"
+ },
+ "2025-11-22": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9249058,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251122.zip"
+ },
+ "2025-11-26": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9356088,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251126.zip"
+ },
+ "2025-11-29": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9414603,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251129.zip"
+ },
+ "2025-12-03": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9406768,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251203.zip"
+ },
+ "2025-12-06": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9455748,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251206.zip"
+ },
+ "2025-12-10": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9454644,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251210.zip"
+ },
+ "2025-12-11": {
+  "fp_year": 2025,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 10780884,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2025-gtfs2020/GTFS_FP2025_20251211.zip"
+ },
+ "2025-12-14": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8301050,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251214.zip"
+ },
+ "2025-12-17": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8318734,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251217.zip"
+ },
+ "2025-12-20": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8525802,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20251220.zip"
+ },
+ "2026-01-03": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 8589424,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260103.zip"
+ },
+ "2026-01-07": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9796614,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260107.zip"
+ },
+ "2026-01-10": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9788923,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260110.zip"
+ },
+ "2026-01-14": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9789084,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260114.zip"
+ },
+ "2026-01-17": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9796102,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260117.zip"
+ },
+ "2026-01-21": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9831003,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260121.zip"
+ },
+ "2026-01-24": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9830127,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260124.zip"
+ },
+ "2026-01-28": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9835116,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260128.zip"
+ },
+ "2026-01-31": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9847743,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260131.zip"
+ },
+ "2026-02-04": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9853102,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260204.zip"
+ },
+ "2026-02-07": {
+  "fp_year": 2026,
+  "members": 9,
+  "ok": true,
+  "stops_bytes": 9881805,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260207.zip"
+ },
+ "2026-02-09": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9881805,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260209.zip"
+ },
+ "2026-02-11": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9891747,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260211.zip"
+ },
+ "2026-02-13": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9898352,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260213.zip"
+ },
+ "2026-02-18": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9945115,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260218.zip"
+ },
+ "2026-02-20": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9946427,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260220.zip"
+ },
+ "2026-02-24": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9945292,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260224.zip"
+ },
+ "2026-02-27": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 9974187,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260227.zip"
+ },
+ "2026-03-04": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10011490,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260304.zip"
+ },
+ "2026-03-07": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10036156,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260307.zip"
+ },
+ "2026-03-11": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10039992,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260311.zip"
+ },
+ "2026-03-14": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10152503,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260314.zip"
+ },
+ "2026-03-18": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10158099,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260318.zip"
+ },
+ "2026-03-21": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10150971,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260321.zip"
+ },
+ "2026-03-25": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10153325,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260325.zip"
+ },
+ "2026-03-28": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10147908,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260328.zip"
+ },
+ "2026-04-01": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10168519,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260401.zip"
+ },
+ "2026-04-08": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10174503,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260408.zip"
+ },
+ "2026-04-11": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10181058,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260411.zip"
+ },
+ "2026-04-15": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10173494,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260415.zip"
+ },
+ "2026-04-18": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10186206,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260418.zip"
+ },
+ "2026-04-22": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10196016,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260422.zip"
+ },
+ "2026-04-25": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10216775,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260425.zip"
+ },
+ "2026-04-29": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10220581,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260429.zip"
+ },
+ "2026-05-03": {
+  "fp_year": 2026,
+  "members": 10,
+  "ok": true,
+  "stops_bytes": 10217523,
+  "url": "https://archive.opentransportdata.swiss/timetable_gtfs/timetable-2026-gtfs2020/GTFS_FP2026_20260503.zip"
+ }
+}
