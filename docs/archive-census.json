@@ -1,0 +1,859 @@
+{
+ "2018-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 5716919292,
+  "usable_days": 31
+ },
+ "2018-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 5349902514,
+  "usable_days": 28
+ },
+ "2018-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6437559360,
+  "usable_days": 31
+ },
+ "2018-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6231001162,
+  "usable_days": 30
+ },
+ "2018-05": {
+  "absent": [
+   "2018-05-24"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6206750502,
+  "usable_days": 30
+ },
+ "2018-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6448036185,
+  "usable_days": 30
+ },
+ "2018-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6583543190,
+  "usable_days": 31
+ },
+ "2018-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6480827272,
+  "usable_days": 31
+ },
+ "2018-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6230572597,
+  "usable_days": 30
+ },
+ "2018-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 6496381023,
+  "usable_days": 31
+ },
+ "2018-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 7593653184,
+  "usable_days": 30
+ },
+ "2018-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 7982261914,
+  "usable_days": 31
+ },
+ "2019-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 8262837961,
+  "usable_days": 31
+ },
+ "2019-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 7586601510,
+  "usable_days": 28
+ },
+ "2019-03": {
+  "absent": [
+   "2019-03-02"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 8052485033,
+  "usable_days": 30
+ },
+ "2019-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 8637507207,
+  "usable_days": 30
+ },
+ "2019-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 9046726743,
+  "usable_days": 31
+ },
+ "2019-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 8827301000,
+  "usable_days": 30
+ },
+ "2019-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [
+   "2019-07-01",
+   "2019-07-02",
+   "2019-07-03",
+   "2019-07-04",
+   "2019-07-05",
+   "2019-07-06",
+   "2019-07-07",
+   "2019-07-08",
+   "2019-07-09",
+   "2019-07-10",
+   "2019-07-11",
+   "2019-07-12",
+   "2019-07-13",
+   "2019-07-14",
+   "2019-07-15",
+   "2019-07-16"
+  ],
+  "total_bytes": 5351107540,
+  "usable_days": 15
+ },
+ "2019-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10901318206,
+  "usable_days": 31
+ },
+ "2019-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10614756323,
+  "usable_days": 30
+ },
+ "2019-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11226352942,
+  "usable_days": 31
+ },
+ "2019-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10966676953,
+  "usable_days": 30
+ },
+ "2019-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11214084767,
+  "usable_days": 31
+ },
+ "2020-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11332064428,
+  "usable_days": 31
+ },
+ "2020-02": {
+  "absent": [],
+  "expected_days": 29,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10849679536,
+  "usable_days": 29
+ },
+ "2020-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10378961621,
+  "usable_days": 31
+ },
+ "2020-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 7910235678,
+  "usable_days": 30
+ },
+ "2020-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 10501532863,
+  "usable_days": 31
+ },
+ "2020-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11146857195,
+  "usable_days": 30
+ },
+ "2020-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11521913599,
+  "usable_days": 31
+ },
+ "2020-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11322812280,
+  "usable_days": 31
+ },
+ "2020-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11576152782,
+  "usable_days": 30
+ },
+ "2020-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11995601296,
+  "usable_days": 31
+ },
+ "2020-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11418657720,
+  "usable_days": 30
+ },
+ "2020-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11991762940,
+  "usable_days": 31
+ },
+ "2021-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12031231836,
+  "usable_days": 31
+ },
+ "2021-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11166965696,
+  "usable_days": 28
+ },
+ "2021-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12506520089,
+  "usable_days": 31
+ },
+ "2021-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12115960540,
+  "usable_days": 30
+ },
+ "2021-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12501090265,
+  "usable_days": 31
+ },
+ "2021-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12857354486,
+  "usable_days": 30
+ },
+ "2021-07": {
+  "absent": [
+   "2021-07-14",
+   "2021-07-19",
+   "2021-07-23",
+   "2021-07-24",
+   "2021-07-25"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 11457009818,
+  "usable_days": 26
+ },
+ "2021-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13831274458,
+  "usable_days": 31
+ },
+ "2021-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13774020567,
+  "usable_days": 30
+ },
+ "2021-10": {
+  "absent": [
+   "2021-10-15"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13330594043,
+  "usable_days": 30
+ },
+ "2021-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13436383315,
+  "usable_days": 30
+ },
+ "2021-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12288233591,
+  "usable_days": 31
+ },
+ "2022-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12597273999,
+  "usable_days": 31
+ },
+ "2022-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12595896502,
+  "usable_days": 28
+ },
+ "2022-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14194389903,
+  "usable_days": 31
+ },
+ "2022-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13111163231,
+  "usable_days": 30
+ },
+ "2022-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13445014208,
+  "usable_days": 31
+ },
+ "2022-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13352660904,
+  "usable_days": 30
+ },
+ "2022-07": {
+  "absent": [
+   "2022-07-24"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13230200468,
+  "usable_days": 30
+ },
+ "2022-08": {
+  "absent": [
+   "2022-08-08",
+   "2022-08-17"
+  ],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 12616242942,
+  "usable_days": 29
+ },
+ "2022-09": {
+  "absent": [
+   "2022-09-04"
+  ],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13392849930,
+  "usable_days": 29
+ },
+ "2022-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13877404876,
+  "usable_days": 31
+ },
+ "2022-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [
+   "2022-11-09"
+  ],
+  "total_bytes": 12754627681,
+  "usable_days": 29
+ },
+ "2022-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14075241371,
+  "usable_days": 31
+ },
+ "2023-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14223973389,
+  "usable_days": 31
+ },
+ "2023-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13082361144,
+  "usable_days": 28
+ },
+ "2023-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 30,
+  "stubs": [],
+  "total_bytes": 14530612279,
+  "usable_days": 31
+ },
+ "2023-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13354201732,
+  "usable_days": 30
+ },
+ "2023-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 16,
+  "stubs": [],
+  "total_bytes": 14061418307,
+  "usable_days": 31
+ },
+ "2023-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13987221096,
+  "usable_days": 30
+ },
+ "2023-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14099050279,
+  "usable_days": 31
+ },
+ "2023-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14283421329,
+  "usable_days": 31
+ },
+ "2023-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13894994562,
+  "usable_days": 30
+ },
+ "2023-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13908242011,
+  "usable_days": 31
+ },
+ "2023-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13953126195,
+  "usable_days": 30
+ },
+ "2023-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14111358536,
+  "usable_days": 31
+ },
+ "2024-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14545439913,
+  "usable_days": 31
+ },
+ "2024-02": {
+  "absent": [],
+  "expected_days": 29,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 13860722208,
+  "usable_days": 29
+ },
+ "2024-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14595056535,
+  "usable_days": 31
+ },
+ "2024-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14306203583,
+  "usable_days": 30
+ },
+ "2024-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 2,
+  "stubs": [],
+  "total_bytes": 14628409346,
+  "usable_days": 31
+ },
+ "2024-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14447505205,
+  "usable_days": 30
+ },
+ "2024-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15157614417,
+  "usable_days": 31
+ },
+ "2024-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14988595810,
+  "usable_days": 31
+ },
+ "2024-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14673070082,
+  "usable_days": 30
+ },
+ "2024-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 1,
+  "stubs": [],
+  "total_bytes": 14884644178,
+  "usable_days": 31
+ },
+ "2024-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 1,
+  "stubs": [],
+  "total_bytes": 13923989485,
+  "usable_days": 30
+ },
+ "2024-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14938279109,
+  "usable_days": 31
+ },
+ "2025-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15427018010,
+  "usable_days": 31
+ },
+ "2025-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14150932063,
+  "usable_days": 28
+ },
+ "2025-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15555330087,
+  "usable_days": 31
+ },
+ "2025-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 14803267683,
+  "usable_days": 30
+ },
+ "2025-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15589247617,
+  "usable_days": 31
+ },
+ "2025-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15054862268,
+  "usable_days": 30
+ },
+ "2025-07": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15488204497,
+  "usable_days": 31
+ },
+ "2025-08": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15097718209,
+  "usable_days": 31
+ },
+ "2025-09": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 15032419769,
+  "usable_days": 30
+ },
+ "2025-10": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 17014199840,
+  "usable_days": 31
+ },
+ "2025-11": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 16981462074,
+  "usable_days": 30
+ },
+ "2025-12": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 17826385314,
+  "usable_days": 31
+ },
+ "2026-01": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 18057051814,
+  "usable_days": 31
+ },
+ "2026-02": {
+  "absent": [],
+  "expected_days": 28,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 16673794488,
+  "usable_days": 28
+ },
+ "2026-03": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 18535208372,
+  "usable_days": 31
+ },
+ "2026-04": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 17534818589,
+  "usable_days": 30
+ },
+ "2026-05": {
+  "absent": [],
+  "expected_days": 31,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 17670699135,
+  "usable_days": 31
+ },
+ "2026-06": {
+  "absent": [],
+  "expected_days": 30,
+  "junk_members": 0,
+  "stubs": [],
+  "total_bytes": 18119624499,
+  "usable_days": 30
+ },
+ "2026-07": {
+  "error": "HTTPStatusError: Client error '404 Not Found' for url 'https://archive.opentransportdata.swiss/istdaten/2026/ist-daten-2026-07.zip'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"
+ }
+}

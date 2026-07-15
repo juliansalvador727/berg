@@ -12,10 +12,17 @@ ARCHIVE_URL = "https://archive.opentransportdata.swiss/actual_data_archive.htm"
 def raw_zip(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     """Download one monthly archive ZIP to local scratch.
 
-    ~1.8 TB across the full archive, so raw ZIPs are deleted once stg_istdaten consumes them —
-    never keep more than one month on disk.
+    ~1.27 TB across the full archive (measured — see docs/archive-census.json), so raw ZIPs are
+    deleted once stg_istdaten consumes them; never keep more than one month on disk.
+
+    Use berg_pipeline.archive: url_for_month() knows the naming eras, and day_members() is the
+    only safe way to enumerate days — member paths take six shapes, five months ship __MACOSX
+    resource forks with .csv names, and 29 days across the archive are absent or 20 KB stubs.
+    A missing day is expected, not a failure.
     """
-    raise NotImplementedError("M3: fetch the ZIP for context.partition_key from ARCHIVE_URL")
+    raise NotImplementedError(
+        "M3: fetch the ZIP for context.partition_key via archive.url_for_month"
+    )
 
 
 @dg.asset(partitions_def=monthly_partitions, group_name="ingest", deps=[raw_zip])
@@ -23,10 +30,14 @@ def stg_istdaten(context: dg.AssetExecutionContext, duckdb: DuckDBResource) -> d
     """Daily CSVs → one normalized stop-event table per month.
 
     Load-bearing details:
-      - read_csv with an EXPLICIT schema. Never autodetect across ten years of drift.
-      - Filter PRODUKT_ID = 'Zug' first; the raw feed is mostly PostBus.
-      - Actual times are only observations when *_PROGNOSE_STATUS says so ('GESCHAETZT' in v1;
-        verify the v2 enum against the cookbook). Otherwise fall back to scheduled and flag it.
-      - v1 and v2 get one normalizing view each; this asset picks by partition date.
+      - read_csv with all_varchar=true and parse explicitly. Never autodetect across ten years
+        of drift: it silently typed BETRIEBSTAG as DATE on a real file.
+      - Filter upper(PRODUKT_ID) = 'ZUG' first; the raw feed is mostly PostBus, and the case
+        drifts ('Bus' and 'BUS' both occur).
+      - Actual times are observations only when *_PROGNOSE_STATUS is in MEASURED_STATUSES.
+        Otherwise fall back to scheduled and flag it.
+      - NO era view is needed. Both URL series share one header; the only schema change in the
+        archive is SLOID appended in 2025-11, and it is unused here. Select COLUMNS_ALL_ERAS by
+        name and this spans 2018 → now. Just never SELECT *.
     """
     raise NotImplementedError("M1: normalize raw CSV to stop events")

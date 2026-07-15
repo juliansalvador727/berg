@@ -1,10 +1,14 @@
 # Ist-Daten: what the data actually does
 
-Measured against one full service day (2026-06-03, a Wednesday) during the M0 spike. Numbers are
-one day, so treat them as an order of magnitude, not gospel — but every claim here was verified
-against real data rather than documentation.
+Measured against one full service day (2026-06-03, a Wednesday) during the M0 spike, and
+extended at M1 by a census of **every month 2018-01 → 2026-06**, header samples across both URL
+series, and full-day probes of the v1 era (2018-01, 2018-05, 2019-07, 2023-06, 2025-08). Every
+claim here was verified against real data rather than documentation.
 
-Reproduce with `pipeline/scripts/m0_export.py`.
+Reproduce with `pipeline/scripts/m0_export.py` (one day → browser binary),
+`pipeline/scripts/probe_era.py` (one day → schema/enum/volume report),
+`pipeline/scripts/find_status_switch.py` (enum boundary), and
+`pipeline/scripts/archive_census.py` (coverage map → `docs/archive-census.json`).
 
 ## The archive
 
@@ -33,6 +37,49 @@ filename says it: *unvollständig*, incomplete. **Real coverage starts 2018-01.*
 Both v1 and v2 are published in parallel, through 2026-06 at least. There is no forced migration
 yet — but v2 is the one to build on.
 
+### Member paths inside the ZIPs drift too — never construct one
+
+The naming eras above are only the *file* names. Member paths have taken at least six shapes:
+
+```
+jan18/2018-01-01istdaten.csv          mai18/2018-05-06istdaten.csv
+18_10/2018-10-01istdaten.csv          19_7/2019-07-01istdaten.csv
+20_04/2020-04-01_istdaten.csv         2022-01-01_istdaten.csv          (bare, no folder)
+ist-daten-2023-04/2023-04-01_istdaten.csv                2026-06-03_IstDaten.csv
+```
+
+Folder prefix, underscore before `istdaten`, and capitalisation all vary; the folder name does
+not reliably match the month's own naming era. **The only stable thing is an ISO date in the
+basename.** Always list the ZIP and match on that — `berg_pipeline.archive.day_members()`.
+
+### Three months carry `__MACOSX` junk that looks like data
+
+2023-03, 2023-05, 2024-05, 2024-10 and 2024-11 were zipped on a Mac and ship AppleDouble
+resource forks: `__MACOSX/._2023-03-01_istdaten.csv`, ~300 bytes, **with a `.csv` extension**.
+2023-03 has 61 "CSV" members for a 31-day month. A naive glob ingests 30 empty days. Filter
+`__MACOSX/` and basenames starting with `._`.
+
+### The archive has holes: 29 missing days
+
+`archive_census.py` reads each month's central directory (no downloads) and finds **3,074 usable
+days of an expected 3,103**, totalling **1.27 TB** raw — not the 1.8 TB the plan assumed. Full
+map in `docs/archive-census.json`. Missing days come in two flavours: **absent** (no member at
+all, 12 days) and **stub** (a member of ~20 KB, 17 days). Both must be treated as no-data:
+
+| Gap                       | Days | Kind   |
+| ------------------------- | ---: | ------ |
+| **2019-07-01 .. 07-16**   | **16** | stub |
+| 2021-07-23 .. 07-25       |    3 | absent |
+| 2018-05-24, 2019-03-02, 2021-07-14, 2021-07-19, 2021-10-15, 2022-07-24, 2022-08-08, 2022-08-17, 2022-09-04 | 9 | absent |
+| 2022-11-09                |    1 | stub   |
+
+Half of July 2019 is simply not there. **Consequences:** the backfill must not treat a missing
+day as failure; `manifest.json` needs an explicit missing-days list; and the frontend scrub bar
+has to skip gaps rather than show a frozen map for sixteen days.
+
+Also: **the current month is not published** (2026-07 404s mid-month), so coverage ends at the
+last complete month.
+
 ## Schema
 
 Delimiter `;`. Columns:
@@ -46,11 +93,79 @@ DURCHFAHRT_TF SLOID
 
 **`SLOID` is its own column** — it is not stuffed into `BPUIC`. `BPUIC` stays a clean integer.
 
-### Measured status is `REAL`, not `GESCHAETZT`
+### "v1 vs v2" is not a schema distinction — the schema is date-driven
 
-This is the one that matters most, and it is the opposite of what v1 lore says.
+The obvious assumption (v1 = 21 columns, v2 = 22 with `SLOID`) is **wrong**, and it fails in both
+directions. Headers of the first day of each month, both URL series:
 
-`AB_PROGNOSE_STATUS` for `PRODUKT_ID='Zug'`, one day:
+| Month   | `ist-daten-YYYY-MM.zip` ("v1") | `ist-daten-v2-YYYY-MM.zip` |
+| ------- | ------------------------------ | -------------------------- |
+| 2025-07 | 21, no SLOID                   | **21, no SLOID**           |
+| 2025-10 | 21, no SLOID                   | 21, no SLOID               |
+| 2025-11 | **22, SLOID**                  | **22, SLOID**              |
+| 2026-06 | 22, SLOID                      | 22, SLOID                  |
+
+**`SLOID` appears in 2025-11, in both series simultaneously** — four months *after* v2 launched.
+The two series have had **identical headers in every month checked** (2018-01 → 2026-06); the
+first 21 columns are byte-identical in name and order throughout the archive.
+
+So there is no v1 schema and no v2 schema, only a **date**: 21 columns before 2025-11, 22 after.
+And since `SLOID` is a column we don't use, the "one normalizing view per era" the plan calls for
+is really just **select the columns you need by name** — that works for every month of both
+series, with no era branch at all.
+
+### The two series do differ — but barely, where it counts
+
+Identical headers, different contents: v2 is ~9% larger on disk. For 2025-08-03, all rows:
+
+| Series | Train rows | `REAL` | Products                                       |
+| ------ | ---------: | -----: | ---------------------------------------------- |
+| v1     |    146,757 | 120,603 | Bus, Tram, Zug, Zahnradbahn, Schiff            |
+| v2     |    162,793 | 121,645 | …same **+ Metro** (3,265)                      |
+
+v2 carries **+10.9% train stop events but only +0.9% more measured ones** — the extra ~16k rows
+are almost all `PROGNOSE`/`UNBEKANNT`/null, i.e. forecasts we never render. v2 also reports a
+`Metro` product that v1 omits entirely.
+
+**Why this matters:** the plan uses v1 for 2018-01 → 2025-06 and v2 from 2025-07, so a series
+switch sits in the middle of the dataset. Measured legs differ by ~1% across it, so **the seam
+will not show as a step in the map**. Good news, but check it again if the fallback-to-scheduled
+path ever renders — those rows differ by 11%.
+
+### Measured status is `REAL` — but the boundary is a DATE, not the file version
+
+This is the one that matters most, and the M1 probe overturned the M0 conclusion.
+
+M0 (v2 only) found measured = `REAL` and no `GESCHAETZT` at all, and concluded that `GESCHAETZT`
+was v1 lore. **Half right.** `GESCHAETZT` *is* the old value, but it died in **May 2018**, seven
+years before v2 existed:
+
+| Day          | Format    | `AB_PROGNOSE_STATUS` for trains        |
+| ------------ | --------- | -------------------------------------- |
+| 2018-05-04   | v1 (21 c) | `GESCHAETZT`                           |
+| **2018-05-06** | v1      | **MIXED** — `GESCHAETZT` 63,275 · `REAL` 15 |
+| 2018-05-08   | v1        | `REAL`                                 |
+| 2023-06-01   | **v1**    | **`REAL`** ← still v1, already REAL    |
+| 2026-06-03   | v2        | `REAL`                                 |
+
+So the enum boundary is **2018-05-07**, and the format boundary is **2025-07**. They are
+unrelated, and 2018-05-06 mixes both values in one file. Only ~4 months of 102 are `GESCHAETZT`
+— not the 83 the plan feared.
+
+**The rule: don't branch on era. Match the set.**
+
+```sql
+WHERE upper(PRODUKT_ID) = 'ZUG' AND AB_PROGNOSE_STATUS IN ('REAL', 'GESCHAETZT')
+```
+
+This is era-free, survives the mixed day, and is safe because the two are mutually exclusive per
+day everywhere else. `GESCHAETZT` does still appear post-2018 — but only for **buses**, which
+the `Zug` filter already removed. (`berg_pipeline.constants.MEASURED_STATUSES`.)
+
+Full v1 day, 2018-01-01: `GESCHAETZT` 94,196 · `PROGNOSE` 21,067 · `UNBEKANNT` 16,101, and
+**no nulls** — unlike v2, which nulls the status when there is no realtime.
+
+`AB_PROGNOSE_STATUS` for `PRODUKT_ID='Zug'`, one v2 day:
 
 | Status       |       n | note                      |
 | ------------ | ------: | ------------------------- |
@@ -62,6 +177,19 @@ This is the one that matters most, and it is the opposite of what v1 lore says.
 
 `GESCHAETZT` ("estimated") does occur — 47,624 times across the whole feed — but only for buses.
 For trains in v2 the measured status is `REAL`. About **87% of legs have a measured departure**.
+
+### Timestamp formats are cleanly split by column, in both eras
+
+M0 recorded "two formats coexist in one file", which is true but understates the regularity.
+Across 2018-01, 2019-07, 2023-06 and 2026-06, every non-null value obeys:
+
+| Column                      | Format             |
+| --------------------------- | ------------------ |
+| `ABFAHRTSZEIT`/`ANKUNFTSZEIT` (scheduled) | `DD.MM.YYYY HH:MM`    |
+| `AB_PROGNOSE`/`AN_PROGNOSE` (actual)      | `DD.MM.YYYY HH:MM:SS` |
+
+Zero unparsed values in any probe. Keep using `try_strptime` with the format list — it costs
+nothing and the invariant is not contractual.
 
 ### There is no stop-sequence column
 
@@ -79,7 +207,7 @@ sequence.
   `DATE` on this file. Read everything with `all_varchar=true` and parse explicitly, or a schema
   change three years into the backfill becomes a silent cast instead of an error.
 
-## Volume (one day, `PRODUKT_ID='Zug'`)
+## Volume (one v2 day, `PRODUKT_ID='Zug'`)
 
 | Thing                       | Measured | Plan assumed |
 | --------------------------- | -------: | -----------: |
@@ -94,6 +222,23 @@ sequence.
 Legs run ~27% below plan, and distinct station pairs are **3.4× fewer** than the ~20k the route
 job was sized for — though pairs will accumulate over a decade, so don't size `routes.bin` off
 one day.
+
+### The feed grows ~25% across the archive
+
+Train stop events on the first of the month, one day per era:
+
+| Day          | Stop events | Runs   | Legs ≈ (events − runs) |
+| ------------ | ----------: | -----: | ---------------------: |
+| 2018-01-01 (New Year, quiet) | 131,364 | 12,311 | ~119k |
+| 2023-06-01   |     162,220 | 15,319 |                 ~147k |
+| 2026-06-03   |     184,003 | 16,252 |                 ~168k |
+
+So legs/day is **not** constant at M0's 163k — early years are lighter. Taking ~150k/day mean
+across 3,074 usable days: **~460M legs ≈ 2.9 GB** at 6.37 B/leg. That is *below* M0's 3.2 GB
+projection (which assumed today's volume for every day), and comfortably inside the 10 GB tier.
+
+Note also 2018's raw days are ~200 MB against 2026's ~600 MB — the 1.27 TB total is
+front-loaded lighter, which helps the backfill.
 
 ### Foreign stops are ~10%
 
@@ -120,10 +265,14 @@ Measured on one real day encoded to the 8-byte wire schema, zstd:
 
 **The M1 gate passes**: 6.37 B/leg against an 8-byte budget and a 10-byte re-plan threshold.
 
-Extrapolated over real coverage (2018-01 → 2026-06, ~3,100 days): **~502M legs, ~3.2 GB** against
-the 10 GB free tier. The plan assumed 800M legs and 5–7 GB with "thin" headroom and dropping the
-oldest years as an escape hatch. **Neither is necessary** — there is ~6.8 GB spare, and the
-oldest years are cheap because they don't exist.
+Extrapolated over real coverage (2018-01 → 2026-06): M0 projected ~502M legs / ~3.2 GB by
+assuming today's 163k legs for every one of ~3,100 days. The M1 census refines both inputs —
+**3,074 usable days** (29 are missing) and a feed that was ~25% lighter in 2018 — giving
+**~460M legs, ~2.9 GB** against the 10 GB free tier.
+
+The plan assumed 800M legs and 5–7 GB with "thin" headroom and dropping the oldest years as an
+escape hatch. **Neither is necessary** — there is ~7 GB spare, and the oldest years are cheap
+both because 2016–17 don't exist and because 2018 is a lighter feed.
 
 Also validated: **9,440 legs depart in the hour before 08:00**, matching the planned ~8–10k rows
 per one-hour row group almost exactly.
