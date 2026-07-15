@@ -7,8 +7,10 @@ claim here was verified against real data rather than documentation.
 
 Reproduce with `pipeline/scripts/m0_export.py` (one day → browser binary),
 `pipeline/scripts/probe_era.py` (one day → schema/enum/volume report),
-`pipeline/scripts/find_status_switch.py` (enum boundary), and
-`pipeline/scripts/archive_census.py` (coverage map → `docs/archive-census.json`).
+`pipeline/scripts/find_status_switch.py` (enum boundary),
+`pipeline/scripts/archive_census.py` (coverage map → `docs/archive-census.json`),
+`pipeline/scripts/build_dim_station.py` (the SCD2 station dimension), and
+`pipeline/scripts/build_month.py` (one month end to end through the Dagster assets).
 
 ## The archive
 
@@ -250,8 +252,38 @@ IT (83) 2,142. Clipping to the CH bounding box drops roughly a tenth of stop eve
 - **710 legs/day have a negative duration** (0.44%) — the next stop's arrival is recorded before
   this stop's departure. **625 of them are CH→CH**, so this is not a timezone artifact; it is
   genuine source error. Quarantine and count them; do not clamp silently.
+- **The 2018 feed is ~6× worse: ~3,100 negative-duration legs/day (2.4%)**, measured over all of
+  2018-05 at month scale. They are evenly spread across days and identical on both sides of the
+  GESCHAETZT→REAL switch (76.2% vs 73.8% measured), so this is feed quality improving over the
+  years, not an enum artifact. Do not tune quarantine alarms to the 2026 rate.
 - **284 legs/day exceed 3600 s**, so the split rule is load-bearing. Every one is a NightJet or
   international run (worst: Feldkirch→Siebnen-Wangen at 18,511 s ≈ 5.1 h).
+
+### Month scale (2018-05, the hardest month, through the real pipeline)
+
+First full month through the Dagster assets (`raw_zip → stg_istdaten → fct_legs →
+legs_parquet`), chosen because it contains the enum switch (05-07), the mixed day (05-06), and
+a missing day (05-24):
+
+| Thing                       | 2018-05 measured |
+| --------------------------- | ---------------: |
+| Legs                        | 3,803,102 (126,770/day over 30 service days) |
+| Measured (vs fallback)      | 74.3% — 2018 realtime coverage, not a bug (2026 is ~87%) |
+| Distinct station pairs      | 4,614 in the whole month (2026: 5,854 in one day) |
+| Split sub-legs              | 3,954 (~132/day; fewer night trains than 2026's 284/day) |
+| Max stops in one run        | 48 — `FAHRT_BEZEICHNER` is sane as a per-day trip id |
+| Delay p50 / p99             | 60 s / 435 s |
+| Quarantined                 | negative_duration 93,065 · zero_duration 13,512 · unmatched_station 155 · missing_time 52 |
+| Day files                   | 31 files, 23.7 MB total, **6.23 bytes/leg** — the gate passes at month scale |
+
+Two boundary behaviors worth remembering:
+
+- **Day files are keyed by the DEPARTURE day in UTC**, not the service day — local 00:00–01:59
+  departures land in the previous UTC day's file, which is what the client's
+  "fetch day N and N−1 near midnight" rule expects.
+- **The 05-24 archive hole produces a 311-leg file** (the night tail of 05-23's trains), not a
+  missing file — data-faithful, and the scrub bar treatment (M4) must handle "nearly empty",
+  not just "absent".
 
 ## Storage: the budget is not tight
 

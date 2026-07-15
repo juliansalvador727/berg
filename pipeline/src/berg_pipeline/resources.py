@@ -4,6 +4,8 @@ from pathlib import Path
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
+from berg_pipeline import paths
+
 
 class R2Resource(dg.ConfigurableResource):
     """R2 over its S3-compatible API. Credentials come from the environment, never from code."""
@@ -23,11 +25,12 @@ class R2Resource(dg.ConfigurableResource):
 
 def default_duckdb() -> DuckDBResource:
     """A month of raw CSV does not fit in RAM — memory_limit + a spill directory are mandatory."""
+    paths.DUCKDB_TMP.mkdir(parents=True, exist_ok=True)
     return DuckDBResource(
-        database=os.getenv("BERG_DUCKDB_PATH", "data/berg.duckdb"),
+        database=os.getenv("BERG_DUCKDB_PATH", str(paths.DUCKDB_PATH)),
         connection_config={
             "memory_limit": os.getenv("BERG_DUCKDB_MEMORY_LIMIT", "8GB"),
-            "temp_directory": os.getenv("BERG_DUCKDB_TEMP_DIR", "data/tmp"),
+            "temp_directory": os.getenv("BERG_DUCKDB_TEMP_DIR", str(paths.DUCKDB_TMP)),
         },
     )
 
