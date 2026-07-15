@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://berg.ch", "http://localhost:5173"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["range", "content-type"],
+    "ExposeHeaders": ["content-length", "content-range", "etag"],
+    "MaxAgeSeconds": 3600
+  }
+]
