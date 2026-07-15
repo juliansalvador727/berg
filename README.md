@@ -23,13 +23,30 @@ Each directory has its own README with setup and run instructions.
 # Pipeline
 cd pipeline && uv sync && uv run dagster dev
 
-# Frontend
+# Frontend (needs the M0 export below to exist)
 cd web && npm install && npm run dev
 ```
 
-## Status
+## Status: M0 done — trains move
 
-Pre-M0. Nothing works yet; the skeleton is in place and every asset is a stub.
+One real service day (2026-06-03) replays in the browser: 153,771 legs, 1,820 stations, straight-line
+geometry, playback at 1×–600× with pause and scrub. That closes the loop end to end and retires the
+integration risk.
+
+Rebuild the M0 data (needs a day of Ist-Daten and a GTFS `stops.txt` in `data/raw/` — see
+`docs/data-notes.md` for how to pull them without downloading whole archives):
+
+```sh
+cd pipeline && uv run python scripts/m0_export.py \
+  --raw ../data/raw/2026-06-03_IstDaten.csv \
+  --stops ../data/raw/stops-2026.txt \
+  --out ../web/public/m0
+```
+
+Everything past M0 is still a stub. **[`docs/data-notes.md`](docs/data-notes.md) is the important
+document** — it records what the data actually does, measured rather than assumed, and several of
+its findings overturned the original design assumptions (measured status is `REAL`, 2016–17 is
+unusable, and the storage budget has 3× more headroom than feared).
 
 ## Attribution
 

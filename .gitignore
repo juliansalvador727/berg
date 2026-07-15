@@ -2,6 +2,7 @@ plan.md
 
 # Data — never commit; everything is rebuildable or huge
 data/
+web/public/m0/
 *.parquet
 *.duckdb
 *.duckdb.wal

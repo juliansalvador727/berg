@@ -6,8 +6,10 @@ say so in manifest.json.
 
 SCHEMA_VERSION = 1
 
-# The archive starts here; there is no Ist-Daten before 2016.
-ARCHIVE_START = "2016-01-01"
+# The archive nominally starts in 2016, but 2016+2017 ship as a single ZIP named
+# "unvollstaendig" — 166 MB for 24 months, against 397 MB for January 2018 alone. Usable
+# coverage starts here. See docs/data-notes.md.
+ARCHIVE_START = "2018-01-01"
 
 # Legs longer than this are split into synthetic sub-legs at polyline vertices (flags bit1).
 # This is what bounds the scrub query: every leg in flight at T departed in [T-3600, T].
@@ -27,3 +29,9 @@ PUNCTUALITY_THRESHOLD_S = 180
 # Leg fact bit flags.
 FLAG_SCHEDULED_FALLBACK = 1 << 0  # time is scheduled, not measured
 FLAG_SYNTHETIC_SPLIT = 1 << 1  # produced by the MAX_LEG_DURATION_S split rule
+
+# A *_PROGNOSE time is an observation only when its *_PROGNOSE_STATUS says so. In v2 that value
+# is REAL: GESCHAETZT never appears for trains at all (only buses), despite the v1 lore.
+# Verified against a full day — see docs/data-notes.md.
+MEASURED_STATUS_V2 = "REAL"
+MEASURED_STATUS_V1 = "GESCHAETZT"
