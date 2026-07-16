@@ -59,12 +59,16 @@ def ev(
     ab=None,
     ab_prog=None,
     ab_status="",
+    line="IC 8",
+    umlauf="",
+    extra="false",
+    passthrough="false",
 ):
     return ";".join(
         [
-            day, trip, "85:11", "SBB", "SBB AG", product, "", "", "", cat, "false",
+            day, trip, "85:11", "SBB", "SBB AG", product, "", line, umlauf, cat, extra,
             cancelled, str(bpuic), f"S{bpuic}",
-            an or "", an_prog or "", an_status, ab or "", ab_prog or "", ab_status, "false",
+            an or "", an_prog or "", an_status, ab or "", ab_prog or "", ab_status, passthrough,
         ]
     )  # fmt: skip
 
@@ -360,3 +364,110 @@ def test_truncated_row_does_not_kill_the_month(tmp_path, dim):
     assert stage["rows_raw"] == 3
     assert stage["rows_train"] == 2
     assert len(legs_of(con)) == 1
+
+
+def test_encoding_is_per_file_not_per_month(tmp_path, dim):
+    """The archive mixes encodings INSIDE a month: 2018-11-01 is UTF-8, 2018-11-02 is latin-1.
+
+    So there is no single encoding to pass to read_csv. Verified against the real files:
+    latin-1 is not a catch-all either — DuckDB validates it and rejects the UTF-8 file.
+    """
+    utf8_csv = tmp_path / "2018-05-03.csv"
+    latin_csv = tmp_path / "2018-05-04.csv"
+    # 'Möhlin' as a station name — the real shape of the bytes that killed 2018-11.
+    row_utf8 = ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL")
+    row_latin = ev(day="04.05.2018", bpuic=2, an="04.05.2018 08:30",
+                   an_prog="04.05.2018 08:30:00", an_status="REAL")  # fmt: skip
+    utf8_csv.write_bytes(
+        ("\n".join([HEADER, row_utf8.replace("S1", "Zürich")]) + "\n").encode("utf-8")
+    )
+    latin_csv.write_bytes(
+        ("\n".join([HEADER, row_latin.replace("S2", "Möhlin")]) + "\n").encode("latin-1")
+    )
+
+    assert ingest.file_encoding(utf8_csv) == "utf-8"
+    assert ingest.file_encoding(latin_csv) == "latin-1"
+
+    con = duckdb.connect()
+    split = ingest._stage_raw_view(con, [utf8_csv, latin_csv])
+    assert split == {"latin-1": 1, "utf-8": 1}
+    # Both files are readable through one view — neither encoding is dropped.
+    assert con.execute("SELECT count(*) FROM _raw").fetchone()[0] == 2
+
+
+def test_line_flows_from_csv_to_legs(tmp_path, dim):
+    """LINIEN_TEXT is the line ('S3'), distinct from the category ('S').
+
+    Staged greedily because the raw CSVs are deleted after ingest: a column not taken at this
+    boundary costs a 1.27 TB re-download to add later.
+    """
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, line="S3", cat="S",
+               ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=2, line="S3", cat="S",
+               an="03.05.2018 08:30", an_prog="03.05.2018 08:30:00", an_status="REAL"),
+        ],
+    )  # fmt: skip
+    assert con.execute("SELECT DISTINCT line FROM fct_legs").fetchall() == [("S3",)]
+
+
+def test_blank_line_becomes_null_not_empty_string(tmp_path, dim):
+    """Some runs carry no LINIEN_TEXT; '' would pollute the sidecar's dictionary."""
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, line="   ",
+               ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=2, line="",
+               an="03.05.2018 08:30", an_prog="03.05.2018 08:30:00", an_status="REAL"),
+        ],
+    )  # fmt: skip
+    assert con.execute("SELECT line FROM fct_legs").fetchall() == [(None,)]
+
+
+def test_migrate_tables_is_idempotent_and_preserves_rows(tmp_path, dim):
+    """An existing 185M-row database must GAIN the columns, never be rebuilt to get them."""
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=2, an="03.05.2018 08:30", an_prog="03.05.2018 08:30:00", an_status="REAL"),
+        ],
+    )
+    before = con.execute("SELECT count(*) FROM fct_legs").fetchone()[0]
+    ingest.migrate_tables(con)
+    ingest.migrate_tables(con)  # twice — ALTER ... IF NOT EXISTS must not fail
+    assert con.execute("SELECT count(*) FROM fct_legs").fetchone()[0] == before
+    cols = [d[0] for d in con.execute("SELECT * FROM stg_istdaten LIMIT 0").description]
+    assert {"line", "umlauf_id", "is_extra", "is_passthrough"} <= set(cols)
+
+
+def test_sidecar_carries_line_but_the_wire_does_not(tmp_path, dim):
+    """line belongs to a journey, so it rides in journeys/ — legs stays 8 bytes."""
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, line="IR 15",
+               ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=2, line="IR 15",
+               an="03.05.2018 08:30", an_prog="03.05.2018 08:30:00", an_status="REAL"),
+        ],
+    )  # fmt: skip
+    out = tmp_path / "j.parquet"
+    ingest.export_journeys_day(con, date(2018, 5, 3), out)
+    assert duckdb.sql(f"SELECT DISTINCT line FROM read_parquet('{out.as_posix()}')").fetchall() == [
+        ("IR 15",)
+    ]
+
+    legs = tmp_path / "l.parquet"
+    ingest.export_day(con, date(2018, 5, 3), legs)
+    wire = [
+        d[0] for d in duckdb.sql(f"SELECT * FROM read_parquet('{legs.as_posix()}')").description
+    ]
+    assert "line" not in wire, "the leg wire must stay 8 bytes"

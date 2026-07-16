@@ -234,6 +234,30 @@ Two lessons, both already written down elsewhere in this file and both ignored b
 it), and **a month that comes up short must fail loudly** — `raw_zip` now cross-checks the
 extracted day count against this census and refuses to stage a short month.
 
+### Encoding is per FILE, not per month — one month mixes UTF-8 and latin-1
+
+`2018-11` killed the backfill on `Invalid unicode ... This file is not utf-8 encoded`. It is
+not a per-month property:
+
+| file              | utf-8 | latin-1 |
+| ----------------- | ----- | ------- |
+| `2018-11-01.csv`  | OK, 1,062,898 rows | **rejected** |
+| `2018-11-02.csv`  | **rejected** | OK, 1,188,574 rows |
+
+Consecutive days, opposite encodings. So there is no single `encoding=` to hand `read_csv`,
+and **latin-1 is not a catch-all** — DuckDB validates it and rejects the UTF-8 file, so
+"just always read latin-1" fails half the month too (and would silently mojibake the rest).
+
+Detect per file and `UNION ALL` one `read_csv` per encoding group. Detection is cheap
+(~0.3 s/0.5 GB): a latin-1 file exits at its first bad byte, and only genuine UTF-8 files are
+read through.
+
+The irony: **every offending byte is in a column this pipeline discards.** The bad bytes are
+`0xFC`/`0xE4`/`0xF6` — `Baden-Württemberg` (BETREIBER_NAME), `Möhlin`/`Bossière`
+(HALTESTELLEN_NAME). Operator comes from `BETREIBER_ABK` and station names from
+`dim_station`, so a month died over umlauts it was going to throw away. There are no
+`0x80–0x9F` bytes, so the payload is plain ISO-8859-1, not CP1252.
+
 ### Rows can be truncated — one short line failed an entire month
 
 `2024-10-26.csv` **ends mid-row**: its last line (1,606,824) carries 16 of 21 columns, cut off

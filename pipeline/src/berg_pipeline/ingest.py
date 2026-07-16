@@ -20,6 +20,7 @@ stable across re-runs.
 """
 
 import calendar
+import codecs
 import json
 from datetime import date, timedelta
 from pathlib import Path
@@ -61,7 +62,14 @@ def create_tables(con) -> None:
             act_arr      TIMESTAMP,
             act_dep      TIMESTAMP,
             arr_measured BOOLEAN   NOT NULL,
-            dep_measured BOOLEAN   NOT NULL
+            dep_measured BOOLEAN   NOT NULL,
+            -- Cheap here, unrecoverable later: the raw CSVs are deleted after staging, so a
+            -- column not taken now costs a 1.27 TB re-download to add. Be greedy at this
+            -- boundary; the wire format downstream is where bytes are fought for.
+            line           VARCHAR,  -- LINIEN_TEXT: 'S3', 'IC 8' — the line, not the category
+            umlauf_id      VARCHAR,  -- UMLAUF_ID: rolling-stock rotation
+            is_extra       BOOLEAN,  -- ZUSATZFAHRT_TF: unscheduled/relief run
+            is_passthrough BOOLEAN   -- DURCHFAHRT_TF: passes through without stopping
         )""")
     con.execute("""
         CREATE TABLE IF NOT EXISTS fct_legs (
@@ -74,7 +82,11 @@ def create_tables(con) -> None:
             dur         INTEGER  NOT NULL,   -- 1 .. MAX_LEG_DURATION_S after the split rule
             type_id     SMALLINT NOT NULL,
             delay       SMALLINT NOT NULL,   -- departure delay, SECONDS, clamped to int16
-            flags       TINYINT  NOT NULL
+            flags       TINYINT  NOT NULL,
+            -- The trip's line ('S3'), not the leg's. Never goes on the wire: it belongs to a
+            -- journey, so it rides in the journeys sidecar where ~500 distinct values
+            -- dictionary-encode to almost nothing. legs stays 8 bytes.
+            line        VARCHAR
         )""")
     con.execute("""
         CREATE TABLE IF NOT EXISTS quarantine_legs (
@@ -103,6 +115,87 @@ def create_tables(con) -> None:
         )""")
 
 
+# Columns added after months were already staged. ALTER is idempotent, so an existing
+# berg.duckdb keeps its rows and gains NULLs, and a month re-ingested later fills them in.
+# NULL here means "staged before this column existed", not "absent from the source".
+_ADDED_COLUMNS = (
+    ("stg_istdaten", "line", "VARCHAR"),
+    ("stg_istdaten", "umlauf_id", "VARCHAR"),
+    ("stg_istdaten", "is_extra", "BOOLEAN"),
+    ("stg_istdaten", "is_passthrough", "BOOLEAN"),
+    ("fct_legs", "line", "VARCHAR"),
+)
+
+
+def migrate_tables(con) -> None:
+    """Bring an existing database up to the current schema without rebuilding it."""
+    for table, column, type_ in _ADDED_COLUMNS:
+        con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {type_}")
+
+
+_COUNT_SQL = """
+    SELECT count(*),
+           count(*) FILTER (upper(PRODUKT_ID) = 'ZUG'),
+           count(*) FILTER (upper(PRODUKT_ID) = 'ZUG'
+                            AND coalesce(lower(FAELLT_AUS_TF), 'false') = 'true')
+    FROM _raw"""
+
+# The archive is not consistently UTF-8, and encoding varies FILE TO FILE INSIDE ONE MONTH:
+# 2018-11-01.csv is UTF-8, 2018-11-02.csv is latin-1. So there is no per-month encoding to
+# pick — read_csv takes one encoding per call, and either choice fails half the month.
+#
+# Nor is latin-1 a safe catch-all: DuckDB validates it, and rejects the UTF-8 file outright.
+# Both must be honoured, so group the files and UNION ALL the groups.
+#
+# Every offending byte is in a column this pipeline discards — BETREIBER_NAME
+# ('Baden-Württemberg'), HALTESTELLEN_NAME ('Möhlin', 'Bossière') — because operator comes
+# from BETREIBER_ABK and station names from dim_station. A month died over umlauts it was
+# going to throw away.
+_RAW_COLUMNS = """BETRIEBSTAG, FAHRT_BEZEICHNER, BETREIBER_ABK, VERKEHRSMITTEL_TEXT,
+                  PRODUKT_ID, FAELLT_AUS_TF, BPUIC,
+                  ANKUNFTSZEIT, AN_PROGNOSE, AN_PROGNOSE_STATUS,
+                  ABFAHRTSZEIT, AB_PROGNOSE, AB_PROGNOSE_STATUS,
+                  LINIEN_TEXT, UMLAUF_ID, ZUSATZFAHRT_TF, DURCHFAHRT_TF"""
+
+
+def file_encoding(path: Path) -> str:
+    """'utf-8' or 'latin-1', decided by decoding the whole file.
+
+    Whole file, not a sample: a lone umlaut anywhere flips the verdict, and guessing wrong
+    means either a failed month (guessed utf-8) or silent mojibake (guessed latin-1). The
+    latin-1 case exits at the first bad byte, so only genuine UTF-8 files are read through.
+    """
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    with open(path, "rb") as fh:
+        while chunk := fh.read(1 << 20):
+            try:
+                decoder.decode(chunk)
+            except UnicodeDecodeError:
+                return "latin-1"
+    try:
+        decoder.decode(b"", final=True)
+    except UnicodeDecodeError:
+        return "latin-1"
+    return "utf-8"
+
+
+def _stage_raw_view(con, csv_files: list[Path]) -> dict[str, int]:
+    """Define _raw over the month's CSVs, one read_csv per encoding. Returns the file split."""
+    groups: dict[str, list[Path]] = {}
+    for p in csv_files:
+        groups.setdefault(file_encoding(p), []).append(p)
+
+    selects = []
+    for encoding, files in sorted(groups.items()):
+        listed = "[" + ", ".join(f"'{p.as_posix()}'" for p in files) + "]"
+        selects.append(f"""
+            SELECT {_RAW_COLUMNS}
+            FROM read_csv({listed}, delim=';', header=true, all_varchar=true,
+                          union_by_name=true, null_padding=true, encoding='{encoding}')""")
+    con.execute("CREATE OR REPLACE TEMP VIEW _raw AS " + " UNION ALL ".join(selects))
+    return {enc: len(files) for enc, files in sorted(groups.items())}
+
+
 def stage_month(con, month: str, csv_files: list[Path]) -> dict:
     """Daily CSVs → normalized train stop events for one month.
 
@@ -117,24 +210,11 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
     become a feature.
     """
     create_tables(con)
+    migrate_tables(con)
     first, last = month_bounds(month)
-    files_sql = "[" + ", ".join(f"'{p.as_posix()}'" for p in csv_files) + "]"
 
-    con.execute(f"""
-        CREATE OR REPLACE TEMP VIEW _raw AS
-        SELECT BETRIEBSTAG, FAHRT_BEZEICHNER, BETREIBER_ABK, VERKEHRSMITTEL_TEXT,
-               PRODUKT_ID, FAELLT_AUS_TF, BPUIC,
-               ANKUNFTSZEIT, AN_PROGNOSE, AN_PROGNOSE_STATUS,
-               ABFAHRTSZEIT, AB_PROGNOSE, AB_PROGNOSE_STATUS
-        FROM read_csv({files_sql}, delim=';', header=true, all_varchar=true,
-                      union_by_name=true, null_padding=true)""")
-
-    n_raw, n_train, n_cancelled = con.execute("""
-        SELECT count(*),
-               count(*) FILTER (upper(PRODUKT_ID) = 'ZUG'),
-               count(*) FILTER (upper(PRODUKT_ID) = 'ZUG'
-                                AND coalesce(lower(FAELLT_AUS_TF), 'false') = 'true')
-        FROM _raw""").fetchone()
+    encodings = _stage_raw_view(con, csv_files)
+    n_raw, n_train, n_cancelled = con.execute(_COUNT_SQL).fetchone()
 
     con.execute("DELETE FROM stg_istdaten WHERE service_day BETWEEN ? AND ?", [first, last])
     con.execute(f"""
@@ -151,7 +231,11 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
                AN_PROGNOSE_STATUS IN {_MEASURED_SQL}
                    AND try_strptime(AN_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS arr_measured,
                AB_PROGNOSE_STATUS IN {_MEASURED_SQL}
-                   AND try_strptime(AB_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS dep_measured
+                   AND try_strptime(AB_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS dep_measured,
+               nullif(trim(LINIEN_TEXT), '')                         AS line,
+               nullif(trim(UMLAUF_ID), '')                          AS umlauf_id,
+               lower(ZUSATZFAHRT_TF) = 'true'                       AS is_extra,
+               lower(DURCHFAHRT_TF) = 'true'                        AS is_passthrough
         FROM _raw
         WHERE upper(PRODUKT_ID) = 'ZUG'
           AND coalesce(lower(FAELLT_AUS_TF), 'false') <> 'true'""")
@@ -166,6 +250,9 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
         "rows_cancelled": n_cancelled,
         "rows_staged": n_staged,
         "files": len(csv_files),
+        # e.g. {'latin-1': 29, 'utf-8': 1} — visible, because a month whose encoding split
+        # shifts is the archive telling you something.
+        "encodings": encodings,
     }
 
 
@@ -177,6 +264,7 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
     are clipped (expected, ~10% of stop events; counted, not quarantined).
     """
     create_tables(con)
+    migrate_tables(con)
     first, last = month_bounds(month)
     lon_min, lat_min, lon_max, lat_max = CH_BBOX
 
@@ -189,7 +277,7 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE _cand AS
         WITH ev AS (
-            SELECT service_day, trip_id, category, bpuic,
+            SELECT service_day, trip_id, category, bpuic, line,
                    sched_dep, act_dep, dep_measured, arr_measured,
                    CASE WHEN dep_measured THEN act_dep ELSE sched_dep END AS dep_used,
                    CASE WHEN arr_measured THEN act_arr ELSE sched_arr END AS arr_used,
@@ -198,7 +286,9 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
             WHERE service_day BETWEEN DATE '{first}' AND DATE '{last}'
         ),
         hop AS (
-            SELECT service_day, trip_id, category,
+            -- line comes from the departure stop, not lead(): it is a property of the run, so
+            -- it is constant within the window, and the origin's value is the leg's own.
+            SELECT service_day, trip_id, category, line,
                    bpuic                        AS from_bpuic,
                    lead(bpuic)    OVER w        AS to_bpuic,
                    dep_used,
@@ -209,7 +299,7 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
             FROM ev
             WINDOW w AS (PARTITION BY trip_id, service_day ORDER BY order_key, bpuic)
         )
-        SELECT service_day, trip_id, category, from_bpuic, to_bpuic, measured, delay_s,
+        SELECT service_day, trip_id, category, line, from_bpuic, to_bpuic, measured, delay_s,
                CAST(epoch(timezone('{SOURCE_TZ}', dep_used)) AS BIGINT) AS t_dep,
                CAST(epoch(timezone('{SOURCE_TZ}', arr_next)) AS BIGINT)
                  - CAST(epoch(timezone('{SOURCE_TZ}', dep_used)) AS BIGINT) AS dur
@@ -279,7 +369,8 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
                CAST(greatest(-32768, least(32767, coalesce(g.delay_s, 0))) AS SMALLINT),
                CAST(CASE WHEN g.measured THEN 0 ELSE {FLAG_SCHEDULED_FALLBACK} END
                   | CASE WHEN g.dur > {MAX_LEG_DURATION_S} THEN {FLAG_SYNTHETIC_SPLIT} ELSE 0 END
-                  AS TINYINT)
+                  AS TINYINT),
+               g.line
         FROM (SELECT * FROM _tagged WHERE verdict = 'ok') g
         JOIN station_pairs p USING (from_bpuic, to_bpuic)
         LEFT JOIN dim_train_type tt ON tt.category = g.category,
@@ -365,7 +456,8 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
             SELECT CAST(t_dep    AS UINTEGER) AS t_dep,
                    CAST(route_id AS UINTEGER) AS route_id,
                    trip_id,
-                   service_day
+                   service_day,
+                   line
             FROM fct_legs
             WHERE t_dep >= {lo} AND t_dep < {hi}
             ORDER BY t_dep
