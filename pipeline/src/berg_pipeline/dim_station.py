@@ -158,14 +158,26 @@ def build(cache: Path, out: Path) -> dict:
         FROM (SELECT DISTINCT snap FROM obs)""")
     n_snaps = c.sql("SELECT count(*) FROM seq").fetchone()[0]
 
-    # A new segment starts when an attribute changes, when the station first appears, or when
-    # it was ABSENT from the previous snapshot (idx gap) — a station that closes and reopens
-    # must not have its closure silently spanned by one long validity range.
+    # A new segment starts when an attribute changes, or when the station first appears — and
+    # deliberately NOT when it is merely absent from some snapshots in between.
+    #
+    # Absence used to split too, on the reasoning that a station which closes and reopens must
+    # not have its closure spanned by one validity range. It reads right and it was wrong: this
+    # feed drops stations for weeks and returns them byte-identical. Assens (8501172) has five
+    # segments at one lon/lat, including a 63-day hole in 2025 — and trains kept calling there
+    # throughout. Every leg landing in such a hole failed the validity join and was quarantined
+    # as 'unmatched_station', which reads exactly like the expected foreign-station noise. That
+    # is 2.0M real legs discarded across the archive, from 13,663 stations whose attributes
+    # never changed at all.
+    #
+    # Absence is not evidence of closure — this dimension exists to place a leg's endpoints, and
+    # a leg IS the evidence that the station was serving. Where a station genuinely moves the
+    # attribute test still splits it, so a real A->B->A keeps three segments and the ranges stay
+    # non-overlapping.
     c.sql("""CREATE TABLE seg AS
         SELECT *, sum(is_new) OVER (PARTITION BY bpuic ORDER BY idx) AS seg FROM (
             SELECT o.bpuic, o.name, o.lat, o.lon, s.snap, s.idx,
                    CASE WHEN lag(s.idx)  OVER w IS NULL         THEN 1
-                        WHEN lag(s.idx)  OVER w <> s.idx - 1    THEN 1
                         WHEN lag(o.name) OVER w IS DISTINCT FROM o.name THEN 1
                         WHEN lag(o.lat)  OVER w IS DISTINCT FROM o.lat  THEN 1
                         WHEN lag(o.lon)  OVER w IS DISTINCT FROM o.lon  THEN 1
