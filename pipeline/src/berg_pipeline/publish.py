@@ -12,19 +12,29 @@ from berg_pipeline.constants import MAX_LEG_DURATION_S, SCHEMA_VERSION
 from berg_pipeline.resources import R2Resource
 
 
+R2_ENV_VARS = ("R2_ACCOUNT_ID", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
+
+
 def r2_from_env() -> R2Resource | None:
-    """None (never a half-configured resource) if any credential is missing."""
-    account_id = os.environ.get("R2_ACCOUNT_ID")
-    bucket = os.environ.get("R2_BUCKET")
-    access_key_id = os.environ.get("R2_ACCESS_KEY_ID")
-    secret_access_key = os.environ.get("R2_SECRET_ACCESS_KEY")
-    if not (account_id and bucket and access_key_id and secret_access_key):
+    """None (never a half-configured resource) if any credential is missing.
+
+    Skipping the upload is what you want locally — staging the publish mirror with no
+    credentials is a normal dev run. In CI it is the opposite: unset secrets would make the
+    job report success having published nothing. Set BERG_REQUIRE_R2=1 there to turn a
+    missing credential into a failure instead of a silent skip.
+    """
+    missing = [var for var in R2_ENV_VARS if not os.environ.get(var)]
+    if missing:
+        if os.environ.get("BERG_REQUIRE_R2") == "1":
+            raise RuntimeError(
+                f"BERG_REQUIRE_R2=1 but {', '.join(missing)} unset — refusing to skip the upload."
+            )
         return None
     return R2Resource(
-        account_id=account_id,
-        bucket=bucket,
-        access_key_id=access_key_id,
-        secret_access_key=secret_access_key,
+        account_id=os.environ["R2_ACCOUNT_ID"],
+        bucket=os.environ["R2_BUCKET"],
+        access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
     )
 
 

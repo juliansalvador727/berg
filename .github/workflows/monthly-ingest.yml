@@ -21,6 +21,8 @@ jobs:
       run:
         working-directory: pipeline
     env:
+      # Without this a dropped secret would publish nothing and still report success.
+      BERG_REQUIRE_R2: "1"
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

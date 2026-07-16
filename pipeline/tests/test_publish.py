@@ -1,7 +1,8 @@
 import duckdb
+import pytest
 
 from berg_pipeline.constants import MAX_LEG_DURATION_S, SCHEMA_VERSION
-from berg_pipeline.publish import build_manifest, r2_from_env
+from berg_pipeline.publish import R2_ENV_VARS, build_manifest, r2_from_env
 
 
 def _write_day(path):
@@ -35,7 +36,46 @@ def test_build_manifest_empty_dir(tmp_path):
     assert manifest["end"] is None
 
 
-def test_r2_from_env_none_when_unconfigured(monkeypatch):
-    for var in ("R2_ACCOUNT_ID", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"):
+def _clear_r2_env(monkeypatch):
+    for var in (*R2_ENV_VARS, "BERG_REQUIRE_R2"):
         monkeypatch.delenv(var, raising=False)
+
+
+def _set_r2_env(monkeypatch):
+    for var in R2_ENV_VARS:
+        monkeypatch.setenv(var, "x")
+
+
+def test_r2_from_env_none_when_unconfigured(monkeypatch):
+    _clear_r2_env(monkeypatch)
     assert r2_from_env() is None
+
+
+def test_r2_from_env_builds_resource_when_configured(monkeypatch):
+    _clear_r2_env(monkeypatch)
+    _set_r2_env(monkeypatch)
+    assert r2_from_env() is not None
+
+
+def test_r2_from_env_raises_when_required_and_unset(monkeypatch):
+    _clear_r2_env(monkeypatch)
+    monkeypatch.setenv("BERG_REQUIRE_R2", "1")
+    with pytest.raises(RuntimeError, match="R2_ACCOUNT_ID"):
+        r2_from_env()
+
+
+def test_r2_from_env_raises_when_required_and_one_secret_dropped(monkeypatch):
+    """The CI failure this guards: three secrets present, one silently missing."""
+    _clear_r2_env(monkeypatch)
+    _set_r2_env(monkeypatch)
+    monkeypatch.delenv("R2_SECRET_ACCESS_KEY")
+    monkeypatch.setenv("BERG_REQUIRE_R2", "1")
+    with pytest.raises(RuntimeError, match="R2_SECRET_ACCESS_KEY"):
+        r2_from_env()
+
+
+def test_r2_from_env_required_is_satisfied_when_configured(monkeypatch):
+    _clear_r2_env(monkeypatch)
+    _set_r2_env(monkeypatch)
+    monkeypatch.setenv("BERG_REQUIRE_R2", "1")
+    assert r2_from_env() is not None
