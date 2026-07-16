@@ -20,7 +20,15 @@ class R2Resource(dg.ConfigurableResource):
         return f"https://{self.account_id}.r2.cloudflarestorage.com"
 
     def upload(self, local_path: Path, key: str) -> None:
-        raise NotImplementedError("M3: boto3 client against endpoint_url")
+        import boto3
+
+        client = boto3.client(
+            "s3",
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=self.access_key_id,
+            aws_secret_access_key=self.secret_access_key,
+        )
+        client.upload_file(str(local_path), self.bucket, key)
 
 
 def default_duckdb() -> DuckDBResource:

@@ -5,7 +5,7 @@ from datetime import date
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
-from berg_pipeline import ingest, paths
+from berg_pipeline import ingest, paths, publish
 from berg_pipeline.constants import MAX_LEG_DURATION_S
 from berg_pipeline.partitions import daily_partitions, monthly_partitions
 
@@ -47,10 +47,18 @@ def legs_parquet(context: dg.AssetExecutionContext, duckdb: DuckDBResource) -> d
     Upload to R2 happens at M3; until then this materializes the local publish mirror.
     """
     day = date.fromisoformat(context.partition_key)
+    out_path = paths.legs_parquet_path(day)
     with duckdb.get_connection() as con:
-        stats = ingest.export_day(con, day, paths.legs_parquet_path(day))
+        stats = ingest.export_day(con, day, out_path)
     if stats["rows"] == 0:
         context.log.warning(f"{day}: no departures — archive hole or month not yet staged")
+        stats = {**stats, "uploaded": False}
+    else:
+        r2 = publish.r2_from_env()
+        if r2 is not None:
+            key = f"legs/{day.year:04d}/{day.month:02d}/{day.day:02d}.parquet"
+            r2.upload(out_path, key)
+        stats = {**stats, "uploaded": r2 is not None}
     return dg.MaterializeResult(metadata=stats)
 
 
@@ -60,7 +68,22 @@ def manifest() -> dg.MaterializeResult:
 
     Contents: date range, missing-day list, file sizes, max_leg_duration, schema version.
     """
-    raise NotImplementedError("M3: emit manifest.json")
+    manifest_path = paths.PUBLISH_ROOT / "manifest.json"
+    data = publish.write_manifest(paths.LEGS_DIR, manifest_path)
+
+    r2 = publish.r2_from_env()
+    if r2 is not None:
+        r2.upload(manifest_path, "manifest.json")
+
+    return dg.MaterializeResult(
+        metadata={
+            "days": len(data["days"]),
+            "missing_days": len(data["missing_days"]),
+            "start": data["start"],
+            "end": data["end"],
+            "uploaded": r2 is not None,
+        }
+    )
 
 
 @dg.asset_check(asset=fct_legs, blocking=True)
