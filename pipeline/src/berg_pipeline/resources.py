@@ -19,16 +19,28 @@ class R2Resource(dg.ConfigurableResource):
     def endpoint_url(self) -> str:
         return f"https://{self.account_id}.r2.cloudflarestorage.com"
 
-    def upload(self, local_path: Path, key: str) -> None:
+    def client(self):
+        """A fresh client. Reuse one across a bulk sync; per-file clients are pure overhead."""
         import boto3
 
-        client = boto3.client(
+        return boto3.client(
             "s3",
             endpoint_url=self.endpoint_url,
             aws_access_key_id=self.access_key_id,
             aws_secret_access_key=self.secret_access_key,
         )
-        client.upload_file(str(local_path), self.bucket, key)
+
+    def upload(self, local_path: Path, key: str, client=None) -> None:
+        (client or self.client()).upload_file(str(local_path), self.bucket, key)
+
+    def existing_sizes(self, client=None) -> dict[str, int]:
+        """key → size for everything in the bucket, so a resumed sync can skip what's done."""
+        client = client or self.client()
+        sizes: dict[str, int] = {}
+        for page in client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket):
+            for obj in page.get("Contents", []):
+                sizes[obj["Key"]] = obj["Size"]
+        return sizes
 
 
 def default_duckdb() -> DuckDBResource:
