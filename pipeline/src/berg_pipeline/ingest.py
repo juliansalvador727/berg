@@ -20,6 +20,7 @@ stable across re-runs.
 """
 
 import calendar
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -107,6 +108,11 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
 
     all_varchar because autodetect silently typed BETRIEBSTAG as DATE on a real file;
     union_by_name because SLOID appears in 2025-11 and files within a month could straddle it.
+    null_padding because the archive ships truncated rows: 2024-10-26.csv ends mid-row, one
+    short line in 1.6M, and strict mode failed the whole month over it. Padding degrades
+    gracefully — a truncated row gets NULL trailing columns, so a bus is dropped by the Zug
+    filter and a train would land in scheduled-fallback or quarantine rather than killing a
+    month. Do NOT reach for ignore_errors instead; it discards rows silently.
     Cancelled stops are dropped (counted here) — decided at M1; revisit if ghost trains ever
     become a feature.
     """
@@ -121,7 +127,7 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
                ANKUNFTSZEIT, AN_PROGNOSE, AN_PROGNOSE_STATUS,
                ABFAHRTSZEIT, AB_PROGNOSE, AB_PROGNOSE_STATUS
         FROM read_csv({files_sql}, delim=';', header=true, all_varchar=true,
-                      union_by_name=true)""")
+                      union_by_name=true, null_padding=true)""")
 
     n_raw, n_train, n_cancelled = con.execute("""
         SELECT count(*),
@@ -324,6 +330,64 @@ def export_day(con, day: date, out_path: Path) -> dict:
 
     size = out_path.stat().st_size
     return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
+
+
+def export_journeys_day(con, day: date, out_path: Path) -> dict:
+    """One UTC calendar day of departures → the click-detail sidecar.
+
+    Additive by design: the 8-byte leg wire stays exactly as it is, and this pays for itself
+    only when someone actually clicks. Identity is deliberately NOT in the leg file — a
+    journey id on every leg taxes 460M rows to answer a question asked a few times a session.
+
+    Same WHERE and same ORDER BY as export_day, so row N here is leg N there. The client does
+    not rely on that (it looks up by t_dep + route_id, which prunes on the sorted t_dep), but
+    keeping them aligned makes the two files diffable when something looks wrong.
+
+    Carries no station ids: (from, to) is a pure function of route_id, published once in
+    static/route_pairs.json rather than repeated 460M times.
+
+    service_day is here because it is NOT the file's date — a 00:30 departure belongs to the
+    previous service day, so both appear in one file — and (trip_id, service_day) is the
+    journey key the leg-building window partitions by. trip_id alone would merge two trains.
+    """
+    epoch_day = int((day - date(1970, 1, 1)).total_seconds())
+    lo, hi = epoch_day, epoch_day + 86400
+
+    n = con.execute(
+        "SELECT count(*) FROM fct_legs WHERE t_dep >= ? AND t_dep < ?", [lo, hi]
+    ).fetchone()[0]
+    if n == 0:
+        return {"rows": 0, "bytes": 0}
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    con.execute(f"""
+        COPY (
+            SELECT CAST(t_dep    AS UINTEGER) AS t_dep,
+                   CAST(route_id AS UINTEGER) AS route_id,
+                   trip_id,
+                   service_day
+            FROM fct_legs
+            WHERE t_dep >= {lo} AND t_dep < {hi}
+            ORDER BY t_dep
+        ) TO '{out_path.as_posix()}'
+        (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+
+    size = out_path.stat().st_size
+    return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
+
+
+def export_route_pairs(con, out_path: Path) -> dict:
+    """route_id → (from_bpuic, to_bpuic), once. Joins to stations.json for names.
+
+    Small enough (one row per station pair, not per leg) to ship as JSON and keep in memory,
+    which is what lets a hover show "Bern → Thun" without touching the sidecar at all.
+    """
+    rows = con.execute(
+        "SELECT route_id, from_bpuic, to_bpuic FROM station_pairs ORDER BY route_id"
+    ).fetchall()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps({str(r[0]): [r[1], r[2]] for r in rows}, separators=(",", ":")))
+    return {"pairs": len(rows), "bytes": out_path.stat().st_size}
 
 
 def month_summary(con, month: str) -> dict:

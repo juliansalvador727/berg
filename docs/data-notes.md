@@ -209,6 +209,24 @@ sequence.
   `DATE` on this file. Read everything with `all_varchar=true` and parse explicitly, or a schema
   change three years into the backfill becomes a silent cast instead of an error.
 
+### Rows can be truncated — one short line failed an entire month
+
+`2024-10-26.csv` **ends mid-row**: its last line (1,606,824) carries 16 of 21 columns, cut off
+after `AN_PROGNOSE`. Exactly one row in 1.6M — and it is a `BUS`, which the `PRODUKT_ID='Zug'`
+filter discards anyway. DuckDB's strict mode still failed the whole month over it, and the
+backfill's per-month `except` skipped 2024-10 silently.
+
+Read with **`null_padding=true`**. Truncated rows then pad to `NULL`, which degrades the right
+way: a bus is dropped by the `Zug` filter, and a truncated *train* row gets a NULL
+`AB_PROGNOSE_STATUS`, so it fails `MEASURED_STATUSES` and lands in scheduled-fallback or
+quarantine instead of killing 31 days.
+
+Do **not** use `ignore_errors=true` for this. It silently discards rows, which is how you lose
+train data and never find out. Padding keeps the row and lets the existing filters judge it.
+
+The general lesson again: **the archive's shape does not predict its contents.** A file that is
+1.6M rows of clean CSV can still stop mid-sentence on the last line.
+
 ## Volume (one v2 day, `PRODUKT_ID='Zug'`)
 
 | Thing                       | Measured | Plan assumed |

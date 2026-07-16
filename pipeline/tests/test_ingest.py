@@ -336,3 +336,27 @@ def test_missing_day_exports_nothing(tmp_path, dim):
     stats = ingest.export_day(con, date(2018, 5, 24), out)
     assert stats["rows"] == 0
     assert not out.exists()
+
+
+def test_truncated_row_does_not_kill_the_month(tmp_path, dim):
+    """The archive ships short rows — 2024-10-26.csv ends mid-line, 1 of 1.6M.
+
+    Verbatim from the real file. Strict mode failed the entire month over this single bus.
+    """
+    truncated = (
+        "26.10.2024;85:885:2381-2;85:885;VBSG;Verkehrsbetriebe der Stadt St.Gallen;BUS;"
+        "85:885:2;2;201;B;false;false;8589606;;26.10.2024 15:30;26.10.2024 15:30"
+    )
+    con, stage, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=2, an="03.05.2018 08:30", an_prog="03.05.2018 08:30:00", an_status="REAL"),
+            truncated,
+        ],
+    )
+    # The month parses, the train survives, and the padded bus never reaches the facts.
+    assert stage["rows_raw"] == 3
+    assert stage["rows_train"] == 2
+    assert len(legs_of(con)) == 1
