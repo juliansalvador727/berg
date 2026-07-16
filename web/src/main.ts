@@ -1,8 +1,9 @@
 /**
- * M0: one real day of Swiss trains, moving.
+ * M4: the whole published archive, replayed from R2.
  *
- * Main thread does map + clock + render. No DuckDB yet (M4), no route geometry yet (M2) — legs
- * are straight lines between stations. The point is that the loop is closed end to end.
+ * No data ships with the app. DuckDB WASM range-queries one day file at a time in a worker,
+ * routes.bin supplies the track geometry, and every position is a lerp along a polyline at
+ * simTime — so scrub precision is free regardless of how coarse the files are.
  */
 
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -11,8 +12,18 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Clock, SPEEDS } from "./clock";
-import { INITIAL_VIEW } from "./config";
-import { activeAt, parseLegs, type LegStore, type Meta } from "./m0/legs";
+import {
+  BUFFER_SECONDS,
+  INITIAL_VIEW,
+  ROUTE_PAIRS_URL,
+  ROUTES_URL,
+  STATIONS_URL,
+  TRAIN_TYPES_URL,
+} from "./config";
+import { fetchRoutes, type Routes } from "./routes";
+import { activeAt, positioned, trainsLayer, typeColors } from "./render/trains";
+import type { Leg, Manifest } from "./types";
+import type { WorkerRequest, WorkerResponse } from "./worker/legs.worker";
 
 interface Station {
   id: number;
@@ -21,40 +32,71 @@ interface Station {
   lat: number;
 }
 
-/** Colour by service class: local, regional, long-distance. */
-const CLASS_COLOR: Record<string, [number, number, number]> = {
-  S: [56, 189, 248],
-  local: [56, 189, 248],
-  regional: [74, 222, 128],
-  intercity: [248, 113, 113],
-};
+/** Refetch when simTime is within this much of the window's end — never mid-frame. */
+const REFETCH_MARGIN_S = 60;
 
-const REGIONAL = new Set(["R", "RB", "RE", "TER", "PE", "EXT"]);
-
-function typeColors(types: string[]): [number, number, number][] {
-  return types.map((t) => {
-    if (t === "S") return CLASS_COLOR.local!;
-    if (REGIONAL.has(t)) return CLASS_COLOR.regional!;
-    return CLASS_COLOR.intercity!;
-  });
-}
-
-const fmt = (epoch: number) =>
-  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
+const fmtClock = (epoch: number) =>
+  new Date(epoch * 1000).toLocaleString("de-CH", {
     timeZone: "Europe/Zurich",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
 
+function ask(worker: Worker, req: WorkerRequest): Promise<WorkerResponse> {
+  return new Promise((resolve, reject) => {
+    const onMsg = (e: MessageEvent<WorkerResponse>) => {
+      if (e.data.kind === "error") {
+        worker.removeEventListener("message", onMsg);
+        reject(new Error(e.data.message));
+        return;
+      }
+      worker.removeEventListener("message", onMsg);
+      resolve(e.data);
+    };
+    worker.addEventListener("message", onMsg);
+    worker.postMessage(req);
+  });
+}
+
 async function main(): Promise<void> {
-  const [meta, stations, legsBuf] = await Promise.all([
-    fetch("/m0/meta.json").then((r) => r.json() as Promise<Meta>),
-    fetch("/m0/stations.json").then((r) => r.json() as Promise<Station[]>),
-    fetch("/m0/legs.bin").then((r) => r.arrayBuffer()),
+  const status = document.getElementById("controls")!;
+  status.textContent = "starting DuckDB…";
+
+  const worker = new Worker(new URL("./worker/legs.worker.ts", import.meta.url), {
+    type: "module",
+  });
+
+  const ready = await ask(worker, { kind: "init" });
+  if (ready.kind !== "ready") throw new Error("worker did not become ready");
+  const manifest: Manifest = ready.manifest;
+  if (!manifest.start || !manifest.end) throw new Error("manifest advertises no days");
+
+  status.textContent = "loading geometry…";
+  const [routes, allStations, typeMap, routePairs] = await Promise.all([
+    fetchRoutes(ROUTES_URL) as Promise<Routes>,
+    fetch(STATIONS_URL).then((r) => r.json() as Promise<Station[]>),
+    fetch(TRAIN_TYPES_URL).then((r) => r.json() as Promise<Record<string, string>>),
+    fetch(ROUTE_PAIRS_URL).then((r) => r.json() as Promise<Record<string, [number, number]>>),
   ]);
-  const store: LegStore = parseLegs(legsBuf);
-  const colors = typeColors(meta.types);
+
+  // stations.json is the whole dimension — 32k stops, most of them bus stops that no train
+  // ever calls at, and drawn raw they bury the trains in grey. The stations worth showing are
+  // exactly the ones a leg ends at, which route_pairs already enumerates.
+  const served = new Set<number>();
+  for (const [from, to] of Object.values(routePairs)) {
+    served.add(from);
+    served.add(to);
+  }
+  const stations = allStations.filter((s) => served.has(s.id));
+
+  // type_id is a dense uint8; the published map is keyed by its decimal string.
+  const maxType = Math.max(...Object.keys(typeMap).map(Number));
+  const types = Array.from({ length: maxType + 1 }, (_, i) => typeMap[String(i)] ?? "?");
+  const colors = typeColors(types);
 
   const map = new maplibregl.Map({
     container: "map",
@@ -64,31 +106,34 @@ async function main(): Promise<void> {
     attributionControl: { compact: true },
   });
   await map.once("load");
-
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
   map.addControl(overlay);
 
-  // Start at 08:00 local — peak commute, most trains on the map.
-  const clock = new Clock(meta.t_min);
-  const startOfDay = meta.t_min;
-  clock.seek(startOfDay + 8 * 3600 - (startOfDay % 86400));
+  // Scrub spans the whole published archive; start at 08:00 local on the first full day.
+  const days = Object.keys(manifest.days).sort();
+  const tMin = Date.parse(`${days[0]}T00:00:00Z`) / 1000;
+  const tMax = Date.parse(`${days[days.length - 1]}T23:59:59Z`) / 1000;
+  const clock = new Clock(tMin + 6 * 3600);
   clock.setSpeed(60);
   clock.play();
 
-  const ui = document.getElementById("controls")!;
-  ui.innerHTML = `
+  status.innerHTML = `
     <div class="row">
       <button id="play">⏸</button>
-      <span id="time">--:--:--</span>
+      <span id="time">--</span>
       <span id="count" class="muted">0 trains</span>
     </div>
-    <input id="scrub" type="range" min="${meta.t_min}" max="${meta.t_max}" step="1" />
+    <input id="scrub" type="range" min="${tMin}" max="${tMax}" step="1" />
     <div class="row" id="speeds"></div>
-    <div class="muted small">${meta.service_day} · ${meta.legs.toLocaleString()} legs · ${stations.length.toLocaleString()} stations</div>
-  `;
+    <div class="muted small">
+      ${days.length.toLocaleString()} days · ${manifest.start} → ${manifest.end}
+      · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations
+      <span id="dropped"></span>
+    </div>`;
 
   const timeEl = document.getElementById("time")!;
   const countEl = document.getElementById("count")!;
+  const droppedEl = document.getElementById("dropped")!;
   const scrub = document.getElementById("scrub") as HTMLInputElement;
   const playBtn = document.getElementById("play")!;
 
@@ -96,7 +141,6 @@ async function main(): Promise<void> {
   for (const s of SPEEDS) {
     const b = document.createElement("button");
     b.textContent = `${s}×`;
-    b.dataset.speed = String(s);
     b.onclick = () => {
       clock.setSpeed(s);
       for (const el of speedsEl.children) el.classList.toggle("on", el === b);
@@ -104,7 +148,6 @@ async function main(): Promise<void> {
     if (s === 60) b.classList.add("on");
     speedsEl.appendChild(b);
   }
-
   playBtn.onclick = () => {
     if (clock.paused) clock.play();
     else clock.pause();
@@ -120,43 +163,53 @@ async function main(): Promise<void> {
     scrubbing = false;
   };
 
-  const stationLayer = new ScatterplotLayer({
+  const stationLayer = new ScatterplotLayer<Station>({
     id: "stations",
     data: stations,
-    getPosition: (d: Station) => [d.lon, d.lat],
+    getPosition: (d) => [d.lon, d.lat],
     getFillColor: [130, 130, 140, 90],
     getRadius: 2,
     radiusUnits: "pixels",
     pickable: false,
   });
 
+  // The window the worker last delivered. Frames read this; only a refetch replaces it.
+  let win: { from: number; to: number; legs: Leg[] } = { from: 0, to: -1, legs: [] };
+  let inFlight = false;
+
+  /** Buffer scales with speed: at 600x a second of wall clock is ten minutes of simulation. */
+  const lookahead = () => Math.max(BUFFER_SECONDS, BUFFER_SECONDS * (clock.speed / 60));
+
+  async function refill(t: number): Promise<void> {
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      const res = await ask(worker, { kind: "window", simTime: t, lookahead: lookahead() });
+      if (res.kind === "window") win = res;
+    } catch (e) {
+      console.error("window fetch failed", e);
+    } finally {
+      inFlight = false;
+    }
+  }
+  await refill(clock.simTime);
+
   function frame() {
     const t = clock.tick();
+    if (t > tMax) clock.seek(tMin);
 
-    if (t > meta.t_max) clock.seek(meta.t_min); // loop the day
+    // Outside the buffered window, or close enough to its edge to be worth topping up.
+    if (t < win.from || t > win.to - REFETCH_MARGIN_S) void refill(t);
 
-    const trains = activeAt(store, t, meta.max_leg_duration);
+    const live = activeAt(win.legs, t);
+    const { items, dropped } = positioned(live, t, routes);
+    overlay.setProps({ layers: [stationLayer, trainsLayer(items, t, colors)] });
 
-    overlay.setProps({
-      layers: [
-        stationLayer,
-        new ScatterplotLayer({
-          id: "trains",
-          data: trains,
-          getPosition: (d) => d.position,
-          getFillColor: (d) => colors[d.type] ?? [200, 200, 200],
-          getRadius: 3,
-          radiusUnits: "pixels",
-          radiusMinPixels: 2,
-          updateTriggers: { getPosition: t },
-        }),
-      ],
-    });
-
-    timeEl.textContent = fmt(t);
-    countEl.textContent = `${trains.length.toLocaleString()} trains`;
+    timeEl.textContent = fmtClock(t);
+    countEl.textContent = `${items.length.toLocaleString()} trains`;
+    // Loud, not silent: routes.bin lagging the pipeline means trains we cannot draw.
+    droppedEl.textContent = dropped > 0 ? ` · ⚠ ${dropped} without geometry` : "";
     if (!scrubbing) scrub.value = String(Math.floor(t));
-
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

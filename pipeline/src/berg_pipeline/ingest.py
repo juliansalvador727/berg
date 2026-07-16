@@ -468,6 +468,19 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
     return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
 
 
+def export_train_types(con, out_path: Path) -> dict:
+    """type_id → category ('S', 'IC', 'RE') at static/train_types.json.
+
+    The wire carries type as a uint8; without this the client has a number and no meaning, so
+    every train renders the same colour. Ids are append-only, so this file only ever grows —
+    but it must be republished when it does, or new categories decode as unknown.
+    """
+    rows = con.execute("SELECT type_id, category FROM dim_train_type ORDER BY type_id").fetchall()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps({str(t): c for t, c in rows}, separators=(",", ":")))
+    return {"types": len(rows), "bytes": out_path.stat().st_size}
+
+
 def export_route_pairs(con, out_path: Path) -> dict:
     """route_id → (from_bpuic, to_bpuic), once. Joins to stations.json for names.
 

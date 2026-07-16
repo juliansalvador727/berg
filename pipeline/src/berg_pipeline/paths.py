@@ -30,6 +30,7 @@ LEGS_DIR = PUBLISH_ROOT / "legs"  # YYYY/MM/DD.parquet
 JOURNEYS_DIR = PUBLISH_ROOT / "journeys"  # YYYY/MM/DD.parquet — click-detail sidecar
 STATIC_DIR = PUBLISH_ROOT / "static"
 ROUTE_PAIRS_JSON = STATIC_DIR / "route_pairs.json"
+TRAIN_TYPES_JSON = STATIC_DIR / "train_types.json"
 
 
 def legs_parquet_path(day) -> Path:

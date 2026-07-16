@@ -90,6 +90,22 @@ def journeys_parquet(
 
 
 @dg.asset(group_name="facts", deps=[fct_legs])
+def train_types(duckdb: DuckDBResource) -> dg.MaterializeResult:
+    """type_id → category at static/train_types.json.
+
+    Republish whenever dim_train_type grows: the wire's uint8 is meaningless without it, and a
+    category the client cannot name renders as an unknown colour rather than an error.
+    """
+    with duckdb.get_connection() as con:
+        stats = ingest.export_train_types(con, paths.TRAIN_TYPES_JSON)
+
+    r2 = publish.r2_from_env()
+    if r2 is not None:
+        r2.upload(paths.TRAIN_TYPES_JSON, "static/train_types.json")
+    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+
+
+@dg.asset(group_name="facts", deps=[fct_legs])
 def route_pairs(duckdb: DuckDBResource) -> dg.MaterializeResult:
     """route_id → (from_bpuic, to_bpuic) at static/route_pairs.json.
 
