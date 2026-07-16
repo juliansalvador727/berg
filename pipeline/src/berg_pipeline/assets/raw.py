@@ -9,11 +9,31 @@ import httpx
 from dagster_duckdb import DuckDBResource
 
 from berg_pipeline import archive, ingest, paths
+from berg_pipeline.constants import V2_FIRST_FULL_MONTH
 from berg_pipeline.partitions import monthly_partitions
 
 
 def _month_key(context: dg.AssetExecutionContext) -> str:
     return context.partition_key[:7]  # '2018-05-01' → '2018-05'
+
+
+def _assert_complete(month: str, got: int) -> None:
+    """Fail loudly when a month yields fewer days than the census says it holds.
+
+    This is the guard that was missing: picking the v2 series for 2025-07 silently dropped
+    12 real days (v2 launched mid-month) and the month still reported success. A short month
+    must never pass quietly — it is indistinguishable from a good one downstream.
+
+    The archive's genuine holes are already in the census's usable_days, so this compares
+    against what the ZIP really has, not against the calendar.
+    """
+    expected = archive.expected_usable_days(month)
+    if expected is not None and got < expected:
+        raise dg.Failure(
+            f"{month}: {got} usable day CSVs but the census expects {expected}. "
+            f"Refusing to stage a short month — check the series (v1 vs v2, see "
+            f"V2_FIRST_FULL_MONTH) and whether a previous run left a partial dir."
+        )
 
 
 @dg.asset(partitions_def=monthly_partitions, group_name="ingest")
@@ -34,11 +54,12 @@ def raw_zip(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
 
     existing = sorted(out_dir.glob("*.csv")) if out_dir.exists() else []
     if existing:
+        _assert_complete(month, len(existing))  # a killed run leaves a partial dir
         return dg.MaterializeResult(
             metadata={"days": len(existing), "source": "cache", "dir": str(out_dir)}
         )
 
-    url = archive.url_for_month(year, mon, v2=(year, mon) >= (2025, 7))
+    url = archive.url_for_month(year, mon, v2=(year, mon) >= V2_FIRST_FULL_MONTH)
     zip_path = paths.DATA_ROOT / "raw" / "zips" / url.rsplit("/", 1)[-1]
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     context.log.info(f"downloading {url}")
@@ -63,6 +84,7 @@ def raw_zip(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
 
     if not days:
         raise dg.Failure(f"{month}: archive ZIP contained no usable day members")
+    _assert_complete(month, len(days))
     return dg.MaterializeResult(
         metadata={"days": len(days), "stub_days_skipped": skipped, "dir": str(out_dir)}
     )

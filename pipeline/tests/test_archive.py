@@ -10,6 +10,7 @@ import pytest
 
 from berg_pipeline.archive import (
     day_members,
+    expected_usable_days,
     is_data_member,
     member_date,
     url_for_month,
@@ -109,3 +110,26 @@ def test_day_members_prefers_the_largest_duplicate(tmp_path):
     ) as zf:
         got = day_members(zf)
     assert got[date(2024, 5, 1)].file_size == 9000
+
+
+def test_v2_series_starts_at_its_first_complete_month():
+    """v2 launched mid-month on 2025-07-13, so its 2025-07 ZIP holds only days 13-31.
+
+    v1 holds all 31 and is published in parallel, so the seam month must come from v1.
+    Probed against every v2-era month: 2025-07 is the only one where the series disagree.
+    Switching on "does v2 exist yet" silently lost 12 days and still reported success.
+    """
+    from berg_pipeline.constants import V2_FIRST_FULL_MONTH
+
+    assert V2_FIRST_FULL_MONTH == (2025, 8)
+    # the seam month must not select v2
+    assert (2025, 7) < V2_FIRST_FULL_MONTH
+    # v2 URLs are still legal from 2025-07 (the ZIP exists, it is just short)
+    assert "v2" in url_for_month(2025, 7, v2=True)
+    assert "v2" not in url_for_month(2025, 7)
+
+
+def test_census_lookup_is_optional_but_typed():
+    """A missing census must not break ingest — it is a cross-check, not a dependency."""
+    got = expected_usable_days("2025-07")
+    assert got is None or isinstance(got, int)

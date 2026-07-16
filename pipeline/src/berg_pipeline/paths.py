@@ -11,6 +11,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 DATA_ROOT = Path(os.getenv("BERG_DATA_ROOT", REPO_ROOT / "data"))
 
+# What the archive actually holds, measured from ZIP central directories (scripts/
+# archive_census.py). Tracked, because ingest cross-checks extraction against it.
+ARCHIVE_CENSUS = REPO_ROOT / "docs" / "archive-census.json"
+
 # Raw archive material, deletable at will (re-fetchable from the archive).
 RAW_ISTDATEN = DATA_ROOT / "raw" / "istdaten"  # <YYYY-MM>/<YYYY-MM-DD>.csv
 GTFS_CACHE = DATA_ROOT / "gtfs"

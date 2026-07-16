@@ -45,6 +45,16 @@ MEASURED_STATUSES = ("REAL", "GESCHAETZT")
 # provenance of MEASURED_STATUSES is not lost.
 STATUS_ENUM_SWITCH = "2018-05-07"
 
+# v2 launched MID-MONTH, on 2025-07-13. The v2 ZIP for 2025-07 therefore holds only days
+# 13-31, while the v1 ZIP for the same month holds all 31 — and both series are published in
+# parallel (v1 is not retired; verified through 2026-06). Switching series on "v2 exists yet"
+# silently drops 12 real days and still reports the month a success.
+#
+# So switch at v2's first COMPLETE month and take v1 for the seam. Probed against every v2-era
+# month's central directory: 2025-07 is the only one where the two series disagree.
+# See docs/data-notes.md.
+V2_FIRST_FULL_MONTH = (2025, 8)
+
 # The archive's only schema change: SLOID was appended in 2025-11 — in BOTH the v1 and v2 URL
 # series at once, four months after v2 launched. There is no "v1 schema" vs "v2 schema"; the
 # first 21 columns are identical in name and order across 2018-01 → now.

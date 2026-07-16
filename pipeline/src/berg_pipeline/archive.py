@@ -5,9 +5,13 @@ backfilled, so era handling is a fact of life, not a transitional hack. Member p
 the ZIPs drift just as much. See docs/data-notes.md.
 """
 
+import functools
+import json
 import re
 import zipfile
 from datetime import date
+
+from berg_pipeline import paths
 
 BASE = "https://archive.opentransportdata.swiss/istdaten"
 
@@ -58,6 +62,22 @@ def day_members(zf: zipfile.ZipFile) -> dict[date, zipfile.ZipInfo]:
         if d not in out or info.file_size > out[d].file_size:
             out[d] = info
     return out
+
+
+@functools.cache
+def census() -> dict:
+    """The archive census (docs/archive-census.json): month → what it actually contains.
+
+    Built by scripts/archive_census.py from ZIP central directories alone. Empty dict when
+    absent so the pipeline still runs; it is a cross-check, not a dependency.
+    """
+    p = paths.ARCHIVE_CENSUS
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def expected_usable_days(month: str) -> int | None:
+    """How many real day CSVs 'YYYY-MM' should yield, or None if uncensused."""
+    return census().get(month, {}).get("usable_days")
 
 
 def url_for_month(year: int, month: int, v2: bool = False) -> str:

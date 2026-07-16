@@ -209,6 +209,31 @@ sequence.
   `DATE` on this file. Read everything with `all_varchar=true` and parse explicitly, or a schema
   change three years into the backfill becomes a silent cast instead of an error.
 
+### v2 launched mid-month — its first month is short, and silently so
+
+**v2 started publishing on 2025-07-13.** So for the seam month the two series disagree, and
+only there:
+
+| month   | v1 days | v2 days |
+| ------- | ------: | ------: |
+| 2025-07 |  **31** |  **19** |
+| 2025-08 |      31 |      31 |
+| 2025-09 → 2026-06 | full | full |
+
+Probed against every v2-era month's central directory. `2025-07` is the **only** month where
+they differ — and v1 is complete for all of them, which is the practical proof that v1 is not
+retired.
+
+Selecting the series on *"does v2 exist yet"* (`>= 2025-07`) therefore drops **12 real days**
+and still reports the month a success — the worst kind of bug, because a short month is
+indistinguishable from a good one downstream. Switch at v2's first **complete** month
+(`V2_FIRST_FULL_MONTH = (2025, 8)`) and take v1 for the seam.
+
+Two lessons, both already written down elsewhere in this file and both ignored by that line:
+**the naming does not predict the contents** (a v2 URL existing says nothing about what is in
+it), and **a month that comes up short must fail loudly** — `raw_zip` now cross-checks the
+extracted day count against this census and refuses to stage a short month.
+
 ### Rows can be truncated — one short line failed an entire month
 
 `2024-10-26.csv` **ends mid-row**: its last line (1,606,824) carries 16 of 21 columns, cut off
