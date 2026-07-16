@@ -33,6 +33,20 @@ class R2Resource(dg.ConfigurableResource):
     def upload(self, local_path: Path, key: str, client=None) -> None:
         (client or self.client()).upload_file(str(local_path), self.bucket, key)
 
+    def get_json(self, key: str, client=None) -> dict | None:
+        """Parsed JSON at key, or None if the object does not exist."""
+        import json
+
+        client = client or self.client()
+        try:
+            body = client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        except Exception as e:  # noqa: BLE001 — only "absent" is ours; anything else is real
+            code = getattr(e, "response", {}).get("Error", {}).get("Code")
+            if code in ("NoSuchKey", "404", "NoSuchBucket"):
+                return None
+            raise
+        return json.loads(body)
+
     def existing_sizes(self, client=None) -> dict[str, int]:
         """key → size for everything in the bucket, so a resumed sync can skip what's done."""
         client = client or self.client()

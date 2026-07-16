@@ -42,15 +42,30 @@ def main(month: str, skip_dim: bool) -> None:
 
     # Export by departure day: the month's days plus the first day of the next month, which
     # receives the last night's post-midnight departures.
+    #
+    # journeys_parquet rides along rather than being a separate pass: a month whose legs ship
+    # without their sidecar has clickable trains that answer nothing, and the asymmetry only
+    # shows up in the UI months later. scripts/build_journeys.py exists for the backlog, not
+    # for months built here.
+    day_assets = [legs.legs_parquet, legs.journeys_parquet]
     first, last = ingest.month_bounds(month)
     for day in [*ingest.days_in_month(month), last + timedelta(days=1)]:
         r = dg.materialize(
-            [legs.legs_parquet, legs.fct_legs.to_source_asset()],
+            [*day_assets, legs.fct_legs.to_source_asset()],
             partition_key=day.isoformat(),
             resources=resources,
-            selection=[legs.legs_parquet],
+            selection=day_assets,
         )
         assert r.success
+
+    # route_id → (from, to) for whatever pairs this month introduced. Cheap, and stale is
+    # worse than useless: a new pair with no entry is an unnameable train.
+    r = dg.materialize(
+        [legs.route_pairs, legs.fct_legs.to_source_asset()],
+        resources=resources,
+        selection=[legs.route_pairs],
+    )
+    assert r.success
 
     con = default_duckdb()
     with con.get_connection() as c:

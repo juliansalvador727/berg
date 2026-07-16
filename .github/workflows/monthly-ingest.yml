@@ -45,8 +45,16 @@ jobs:
 
       - run: uv sync --frozen
 
-      - name: Materialize
+      # build_month.py, not `dagster asset materialize --select '*' --partition <month>`:
+      # ingest is monthly-partitioned but the published Parquet is DAILY, and one --partition
+      # key cannot mean both. '2026-06' is not even a valid key ('2026-06-01' is), and with
+      # the valid key `--select '*'` would export a single day and call the month done.
+      # build_month does the monthly -> daily fan-out, and is the same path the backfill runs.
+      - name: Build the month
+        run: uv run python scripts/build_month.py '${{ steps.p.outputs.month }}'
+
+      # Written last, and seeded from the bucket: this checkout holds only the new month, so a
+      # manifest built from local files alone would drop the rest of the archive.
+      - name: Publish manifest
         run: |
-          uv run dagster asset materialize \
-            --select '*' \
-            --partition '${{ steps.p.outputs.month }}'
+          uv run dagster asset materialize --select manifest

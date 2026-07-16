@@ -38,12 +38,18 @@ def r2_from_env() -> R2Resource | None:
     )
 
 
-def build_manifest(legs_dir: Path) -> dict:
-    """One duckdb query over the glob — cheaper than stat-ing thousands of files in Python."""
+def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:
+    """One duckdb query over the glob — cheaper than stat-ing thousands of files in Python.
+
+    base_days is what the bucket already advertises. It matters because the local mirror is
+    NOT always the whole story: the monthly CI job runs on a fresh checkout holding exactly
+    one month, and a manifest built from that alone would tell the frontend that every other
+    year had ceased to exist. Local wins on conflict — it is the fresher build.
+    """
     import duckdb
 
     files = sorted(legs_dir.glob("*/*/*.parquet"))
-    days: dict[str, dict] = {}
+    days: dict[str, dict] = dict(base_days or {})
     if files:
         rows = duckdb.sql(
             f"""
@@ -83,15 +89,15 @@ def build_manifest(legs_dir: Path) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "start": start,
         "end": end,
-        "days": days,
+        "days": {d: days[d] for d in sorted(days)},  # merged order is arbitrary; keep it stable
         "missing_days": missing_days,
     }
 
 
-def write_manifest(legs_dir: Path, out_path: Path) -> dict:
+def write_manifest(legs_dir: Path, out_path: Path, base_days: dict | None = None) -> dict:
     import json
 
-    manifest = build_manifest(legs_dir)
+    manifest = build_manifest(legs_dir, base_days=base_days)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(manifest, indent=1))
     return manifest

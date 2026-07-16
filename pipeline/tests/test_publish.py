@@ -28,6 +28,37 @@ def test_build_manifest(tmp_path):
         assert day["legs"] == 1
 
 
+def test_ci_month_does_not_erase_published_history(tmp_path):
+    """The monthly job checks out fresh and holds ONE month on disk.
+
+    Without seeding from the bucket's manifest it would publish a manifest describing only
+    that month — and since manifest.json is the frontend's only source of truth for what
+    exists, the map would lose every other year.
+    """
+    legs_dir = tmp_path / "legs"
+    _write_day(legs_dir / "2026" / "06" / "01.parquet")  # all CI has locally
+
+    already_published = {
+        "2018-05-01": {"bytes": 805012, "legs": 128535},
+        "2018-05-02": {"bytes": 803000, "legs": 128000},
+    }
+    manifest = build_manifest(legs_dir, base_days=already_published)
+
+    assert manifest["start"] == "2018-05-01", "history must survive a one-month CI run"
+    assert manifest["end"] == "2026-06-01"
+    assert set(manifest["days"]) == {"2018-05-01", "2018-05-02", "2026-06-01"}
+    assert manifest["days"]["2018-05-01"]["legs"] == 128535  # carried through untouched
+
+
+def test_local_build_wins_over_the_published_entry(tmp_path):
+    """A rebuilt day must replace what the bucket advertises, not be shadowed by it."""
+    legs_dir = tmp_path / "legs"
+    _write_day(legs_dir / "2018" / "05" / "01.parquet")
+    manifest = build_manifest(legs_dir, base_days={"2018-05-01": {"bytes": 1, "legs": 999999}})
+    assert manifest["days"]["2018-05-01"]["legs"] == 1  # the fixture day has one row
+    assert manifest["days"]["2018-05-01"]["bytes"] > 1
+
+
 def test_manifest_keys_are_the_published_contract(tmp_path):
     """The frontend types these by hand (web/src/types.ts). Change one, change both."""
     legs_dir = tmp_path / "legs"

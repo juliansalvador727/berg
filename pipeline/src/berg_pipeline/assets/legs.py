@@ -112,15 +112,22 @@ def manifest() -> dg.MaterializeResult:
     Contents: date range, missing-day list, file sizes, max_leg_duration, schema version.
     """
     manifest_path = paths.PUBLISH_ROOT / "manifest.json"
-    data = publish.write_manifest(paths.LEGS_DIR, manifest_path)
-
     r2 = publish.r2_from_env()
+
+    # Seed from what the bucket already advertises. The local mirror is not always the whole
+    # story — the monthly CI job checks out fresh and holds exactly one month — and a manifest
+    # built from that alone would tell the frontend the rest of the archive had vanished.
+    published = r2.get_json("manifest.json") if r2 is not None else None
+    base_days = (published or {}).get("days")
+
+    data = publish.write_manifest(paths.LEGS_DIR, manifest_path, base_days=base_days)
     if r2 is not None:
         r2.upload(manifest_path, "manifest.json")
 
     return dg.MaterializeResult(
         metadata={
             "days": len(data["days"]),
+            "days_carried_over": len(base_days or {}),
             "missing_days": len(data["missing_days"]),
             "start": data["start"],
             "end": data["end"],
