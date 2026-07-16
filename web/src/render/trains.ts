@@ -14,10 +14,12 @@
 import { ScatterplotLayer } from "@deck.gl/layers";
 
 import type { Routes } from "../routes";
-import type { Leg } from "../types";
+import { FLAG_SCHEDULED_FALLBACK, type Leg } from "../types";
+
+type RGB = [number, number, number];
 
 /** Colour by service class: local, regional, long-distance. */
-const CLASS_COLOR: Record<string, [number, number, number]> = {
+const CLASS_COLOR: Record<string, RGB> = {
   local: [56, 189, 248],
   regional: [74, 222, 128],
   intercity: [248, 113, 113],
@@ -41,6 +43,52 @@ export function typeColors(types: string[]): [number, number, number][] {
  */
 export const DELAY_SANE_S = 3 * 3600;
 export const isDelayKnown = (delay: number): boolean => Math.abs(delay) < DELAY_SANE_S;
+
+/** Swiss convention: under 3 minutes counts as on time. The ramp is anchored there, not at 0. */
+export const PUNCTUAL_S = 180;
+
+/**
+ * Grey means "we do not know", and it is not the same as being on time.
+ *
+ * A scheduled-fallback leg carries delay = 0 because ingest coalesces an unmeasured delay to
+ * zero (berg_pipeline/ingest.py) — the flag, not the value, is what says the measurement is
+ * missing. Colouring on the value alone would paint ~5% of every day punctual green on the
+ * strength of a default. Same for the int16 clamp: a leg claiming three hours early is a
+ * source error, so it reads as unknown rather than as a spectacular arrival.
+ */
+const DELAY_UNKNOWN: RGB = [88, 94, 108];
+
+/** Stops interpolated in RGB: on time → 3 min → 10 min → 30 min and worse. */
+const DELAY_RAMP: [number, RGB][] = [
+  [0, [34, 197, 94]],
+  [PUNCTUAL_S, [250, 204, 21]],
+  [600, [249, 115, 22]],
+  [1800, [239, 68, 68]],
+];
+
+export type ColorMode = "type" | "delay";
+
+/** Colour for one leg's lateness, or DELAY_UNKNOWN when the delay is not a measurement. */
+export function delayColor(leg: Leg): RGB {
+  if ((leg.flags & FLAG_SCHEDULED_FALLBACK) !== 0) return DELAY_UNKNOWN;
+  if (!isDelayKnown(leg.delay)) return DELAY_UNKNOWN;
+
+  // Early is not a category anyone is asking about — it reads as on time.
+  const d = Math.max(0, leg.delay);
+  let lo = DELAY_RAMP[0]!;
+  for (const stop of DELAY_RAMP) {
+    if (d >= stop[0]) lo = stop;
+  }
+  const hi = DELAY_RAMP.find((s) => s[0] > d);
+  if (!hi) return lo[1];
+
+  const f = (d - lo[0]) / (hi[0] - lo[0]);
+  return [
+    Math.round(lo[1][0] + (hi[1][0] - lo[1][0]) * f),
+    Math.round(lo[1][1] + (hi[1][1] - lo[1][1]) * f),
+    Math.round(lo[1][2] + (hi[1][2] - lo[1][2]) * f),
+  ];
+}
 
 /** Position of a leg at simTime: fraction along the polyline, anchored at both stations. */
 export function legPosition(leg: Leg, simTime: number, routes: Routes): [number, number] | null {
@@ -91,18 +139,21 @@ export function positioned(
 export function trainsLayer(
   items: PositionedLeg[],
   simTime: number,
-  colors: [number, number, number][],
+  colors: RGB[],
+  mode: ColorMode = "type",
 ): ScatterplotLayer<PositionedLeg> {
   return new ScatterplotLayer<PositionedLeg>({
     id: "trains",
     data: items,
     getPosition: (d) => d.pos,
-    getFillColor: (d) => colors[d.leg.type] ?? [200, 200, 200],
+    getFillColor: (d) =>
+      mode === "delay" ? delayColor(d.leg) : (colors[d.leg.type] ?? [200, 200, 200]),
     getRadius: 3,
     radiusUnits: "pixels",
     radiusMinPixels: 2,
     pickable: true,
-    // simTime alone: deck.gl caches accessor output and every position depends on it.
-    updateTriggers: { getPosition: simTime },
+    // simTime drives every position; mode drives every colour. deck.gl caches accessor output,
+    // so a mode flip without its trigger repaints nothing until the data array happens to change.
+    updateTriggers: { getPosition: simTime, getFillColor: mode },
   });
 }

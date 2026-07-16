@@ -21,8 +21,16 @@ import {
   TRAIN_TYPES_URL,
 } from "./config";
 import { fetchRoutes, type Routes } from "./routes";
-import { activeAt, positioned, trainsLayer, typeColors } from "./render/trains";
-import type { Leg, Manifest } from "./types";
+import {
+  activeAt,
+  type ColorMode,
+  delayColor,
+  positioned,
+  PUNCTUAL_S,
+  trainsLayer,
+  typeColors,
+} from "./render/trains";
+import { FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
 import type { WorkerRequest, WorkerResponse } from "./worker/legs.worker";
 
 interface Station {
@@ -125,6 +133,12 @@ async function main(): Promise<void> {
     </div>
     <input id="scrub" type="range" min="${tMin}" max="${tMax}" step="1" />
     <div class="row" id="speeds"></div>
+    <div class="row">
+      <span class="muted small">colour</span>
+      <button id="mode-type" class="on">type</button>
+      <button id="mode-delay">delay</button>
+      <span id="legend" class="small"></span>
+    </div>
     <div class="muted small">
       ${days.length.toLocaleString()} days · ${manifest.start} → ${manifest.end}
       · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations
@@ -153,6 +167,51 @@ async function main(): Promise<void> {
     else clock.pause();
     playBtn.textContent = clock.paused ? "▶" : "⏸";
   };
+
+  // The legend asks the same functions the layer does, so a ramp edit cannot leave the key
+  // describing colours the map stopped using.
+  const swatch = (c: [number, number, number], label: string) =>
+    `<span class="key"><i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>${label}</span>`;
+  const legendEl = document.getElementById("legend")!;
+  const modeBtns: Record<ColorMode, HTMLElement> = {
+    type: document.getElementById("mode-type")!,
+    delay: document.getElementById("mode-delay")!,
+  };
+  let colorMode: ColorMode = "type";
+
+  function renderLegend() {
+    const leg = (delay: number, flags = 0): Leg => ({
+      route_id: 0,
+      t_dep: 0,
+      dur: 1,
+      type: 0,
+      delay,
+      flags,
+    });
+    legendEl.innerHTML =
+      colorMode === "delay"
+        ? [
+            swatch(delayColor(leg(0)), "on time"),
+            swatch(delayColor(leg(PUNCTUAL_S)), "3 min"),
+            swatch(delayColor(leg(600)), "10 min"),
+            swatch(delayColor(leg(1800)), "30 min+"),
+            swatch(delayColor(leg(0, FLAG_SCHEDULED_FALLBACK)), "unmeasured"),
+          ].join("")
+        : [
+            swatch(typeColors(["S"])[0]!, "local"),
+            swatch(typeColors(["R"])[0]!, "regional"),
+            swatch(typeColors(["IC"])[0]!, "long-distance"),
+          ].join("");
+  }
+
+  for (const m of ["type", "delay"] as ColorMode[]) {
+    modeBtns[m].onclick = () => {
+      colorMode = m;
+      for (const [k, el] of Object.entries(modeBtns)) el.classList.toggle("on", k === m);
+      renderLegend();
+    };
+  }
+  renderLegend();
 
   let scrubbing = false;
   scrub.oninput = () => {
@@ -203,7 +262,7 @@ async function main(): Promise<void> {
 
     const live = activeAt(win.legs, t);
     const { items, dropped } = positioned(live, t, routes);
-    overlay.setProps({ layers: [stationLayer, trainsLayer(items, t, colors)] });
+    overlay.setProps({ layers: [stationLayer, trainsLayer(items, t, colors, colorMode)] });
 
     timeEl.textContent = fmtClock(t);
     countEl.textContent = `${items.length.toLocaleString()} trains`;
