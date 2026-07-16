@@ -280,9 +280,7 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
         CREATE OR REPLACE TEMP TABLE _cand AS
         WITH ev AS (
             SELECT service_day, trip_id, category, bpuic, line,
-                   sched_dep, act_dep, dep_measured, arr_measured,
-                   CASE WHEN dep_measured THEN act_dep ELSE sched_dep END AS dep_used,
-                   CASE WHEN arr_measured THEN act_arr ELSE sched_arr END AS arr_used,
+                   sched_dep, act_dep, sched_arr, act_arr, dep_measured, arr_measured,
                    coalesce(sched_dep, sched_arr) AS order_key
             FROM stg_istdaten
             WHERE service_day BETWEEN DATE '{first}' AND DATE '{last}'
@@ -290,12 +288,27 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
         hop AS (
             -- line comes from the departure stop, not lead(): it is a property of the run, so
             -- it is constant within the window, and the origin's value is the leg's own.
+            --
+            -- ONE CLOCK PER LEG. dur is a difference, so both ends must come from the same
+            -- basis; picking each end's best available time independently subtracts a scheduled
+            -- arrival from an actual departure. That is not a smaller error, it is a different
+            -- quantity: a late train's actual departure routinely lands AFTER the scheduled
+            -- arrival of its next stop, so the leg goes negative and is quarantined as a source
+            -- error it never was. Measured against the archive: legs sharing a basis are 0.0%
+            -- negative (2 of 709,048), mixed legs are 33.6% negative — and the mixed legs that
+            -- stay positive are worse, because they publish a plausible duration built from two
+            -- clocks. ~6M of them are live. The 1.34% both-measured rate is the real source
+            -- error; everything above it was manufactured here.
             SELECT service_day, trip_id, category, line,
                    bpuic                        AS from_bpuic,
                    lead(bpuic)    OVER w        AS to_bpuic,
-                   dep_used,
-                   lead(arr_used) OVER w        AS arr_next,
                    dep_measured AND lead(arr_measured) OVER w AS measured,
+                   CASE WHEN dep_measured AND lead(arr_measured) OVER w
+                        THEN act_dep ELSE sched_dep END AS dep_used,
+                   CASE WHEN dep_measured AND lead(arr_measured) OVER w
+                        THEN lead(act_arr) OVER w ELSE lead(sched_arr) OVER w END AS arr_next,
+                   -- Departure delay stands on its own: it needs only this stop's two times,
+                   -- so it survives a leg falling back to the timetable for its geometry.
                    CASE WHEN dep_measured AND sched_dep IS NOT NULL
                         THEN date_diff('second', sched_dep, act_dep) END AS delay_s
             FROM ev

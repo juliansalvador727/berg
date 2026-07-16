@@ -208,6 +208,50 @@ def test_split_rule(tmp_path, dim):
     assert ls[1][3] == ls[0][3] + 3600 and ls[2][3] == ls[1][3] + 3600
 
 
+def test_leg_uses_one_clock_when_only_the_departure_is_measured(tmp_path, dim):
+    """A leg's two ends must come from the same basis, or dur is not a duration.
+
+    Departure measured 6 minutes late at 08:06; the next stop reports no arrival, so only its
+    timetable 08:05 exists. Taking each end's best available time subtracts a scheduled arrival
+    from an actual departure and yields dur = -60: the train arrives before it leaves, and gets
+    quarantined as a source error it never was. Falling back to the timetable at BOTH ends gives
+    the 5-minute booked hop, flagged scheduled — which is what the flag has always claimed.
+
+    Archive-wide this is 33.6% of mixed legs going negative against 0.0% for legs on one clock,
+    and ~6M more that stay positive and publish a duration built from two clocks.
+    """
+    con, _, stats = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:06:00", ab_status="REAL"),
+            ev(bpuic=2, an="03.05.2018 08:05"),  # booked only — no AN_PROGNOSE, no status
+        ],
+    )
+    assert "negative_duration" not in stats
+    ls = legs_of(con)
+    assert len(ls) == 1
+    assert ls[0][4] == 300, "should be the booked 5 min, not 08:05 minus 08:06"
+    assert ls[0][6] & 1, "a leg on timetable geometry must carry FLAG_SCHEDULED_FALLBACK"
+
+
+def test_measured_delay_survives_a_scheduled_fallback_leg(tmp_path, dim):
+    """Falling back for geometry must not throw away a delay we actually measured.
+
+    The departure delay needs only this stop's own scheduled and actual times, so it is known
+    even when the next stop never reported and the leg rides the timetable.
+    """
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:06:00", ab_status="REAL"),
+            ev(bpuic=2, an="03.05.2018 08:05"),
+        ],
+    )
+    assert legs_of(con)[0][5] == 360
+
+
 def test_absurd_duration_quarantined_before_the_split_amplifies_it(tmp_path, dim):
     """A broken timestamp must not become a million rows.
 
