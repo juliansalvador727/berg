@@ -28,6 +28,21 @@ def test_build_manifest(tmp_path):
         assert day["legs"] == 1
 
 
+def test_manifest_keys_are_the_published_contract(tmp_path):
+    """The frontend types these by hand (web/src/types.ts). Change one, change both."""
+    legs_dir = tmp_path / "legs"
+    _write_day(legs_dir / "2018" / "05" / "01.parquet")
+    assert set(build_manifest(legs_dir)) == {
+        "schema_version",
+        "max_leg_duration_s",
+        "generated_at",
+        "start",
+        "end",
+        "days",
+        "missing_days",
+    }
+
+
 def test_build_manifest_empty_dir(tmp_path):
     manifest = build_manifest(tmp_path / "legs")
     assert manifest["days"] == {}

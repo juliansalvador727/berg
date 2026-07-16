@@ -62,6 +62,49 @@ def legs_parquet(context: dg.AssetExecutionContext, duckdb: DuckDBResource) -> d
     return dg.MaterializeResult(metadata=stats)
 
 
+@dg.asset(partitions_def=daily_partitions, group_name="facts", deps=[fct_legs])
+def journeys_parquet(
+    context: dg.AssetExecutionContext, duckdb: DuckDBResource
+) -> dg.MaterializeResult:
+    """Click-detail sidecar at journeys/YYYY/MM/DD.parquet — trip identity, per departure day.
+
+    Separate from legs_parquet on purpose. Identity is asked for a few times a session, so it
+    does not belong in a wire format paid for 460M times; keeping it out is what holds legs at
+    ~6.2 B/leg. Being additive also means the leg files never have to be re-exported to gain it.
+
+    Materialize it for the same partitions as legs_parquet. Days it hasn't run for simply have
+    no detail — the client treats a 404 here as "no info", never as an error.
+    """
+    day = date.fromisoformat(context.partition_key)
+    out_path = paths.journeys_parquet_path(day)
+    with duckdb.get_connection() as con:
+        stats = ingest.export_journeys_day(con, day, out_path)
+    if stats["rows"] == 0:
+        context.log.warning(f"{day}: no departures — archive hole or month not yet staged")
+        return dg.MaterializeResult(metadata={**stats, "uploaded": False})
+
+    r2 = publish.r2_from_env()
+    if r2 is not None:
+        r2.upload(out_path, f"journeys/{day.year:04d}/{day.month:02d}/{day.day:02d}.parquet")
+    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+
+
+@dg.asset(group_name="facts", deps=[fct_legs])
+def route_pairs(duckdb: DuckDBResource) -> dg.MaterializeResult:
+    """route_id → (from_bpuic, to_bpuic) at static/route_pairs.json.
+
+    One row per station pair rather than per leg, so a hover can name both ends without
+    fetching any sidecar. Rerun whenever station_pairs grows (the geometry job's trigger too).
+    """
+    with duckdb.get_connection() as con:
+        stats = ingest.export_route_pairs(con, paths.ROUTE_PAIRS_JSON)
+
+    r2 = publish.r2_from_env()
+    if r2 is not None:
+        r2.upload(paths.ROUTE_PAIRS_JSON, "static/route_pairs.json")
+    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+
+
 @dg.asset(group_name="facts", deps=[legs_parquet])
 def manifest() -> dg.MaterializeResult:
     """Written last, so a half-finished backfill never advertises days that aren't there.

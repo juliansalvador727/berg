@@ -11,10 +11,22 @@ export interface Leg {
 export const FLAG_SCHEDULED_FALLBACK = 1 << 0;
 export const FLAG_SYNTHETIC_SPLIT = 1 << 1;
 
-/** Written by the pipeline, fetched once at startup. The client hardcodes none of this. */
+/** One published day. `legs` is the row count; `bytes` the file size. */
+export interface ManifestDay {
+  bytes: number;
+  legs: number;
+}
+
+/**
+ * Written by the pipeline (berg_pipeline/publish.py — the authority on these names), fetched
+ * once at startup. The client hardcodes none of this.
+ */
 export interface Manifest {
   schema_version: number;
-  first_day: string; // YYYY-MM-DD
-  last_day: string;
-  max_leg_duration: number; // seconds — bounds every scrub query
+  max_leg_duration_s: number; // bounds every scrub query
+  generated_at: string; // ISO 8601 UTC
+  start: string | null; // YYYY-MM-DD; null when nothing is published yet
+  end: string | null;
+  days: Record<string, ManifestDay>; // keyed YYYY-MM-DD — absent key == no data that day
+  missing_days: string[]; // archive holes inside [start, end]; the scrub bar must skip these
 }
