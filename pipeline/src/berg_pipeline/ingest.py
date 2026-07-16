@@ -31,6 +31,7 @@ from berg_pipeline.constants import (
     FLAG_SYNTHETIC_SPLIT,
     MAX_LEG_DURATION_S,
     MEASURED_STATUSES,
+    MIN_LEGS_PER_DAY,
     SOURCE_TZ,
 )
 
@@ -493,6 +494,40 @@ def export_route_pairs(con, out_path: Path) -> dict:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps({str(r[0]): [r[1], r[2]] for r in rows}, separators=(",", ":")))
     return {"pairs": len(rows), "bytes": out_path.stat().st_size}
+
+
+def validate_month_days(con, month: str) -> list[tuple[str, int]]:
+    """Every censused-usable day of `month` must clear MIN_LEGS_PER_DAY. Returns the failures.
+
+    This is the check whose absence let 2023-09 publish 28 days of 24 legs each and record
+    them in manifest.json as successes. Nothing upstream caught it: raw_zip's _assert_complete
+    only counts day CSVs, and export_day happily writes any file with rows > 0 — so a month
+    that staged almost nothing looked exactly like a good one from there on.
+
+    Counted by DEPARTURE day, matching export_day's window, because that is the unit that
+    ships. The month's trailing boundary day is deliberately not checked here: build_month
+    exports it while only this month is staged, so it holds just the last night's post-midnight
+    departures and is legitimately tiny. It gets its real export — and its check — when the
+    next month runs.
+    """
+    from berg_pipeline import archive
+
+    absent = archive.expected_absent_days(month)
+    if archive.expected_usable_days(month) is None:
+        return []  # uncensused: no ground truth to check against
+
+    bad = []
+    for day in days_in_month(month):
+        if day in absent:
+            continue  # a genuine archive hole yields nothing, correctly
+        epoch_day = int((day - date(1970, 1, 1)).total_seconds())
+        n = con.execute(
+            "SELECT count(*) FROM fct_legs WHERE t_dep >= ? AND t_dep < ?",
+            [epoch_day, epoch_day + 86400],
+        ).fetchone()[0]
+        if n < MIN_LEGS_PER_DAY:
+            bad.append((day.isoformat(), n))
+    return bad
 
 
 def month_summary(con, month: str) -> dict:

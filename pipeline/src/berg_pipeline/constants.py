@@ -19,6 +19,18 @@ MAX_LEG_DURATION_S = 3600
 # Ist-Daten is Europe/Zurich local time. Convert to UTC at ingest, render local in the UI.
 SOURCE_TZ = "Europe/Zurich"
 
+# A real Swiss service day is 110k-150k train legs (measured across 2018→2026; the 2018 feed
+# is the light end). A published day far under that is not a quiet day — it is a partial
+# ingest that reported success. 2023-09-02..29 each shipped 24 legs: one scheduled-fallback
+# run split into hourly sub-legs, the only thing that survived, and the manifest recorded all
+# 28 as good days.
+#
+# The floor is an order of magnitude below the real one on purpose. It is a smoke alarm for
+# ingests that collapsed, not a band check on traffic — a genuinely thin day (strike, storm)
+# must never trip it. The archive's own holes are excluded via the census, not by lowering
+# this. See docs/data-notes.md.
+MIN_LEGS_PER_DAY = 10_000
+
 # Switzerland bounding box (lon/lat, WGS84). Used to clip foreign stops and to quantize
 # route coordinates into uint16.
 CH_BBOX = (5.9, 45.8, 10.5, 47.9)

@@ -11,6 +11,12 @@ import re
 import zipfile
 from datetime import date
 
+# Imported for its side effect: teaches the stdlib zipfile to read deflate64 (method 9).
+# 2025-01 mixes compression *within one ZIP* — days 01..27 are deflate, 28..31 are deflate64 —
+# so stdlib alone raises NotImplementedError on exactly those four days while the rest of the
+# month ingests cleanly. That is not a hypothetical: it is what published 27 of 31 days and
+# left 2025-01-28..31 as ~1.2 KB stubs. Every other month sampled is pure deflate.
+import zipfile_deflate64  # noqa: F401
 from berg_pipeline import paths
 
 BASE = "https://archive.opentransportdata.swiss/istdaten"
@@ -78,6 +84,23 @@ def census() -> dict:
 def expected_usable_days(month: str) -> int | None:
     """How many real day CSVs 'YYYY-MM' should yield, or None if uncensused."""
     return census().get(month, {}).get("usable_days")
+
+
+def expected_absent_days(month: str) -> set[date]:
+    """The days 'YYYY-MM' genuinely has no data for — absent members and ~20 KB stubs.
+
+    29 days across the archive are holes (2019-07-01..16 consecutively). They are the reason
+    a per-day leg floor cannot simply apply to every calendar day: a hole legitimately yields
+    almost nothing, while the same emptiness on a censused-usable day is a broken ingest.
+    Empty for an uncensused month, which makes the floor inapplicable rather than wrong.
+    """
+    entry = census().get(month, {})
+    days = set()
+    for iso in entry.get("absent", []) + entry.get("stubs", []):
+        d = member_date(iso)
+        if d is not None:
+            days.add(d)
+    return days
 
 
 def url_for_month(year: int, month: int, v2: bool = False) -> str:

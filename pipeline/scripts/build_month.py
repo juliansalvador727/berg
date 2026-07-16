@@ -69,7 +69,23 @@ def main(month: str, skip_dim: bool) -> None:
 
     con = default_duckdb()
     with con.get_connection() as c:
+        bad_days = ingest.validate_month_days(c, month)
         summary = ingest.month_summary(c, month)
+
+    # After the exports, not before: this asserts on what actually shipped. Raising here is
+    # what makes the month a failure the backfill retries, rather than 28 tiny files that
+    # every downstream step accepts.
+    if bad_days:
+        listed = ", ".join(f"{d} ({n} legs)" for d, n in bad_days[:5])
+        more = f" (+{len(bad_days) - 5} more)" if len(bad_days) > 5 else ""
+        # RuntimeError, not sys.exit: the backfill catches Exception to record a failed month
+        # and carry on, and SystemExit would sail past it and kill the whole range.
+        raise RuntimeError(
+            f"{month}: {len(bad_days)} day(s) under the {ingest.MIN_LEGS_PER_DAY:,}-leg floor: "
+            f"{listed}{more}. The census says these days have data, so this is a partial "
+            f"ingest, not an archive hole."
+        )
+
     print(f"\n=== {month} ===")
     for k, v in summary.items():
         print(f"{k:>24}: {v}")

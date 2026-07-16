@@ -5,15 +5,15 @@ Usage:
 
 Runs months in order — legs_parquet near a month boundary draws from two monthly fct_legs
 partitions, and the manifest is only meaningful once earlier months are staged. --force
-re-runs months that already look complete; without it, a month with >= 25 day files is
-assumed done and skipped (some months legitimately have missing days, so this is a heuristic,
-not an exact check against docs/archive-census.json).
+re-runs months that already look complete; without it, a month is skipped only when it has
+every day docs/archive-census.json says it holds AND no day file too small to be real.
 """
 
 import argparse
 import fcntl
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 # Raw CSVs are ~200-400 MB/month; keeping all 42 months on disk at once isn't necessary and
@@ -25,11 +25,18 @@ import build_month  # noqa: E402
 
 import dagster as dg  # noqa: E402
 
-from berg_pipeline import paths  # noqa: E402
+from berg_pipeline import archive, paths  # noqa: E402
 from berg_pipeline.assets import legs  # noqa: E402
+from berg_pipeline.constants import MIN_LEGS_PER_DAY  # noqa: E402
 from berg_pipeline.resources import default_duckdb  # noqa: E402
 
-DONE_THRESHOLD = 25
+# Only for a month the census doesn't know — in practice the current, unpublished one.
+DONE_THRESHOLD_UNCENSUSED = 25
+
+# The wire is ~6.3 bytes/leg measured (zstd, 8k row groups), so a file too small to physically
+# hold MIN_LEGS_PER_DAY legs is a collapsed day, decided by stat() alone — no parquet read.
+# 4 is a deliberate under-estimate of bytes/leg: this must never call a real day broken.
+MIN_DAY_FILE_BYTES = MIN_LEGS_PER_DAY * 4
 
 
 def acquire_lock():
@@ -65,11 +72,39 @@ def months_between(start: str, end: str):
             y += 1
 
 
+def _file_day(month: str, f: Path) -> date:
+    """legs/2023/09/15.parquet → date(2023, 9, 15)."""
+    return date(int(month[:4]), int(month[5:7]), int(f.stem))
+
+
 def month_looks_done(month: str) -> bool:
+    """Complete against the census, and no day file too small to be real.
+
+    Counting files alone (the old >= 25 heuristic) is what made the 2023-09 corruption
+    permanent: the month had all 30 files, so every subsequent backfill skipped it, and the
+    24-leg days survived runs that were supposed to repair them. A skip must mean "verified
+    good", not "something is here".
+
+    Falls back to the file count for an uncensused month, which in practice is only the
+    current unpublished one.
+    """
     day_dir = paths.LEGS_DIR / month[:4] / month[5:7]
     if not day_dir.exists():
         return False
-    return len(list(day_dir.glob("*.parquet"))) >= DONE_THRESHOLD
+    files = list(day_dir.glob("*.parquet"))
+
+    # A hole day carries a tiny file of its own (a neighbouring run's post-midnight bleed),
+    # so the size floor has to skip the same days validate_month_days does — otherwise every
+    # month holding an archive hole looks broken forever and re-runs on each pass.
+    absent = archive.expected_absent_days(month)
+    real = [f for f in files if _file_day(month, f) not in absent]
+    if any(f.stat().st_size < MIN_DAY_FILE_BYTES for f in real):
+        return False  # a collapsed day — re-run the month rather than skip over it
+
+    expected = archive.expected_usable_days(month)
+    if expected is None:
+        return len(files) >= DONE_THRESHOLD_UNCENSUSED
+    return len(real) >= expected
 
 
 def main(start: str, end: str, force: bool) -> int:
