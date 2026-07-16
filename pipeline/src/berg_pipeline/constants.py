@@ -31,6 +31,16 @@ SOURCE_TZ = "Europe/Zurich"
 # this. See docs/data-notes.md.
 MIN_LEGS_PER_DAY = 10_000
 
+# A leg runs between two CONSECUTIVE stops, so a day is already absurd — the real distribution
+# tops out around 2 h (191,965 legs) and is into single digits by 12 h. This is not a tuning
+# knob: it is the guard on the split rule's amplification factor. dur comes straight from the
+# source's timestamps, and one row with a broken time yields a leg of arbitrary length that
+# generate_series then expands into dur/3600 rows. 2025-09-10 shipped a leg dated 1899 whose
+# 126-year duration became 1,101,793 synthetic sub-legs from a SINGLE source row — a million
+# rows of a ski shuttle, all delay = -32768, none of them a train that ever moved.
+# Bounding dur bounds the blast radius at 24 rows. Only 190 legs in 417M exceed it.
+MAX_RAW_LEG_DURATION_S = 24 * 3600
+
 # Switzerland bounding box (lon/lat, WGS84). Used to clip foreign stops and to quantize
 # route coordinates into uint16.
 CH_BBOX = (5.9, 45.8, 10.5, 47.9)

@@ -30,6 +30,7 @@ from berg_pipeline.constants import (
     FLAG_SCHEDULED_FALLBACK,
     FLAG_SYNTHETIC_SPLIT,
     MAX_LEG_DURATION_S,
+    MAX_RAW_LEG_DURATION_S,
     MEASURED_STATUSES,
     MIN_LEGS_PER_DAY,
     SOURCE_TZ,
@@ -316,6 +317,10 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
                  WHEN c.t_dep IS NULL OR c.dur IS NULL       THEN 'missing_time'
                  WHEN c.dur < 0                              THEN 'negative_duration'
                  WHEN c.dur = 0                              THEN 'zero_duration'
+                 -- Before the split rule, not after: past this point dur is an amplification
+                 -- factor, and an unbounded one turns a single broken timestamp into millions
+                 -- of sub-legs. See MAX_RAW_LEG_DURATION_S.
+                 WHEN c.dur > {MAX_RAW_LEG_DURATION_S}       THEN 'absurd_duration'
                  WHEN f.bpuic IS NULL OR t.bpuic IS NULL     THEN 'unmatched_station'
                  WHEN f.lon NOT BETWEEN {lon_min} AND {lon_max}
                    OR f.lat NOT BETWEEN {lat_min} AND {lat_max}

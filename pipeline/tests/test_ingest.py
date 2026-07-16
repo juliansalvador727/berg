@@ -208,6 +208,42 @@ def test_split_rule(tmp_path, dim):
     assert ls[1][3] == ls[0][3] + 3600 and ls[2][3] == ls[1][3] + 3600
 
 
+def test_absurd_duration_quarantined_before_the_split_amplifies_it(tmp_path, dim):
+    """A broken timestamp must not become a million rows.
+
+    This is 2025-09-10 in miniature: one ski shuttle arrived with a departure dated 1899, the
+    126-year "leg" cleared every check the contract had, and the split rule expanded that single
+    source row into 1,101,793 synthetic sub-legs. The split rule is not the bug — it did exactly
+    what it was told — so the guard belongs upstream of it, where dur is still a duration and
+    not yet a row multiplier.
+    """
+    con, _, stats = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.1899 08:00", ab_prog="03.05.1899 08:00:00", ab_status="REAL"),
+            ev(bpuic=4, an="03.05.2018 10:30", an_prog="03.05.2018 10:30:00", an_status="REAL"),
+        ],
+    )
+    assert stats.get("absurd_duration") == 1
+    assert legs_of(con) == []  # not one sub-leg, let alone a million
+    assert con.execute("SELECT reason FROM quarantine_legs").fetchone()[0] == "absurd_duration"
+
+
+def test_long_but_plausible_leg_still_splits(tmp_path, dim):
+    """The guard is a bound, not a ban: 2 h is where the real distribution lives."""
+    con, _, stats = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=4, an="03.05.2018 10:00", an_prog="03.05.2018 10:00:00", an_status="REAL"),
+        ],
+    )
+    assert stats["ok"] == 1 and len(legs_of(con)) == 2
+    assert "absurd_duration" not in stats
+
+
 def test_bus_and_cancelled_filtered_at_stage(tmp_path, dim):
     _, stage, _ = run_month(
         tmp_path,
