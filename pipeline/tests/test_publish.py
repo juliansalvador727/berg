@@ -145,6 +145,7 @@ def test_validated_outputs_upload_as_one_post_validation_batch(tmp_path, monkeyp
     class FakeR2:
         def __init__(self):
             self.keys = []
+            self.deleted = []
 
         def client(self):
             return self
@@ -153,15 +154,53 @@ def test_validated_outputs_upload_as_one_post_validation_batch(tmp_path, monkeyp
             assert client is self
             self.keys.append(key)
 
+        def delete(self, key, client=None):
+            assert client is self
+            self.deleted.append(key)
+
     fake = FakeR2()
     monkeypatch.setattr(publish, "r2_from_env", lambda: fake)
 
     stats = publish.upload_validated_outputs([day])
 
-    assert stats == {"uploaded": 4, "upload_enabled": True}
+    assert stats == {"uploaded": 4, "deleted": 0, "upload_enabled": True}
     assert fake.keys == [
         "legs/2026/06/03.parquet",
         "journeys/2026/06/03.parquet",
         "static/route_pairs.json",
         "static/train_types.json",
+    ]
+    assert fake.deleted == []
+
+
+def test_validated_empty_day_deletes_stale_remote_outputs(tmp_path, monkeypatch):
+    day = date(2026, 6, 4)
+    monkeypatch.setattr(paths, "LEGS_DIR", tmp_path / "legs")
+    monkeypatch.setattr(paths, "JOURNEYS_DIR", tmp_path / "journeys")
+    monkeypatch.setattr(paths, "ROUTE_PAIRS_JSON", tmp_path / "missing-route-pairs.json")
+    monkeypatch.setattr(paths, "TRAIN_TYPES_JSON", tmp_path / "missing-train-types.json")
+
+    class FakeR2:
+        def __init__(self):
+            self.deleted = []
+
+        def client(self):
+            return self
+
+        def upload(self, _path, _key, client=None):
+            raise AssertionError("an empty day must not upload an artifact")
+
+        def delete(self, key, client=None):
+            assert client is self
+            self.deleted.append(key)
+
+    fake = FakeR2()
+    monkeypatch.setattr(publish, "r2_from_env", lambda: fake)
+
+    stats = publish.upload_validated_outputs([day])
+
+    assert stats == {"uploaded": 0, "deleted": 2, "upload_enabled": True}
+    assert fake.deleted == [
+        "legs/2026/06/04.parquet",
+        "journeys/2026/06/04.parquet",
     ]

@@ -47,11 +47,14 @@ def upload_validated_outputs(days: Iterable[date]) -> dict:
         return {"uploaded": 0, "upload_enabled": False}
 
     files: list[tuple[Path, str]] = []
+    deleted: list[str] = []
     for day in days:
         for root, prefix in ((paths.LEGS_DIR, "legs"), (paths.JOURNEYS_DIR, "journeys")):
             path = root / f"{day.year:04d}" / f"{day.month:02d}" / f"{day.day:02d}.parquet"
             if path.exists():
                 files.append((path, f"{prefix}/{day:%Y/%m/%d}.parquet"))
+            else:
+                deleted.append(f"{prefix}/{day:%Y/%m/%d}.parquet")
     if paths.ROUTE_PAIRS_JSON.exists():
         files.append((paths.ROUTE_PAIRS_JSON, "static/route_pairs.json"))
     if paths.TRAIN_TYPES_JSON.exists():
@@ -60,7 +63,9 @@ def upload_validated_outputs(days: Iterable[date]) -> dict:
     client = r2.client()
     for path, key in files:
         r2.upload(path, key, client=client)
-    return {"uploaded": len(files), "upload_enabled": True}
+    for key in deleted:
+        r2.delete(key, client=client)
+    return {"uploaded": len(files), "deleted": len(deleted), "upload_enabled": True}
 
 
 def bootstrap_registries(con) -> dict:

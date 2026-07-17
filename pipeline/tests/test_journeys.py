@@ -94,6 +94,7 @@ def test_day_boundary_matches_legs(con, tmp_path):
 def test_no_departures_writes_nothing(con, tmp_path):
     """The archive's 29 holes are expected-absent, not failures."""
     out = tmp_path / "j.parquet"
+    out.write_bytes(b"stale")
     assert ingest.export_journeys_day(con, DAY, out) == {"rows": 0, "bytes": 0}
     assert not out.exists()
 

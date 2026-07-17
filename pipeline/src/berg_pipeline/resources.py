@@ -33,6 +33,10 @@ class R2Resource(dg.ConfigurableResource):
     def upload(self, local_path: Path, key: str, client=None) -> None:
         (client or self.client()).upload_file(str(local_path), self.bucket, key)
 
+    def delete(self, key: str, client=None) -> None:
+        """Delete an authoritative output that rebuilt to zero rows."""
+        (client or self.client()).delete_object(Bucket=self.bucket, Key=key)
+
     def get_json(self, key: str, client=None) -> dict | None:
         """Parsed JSON at key, or None if the object does not exist."""
         import json

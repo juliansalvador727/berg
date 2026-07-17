@@ -429,6 +429,7 @@ def test_missing_day_exports_nothing(tmp_path, dim):
         ],
     )
     out = tmp_path / "24.parquet"
+    out.write_bytes(b"stale")
     stats = ingest.export_day(con, date(2018, 5, 24), out)
     assert stats["rows"] == 0
     assert not out.exists()

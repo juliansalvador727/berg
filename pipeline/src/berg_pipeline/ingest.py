@@ -22,6 +22,7 @@ stable across re-runs.
 import calendar
 import codecs
 import json
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -504,27 +505,34 @@ def export_day(con, day: date, out_path: Path) -> dict:
         "SELECT count(*) FROM fct_legs WHERE t_dep >= ? AND t_dep < ?", [lo, hi]
     ).fetchone()[0]
     if n == 0:
+        out_path.unlink(missing_ok=True)
         return {"rows": 0, "bytes": 0}
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    con.execute(f"""
-        COPY (
-            SELECT CAST(
-                       CASE WHEN flags & {FLAG_ROUTE_FRACTION} > 0
-                            THEN route_id | (route_start::UINTEGER << 16)
-                                          | (route_end::UINTEGER << 24)
-                            ELSE route_id END
-                       AS UINTEGER)             AS route_id,
-                   CAST(t_dep    AS UINTEGER)  AS t_dep,
-                   CAST(dur      AS USMALLINT) AS dur,
-                   CAST(type_id  AS UTINYINT)  AS type,
-                   delay,
-                   CAST(flags    AS UTINYINT)  AS flags
-            FROM fct_legs
-            WHERE t_dep >= {lo} AND t_dep < {hi}
-            ORDER BY t_dep
-        ) TO '{out_path.as_posix()}'
-        (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+    tmp_path = out_path.with_name(f".{out_path.name}.tmp")
+    tmp_path.unlink(missing_ok=True)
+    try:
+        con.execute(f"""
+            COPY (
+                SELECT CAST(
+                           CASE WHEN flags & {FLAG_ROUTE_FRACTION} > 0
+                                THEN route_id | (route_start::UINTEGER << 16)
+                                              | (route_end::UINTEGER << 24)
+                                ELSE route_id END
+                           AS UINTEGER)             AS route_id,
+                       CAST(t_dep    AS UINTEGER)  AS t_dep,
+                       CAST(dur      AS USMALLINT) AS dur,
+                       CAST(type_id  AS UTINYINT)  AS type,
+                       delay,
+                       CAST(flags    AS UTINYINT)  AS flags
+                FROM fct_legs
+                WHERE t_dep >= {lo} AND t_dep < {hi}
+                ORDER BY t_dep
+            ) TO '{tmp_path.as_posix()}'
+            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+        os.replace(tmp_path, out_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
     size = out_path.stat().st_size
     return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
@@ -555,21 +563,28 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
         "SELECT count(*) FROM fct_legs WHERE t_dep >= ? AND t_dep < ?", [lo, hi]
     ).fetchone()[0]
     if n == 0:
+        out_path.unlink(missing_ok=True)
         return {"rows": 0, "bytes": 0}
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    con.execute(f"""
-        COPY (
-            SELECT CAST(t_dep    AS UINTEGER) AS t_dep,
-                   CAST(route_id AS UINTEGER) AS route_id,
-                   trip_id,
-                   service_day,
-                   line
-            FROM fct_legs
-            WHERE t_dep >= {lo} AND t_dep < {hi}
-            ORDER BY t_dep
-        ) TO '{out_path.as_posix()}'
-        (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+    tmp_path = out_path.with_name(f".{out_path.name}.tmp")
+    tmp_path.unlink(missing_ok=True)
+    try:
+        con.execute(f"""
+            COPY (
+                SELECT CAST(t_dep    AS UINTEGER) AS t_dep,
+                       CAST(route_id AS UINTEGER) AS route_id,
+                       trip_id,
+                       service_day,
+                       line
+                FROM fct_legs
+                WHERE t_dep >= {lo} AND t_dep < {hi}
+                ORDER BY t_dep
+            ) TO '{tmp_path.as_posix()}'
+            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+        os.replace(tmp_path, out_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
     size = out_path.stat().st_size
     return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
