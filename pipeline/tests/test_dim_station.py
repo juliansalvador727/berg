@@ -77,8 +77,12 @@ def test_moving_and_moving_back_still_splits(cache, tmp_path):
     assert len(got) == 3, f"a real move must still segment, got {len(got)} ranges"
 
 
-def test_absence_at_the_end_closes_the_range(cache, tmp_path):
-    """A station that leaves and never returns still gets closed, not carried to 9999."""
+def test_absence_at_the_end_does_not_close_the_range(cache, tmp_path):
+    """The latest snapshot is not evidence that a station closed.
+
+    The GTFS listing lags the movement archive and temporarily drops stations. A train call
+    after this snapshot is stronger evidence than the absence, so the final segment stays open.
+    """
     snapshot(cache, "2024-01-01", [stop(8501172)])
     snapshot(cache, "2024-01-08", [stop(9999999, name="Elsewhere")])
     out = tmp_path / "dim.parquet"
@@ -86,6 +90,18 @@ def test_absence_at_the_end_closes_the_range(cache, tmp_path):
 
     got = ranges(out, 8501172)
     assert len(got) == 1
-    assert str(got[0][1]) == "2024-01-07 00:00:00", (
-        "valid_to should be the day before the snapshot that dropped it"
-    )
+    assert str(got[0][1]) == "9999-12-31 00:00:00"
+
+
+def test_absence_before_attribute_change_does_not_leave_a_gap(cache, tmp_path):
+    """An old segment remains valid until the next observed attribute value starts."""
+    snapshot(cache, "2024-01-01", [stop(8501172, lat=46.61315)])
+    snapshot(cache, "2024-01-08", [stop(9999999, name="Elsewhere")])
+    snapshot(cache, "2024-01-15", [stop(8501172, lat=46.70000)])
+    out = tmp_path / "dim.parquet"
+    build(cache, out)
+
+    got = ranges(out, 8501172)
+    assert len(got) == 2
+    assert str(got[0][1]) == "2024-01-14 00:00:00"
+    assert str(got[1][0]) == "2024-01-15"

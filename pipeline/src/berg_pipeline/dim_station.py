@@ -186,19 +186,27 @@ def build(cache: Path, out: Path) -> dict:
             WINDOW w AS (PARTITION BY o.bpuic ORDER BY s.idx)
         )""")
 
-    # valid_to is the day before the snapshot that ended the segment; the open segment runs to
-    # 9999-12-31. Ranges are therefore closed-closed and gapless within a station's lifetime.
-    c.sql(f"""CREATE TABLE dim_station AS
+    # A segment ends only when the next ATTRIBUTE segment begins. Snapshot absence is not an
+    # event, including at the tail of the archive: the listing lags real time and stations that
+    # disappear from its latest snapshot can still have observed train calls afterward. Closing
+    # on the last observation would recreate the same unmatched-station bug at the end of every
+    # station's history, while closing an old segment at its last observation would leave a gap
+    # before a later attribute change. The final segment therefore stays open and every earlier
+    # one ends the day before the next segment starts.
+    c.sql("""CREATE TABLE dim_station AS
         WITH g AS (
             SELECT bpuic, seg, min(name) AS name, min(lat) AS lat, min(lon) AS lon,
-                   min(snap) AS valid_from, max(idx) AS last_idx
+                   min(snap) AS valid_from
             FROM seg GROUP BY bpuic, seg
+        ), ranged AS (
+            SELECT *, lead(valid_from) OVER (PARTITION BY bpuic ORDER BY valid_from) AS next_from
+            FROM g
         )
-        SELECT g.bpuic, g.name, g.lon, g.lat, g.valid_from,
-               CASE WHEN g.last_idx = {n_snaps} THEN DATE '9999-12-31'
-                    ELSE (SELECT s.snap - INTERVAL 1 DAY FROM seq s WHERE s.idx = g.last_idx + 1)
+        SELECT bpuic, name, lon, lat, valid_from,
+               CASE WHEN next_from IS NULL THEN DATE '9999-12-31'
+                    ELSE next_from - INTERVAL 1 DAY
                END AS valid_to
-        FROM g
+        FROM ranged
         ORDER BY bpuic, valid_from""")
 
     out.parent.mkdir(parents=True, exist_ok=True)
