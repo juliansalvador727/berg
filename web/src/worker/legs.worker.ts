@@ -16,7 +16,7 @@ import duckdb_wasm_eh from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import eh_worker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
 
 import { MANIFEST_URL, dayFileUrl } from "../config";
-import type { Leg, Manifest } from "../types";
+import { FLAG_ROUTE_FRACTION, type Leg, type Manifest } from "../types";
 
 export type WorkerRequest =
   | { kind: "init" }
@@ -101,13 +101,18 @@ async function windowAt(
   const legs: Leg[] = new Array(res.numRows);
   for (let i = 0; i < res.numRows; i++) {
     const r = res.get(i)!;
+    const wireRouteId = Number(r.route_id);
+    const flags = Number(r.flags);
+    const hasFraction = (flags & FLAG_ROUTE_FRACTION) !== 0;
     legs[i] = {
-      route_id: Number(r.route_id),
+      route_id: hasFraction ? wireRouteId & 0xffff : wireRouteId,
+      route_start: hasFraction ? ((wireRouteId >>> 16) & 0xff) / 255 : 0,
+      route_end: hasFraction ? (wireRouteId >>> 24) / 255 : 1,
       t_dep: Number(r.t_dep),
       dur: Number(r.dur),
       type: Number(r.type),
       delay: Number(r.delay),
-      flags: Number(r.flags),
+      flags,
     };
   }
   return { from, to, legs };

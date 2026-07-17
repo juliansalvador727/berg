@@ -26,6 +26,8 @@ def _con_with_days(legs_by_day: dict[str, int]):
         epoch = int((date.fromisoformat(day) - date(1970, 1, 1)).total_seconds())
         con.execute(
             """INSERT INTO fct_legs
+               (service_day, trip_id, route_id, from_bpuic, to_bpuic, t_dep, dur,
+                type_id, delay, flags, line)
                SELECT DATE '{d}', 'trip', 1, 1, 2, {e} + (i % 86400), 60, 1, 0, 0, 'S1'
                FROM generate_series(0, {n} - 1) s(i)""".format(d=day, e=epoch, n=n)
         )

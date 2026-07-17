@@ -206,6 +206,18 @@ def test_split_rule(tmp_path, dim):
     assert [leg[4] for leg in ls] == [3600, 3600, 1800]
     assert all(leg[6] & 2 for leg in ls)
     assert ls[1][3] == ls[0][3] + 3600 and ls[2][3] == ls[1][3] + 3600
+    fractions = con.execute("SELECT route_start, route_end FROM fct_legs ORDER BY t_dep").fetchall()
+    assert fractions == [(0, 102), (102, 204), (204, 255)]
+
+    out = tmp_path / "split.parquet"
+    ingest.export_day(con, date(2018, 5, 3), out)
+    packed = duckdb.sql(f"SELECT route_id, flags FROM read_parquet('{out.as_posix()}')").fetchall()
+    base_route_id = con.execute("SELECT min(route_id) FROM fct_legs").fetchone()[0]
+    assert [(r & 0xFFFF, (r >> 16) & 0xFF, r >> 24, flags) for r, flags in packed] == [
+        (base_route_id, 0, 102, 6),
+        (base_route_id, 102, 204, 6),
+        (base_route_id, 204, 255, 6),
+    ]
 
 
 def test_leg_uses_one_clock_when_only_the_departure_is_measured(tmp_path, dim):

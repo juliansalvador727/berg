@@ -6,7 +6,7 @@ import dagster as dg
 from dagster_duckdb import DuckDBResource
 
 from berg_pipeline import ingest, paths, publish
-from berg_pipeline.constants import MAX_LEG_DURATION_S
+from berg_pipeline.constants import FLAG_ROUTE_FRACTION, MAX_LEG_DURATION_S
 from berg_pipeline.partitions import daily_partitions, monthly_partitions
 
 from .dimensions import dim_station
@@ -149,11 +149,13 @@ def legs_quality(duckdb: DuckDBResource) -> dg.AssetCheckResult:
     """
     with duckdb.get_connection() as con:
         ingest.create_tables(con)
-        bad_dur, bad_flags, bad_null = con.execute(
+        bad_dur, bad_flags, bad_null, bad_fraction = con.execute(
             f"""SELECT
                 count(*) FILTER (dur < 1 OR dur > {MAX_LEG_DURATION_S}),
-                count(*) FILTER (flags NOT BETWEEN 0 AND 3),
-                count(*) FILTER (t_dep IS NULL OR t_dep <= 0 OR route_id IS NULL)
+                count(*) FILTER (flags & 248 > 0),
+                count(*) FILTER (t_dep IS NULL OR t_dep <= 0 OR route_id IS NULL),
+                count(*) FILTER (flags & {FLAG_ROUTE_FRACTION} > 0
+                                 AND route_end <= route_start)
             FROM fct_legs"""
         ).fetchone()
         legs_per_day = con.execute(
@@ -163,13 +165,14 @@ def legs_quality(duckdb: DuckDBResource) -> dg.AssetCheckResult:
         quarantined = con.execute("SELECT count(*) FROM quarantine_legs").fetchone()[0]
         total = con.execute("SELECT count(*) FROM fct_legs").fetchone()[0]
 
-    passed = bad_dur == 0 and bad_flags == 0 and bad_null == 0
+    passed = bad_dur == 0 and bad_flags == 0 and bad_null == 0 and bad_fraction == 0
     return dg.AssetCheckResult(
         passed=bool(passed),
         metadata={
             "bad_duration": bad_dur,
             "bad_flags": bad_flags,
             "bad_nulls": bad_null,
+            "bad_route_fractions": bad_fraction,
             "avg_legs_per_service_day": legs_per_day,
             "quarantined_total": quarantined,
             "legs_total": total,

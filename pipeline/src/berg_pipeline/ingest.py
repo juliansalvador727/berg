@@ -27,9 +27,11 @@ from pathlib import Path
 
 from berg_pipeline.constants import (
     CH_BBOX,
+    FLAG_ROUTE_FRACTION,
     FLAG_SCHEDULED_FALLBACK,
     FLAG_SYNTHETIC_SPLIT,
     MAX_LEG_DURATION_S,
+    MAX_BASE_ROUTE_ID,
     MAX_RAW_LEG_DURATION_S,
     MEASURED_STATUSES,
     MIN_LEGS_PER_DAY,
@@ -85,6 +87,8 @@ def create_tables(con) -> None:
             type_id     SMALLINT NOT NULL,
             delay       SMALLINT NOT NULL,   -- departure delay, SECONDS, clamped to int16
             flags       TINYINT  NOT NULL,
+            route_start UTINYINT NOT NULL DEFAULT 0,
+            route_end   UTINYINT NOT NULL DEFAULT 255,
             -- The trip's line ('S3'), not the leg's. Never goes on the wire: it belongs to a
             -- journey, so it rides in the journeys sidecar where ~500 distinct values
             -- dictionary-encode to almost nothing. legs stays 8 bytes.
@@ -126,6 +130,8 @@ _ADDED_COLUMNS = (
     ("stg_istdaten", "is_extra", "BOOLEAN"),
     ("stg_istdaten", "is_passthrough", "BOOLEAN"),
     ("fct_legs", "line", "VARCHAR"),
+    ("fct_legs", "route_start", "UTINYINT DEFAULT 0"),
+    ("fct_legs", "route_end", "UTINYINT DEFAULT 255"),
 )
 
 
@@ -441,20 +447,32 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
     n_types = con.execute("SELECT count(*) FROM dim_train_type").fetchone()[0]
     if n_types > 255:
         raise RuntimeError(f"{n_types} train categories no longer fit uint8 (255 = unknown)")
+    max_route_id = con.execute("SELECT coalesce(max(route_id), 0) FROM station_pairs").fetchone()[0]
+    if max_route_id > MAX_BASE_ROUTE_ID:
+        raise RuntimeError(
+            f"route_id {max_route_id} no longer fits the packed wire's 16-bit base id"
+        )
 
     # The split rule: sub-leg i covers [t_dep + i*3600, ...], all sub-legs flagged synthetic.
     # delay is the run leg's departure delay, carried onto every sub-leg.
     con.execute(f"""
-        INSERT INTO fct_legs
+        INSERT INTO fct_legs (
+            service_day, trip_id, route_id, from_bpuic, to_bpuic, t_dep, dur, type_id,
+            delay, flags, line, route_start, route_end
+        )
         SELECT g.service_day, g.trip_id, p.route_id, g.from_bpuic, g.to_bpuic,
                g.t_dep + {MAX_LEG_DURATION_S} * s.i,
                least({MAX_LEG_DURATION_S}, g.dur - {MAX_LEG_DURATION_S} * s.i),
                coalesce(tt.type_id, 255),
                CAST(greatest(-32768, least(32767, coalesce(g.delay_s, 0))) AS SMALLINT),
                CAST(CASE WHEN g.measured THEN 0 ELSE {FLAG_SCHEDULED_FALLBACK} END
-                  | CASE WHEN g.dur > {MAX_LEG_DURATION_S} THEN {FLAG_SYNTHETIC_SPLIT} ELSE 0 END
+                  | CASE WHEN g.dur > {MAX_LEG_DURATION_S}
+                         THEN {FLAG_SYNTHETIC_SPLIT | FLAG_ROUTE_FRACTION} ELSE 0 END
                   AS TINYINT),
-               g.line
+               g.line,
+               CAST(round(({MAX_LEG_DURATION_S} * s.i) * 255.0 / g.dur) AS UTINYINT),
+               CAST(round(least(g.dur, {MAX_LEG_DURATION_S} * (s.i + 1))
+                          * 255.0 / g.dur) AS UTINYINT)
         FROM (SELECT * FROM _tagged WHERE verdict = 'ok') g
         JOIN station_pairs p USING (from_bpuic, to_bpuic)
         LEFT JOIN dim_train_type tt ON tt.category = g.category,
@@ -491,7 +509,12 @@ def export_day(con, day: date, out_path: Path) -> dict:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     con.execute(f"""
         COPY (
-            SELECT CAST(route_id AS UINTEGER)  AS route_id,
+            SELECT CAST(
+                       CASE WHEN flags & {FLAG_ROUTE_FRACTION} > 0
+                            THEN route_id | (route_start::UINTEGER << 16)
+                                          | (route_end::UINTEGER << 24)
+                            ELSE route_id END
+                       AS UINTEGER)             AS route_id,
                    CAST(t_dep    AS UINTEGER)  AS t_dep,
                    CAST(dur      AS USMALLINT) AS dur,
                    CAST(type_id  AS UTINYINT)  AS type,

@@ -182,6 +182,8 @@ async function main(): Promise<void> {
   function renderLegend() {
     const leg = (delay: number, flags = 0): Leg => ({
       route_id: 0,
+      route_start: 0,
+      route_end: 1,
       t_dep: 0,
       dur: 1,
       type: 0,

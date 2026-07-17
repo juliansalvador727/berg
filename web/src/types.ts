@@ -1,6 +1,8 @@
 /** The 8-byte wire schema. Keep it 8 bytes — 800M legs is 6.4 GB and the budget is 10. */
 export interface Leg {
-  route_id: number; // uint32, FK into routes.bin
+  route_id: number; // decoded base FK into routes.bin
+  route_start: number; // normalized progress on the route, normally 0
+  route_end: number; // normalized progress on the route, normally 1
   t_dep: number; // uint32, epoch seconds UTC
   dur: number; // uint16, seconds
   type: number; // uint8, train category enum
@@ -10,6 +12,7 @@ export interface Leg {
 
 export const FLAG_SCHEDULED_FALLBACK = 1 << 0;
 export const FLAG_SYNTHETIC_SPLIT = 1 << 1;
+export const FLAG_ROUTE_FRACTION = 1 << 2;
 
 /** One published day. `legs` is the row count; `bytes` the file size. */
 export interface ManifestDay {

@@ -94,7 +94,8 @@ export function delayColor(leg: Leg): RGB {
 export function legPosition(leg: Leg, simTime: number, routes: Routes): [number, number] | null {
   // dur = 0 is quarantined at ingest, but a divide by zero here is a NaN position and an
   // invisible train — too quiet a failure to take on trust from this side of the wire.
-  const frac = leg.dur > 0 ? (simTime - leg.t_dep) / leg.dur : 0;
+  const local = leg.dur > 0 ? (simTime - leg.t_dep) / leg.dur : 0;
+  const frac = leg.route_start + local * (leg.route_end - leg.route_start);
   return routes.positionAt(leg.route_id, frac);
 }
 
