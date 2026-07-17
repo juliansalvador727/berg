@@ -341,7 +341,7 @@ a missing day (05-24):
 | Max stops in one run        | 48 — `FAHRT_BEZEICHNER` is sane as a per-day trip id |
 | Delay p50 / p99             | 60 s / 435 s |
 | Quarantined                 | negative_duration 93,065 · zero_duration 13,512 · unmatched_station 155 · missing_time 52 |
-| Day files                   | 31 files, 23.7 MB total, **6.23 bytes/leg** — the gate passes at month scale |
+| Day files (pre-v3 wire)     | 31 files, 23.7 MB total, **6.23 bytes/leg** — the original gate passed at month scale |
 
 Two boundary behaviors worth remembering:
 
@@ -352,9 +352,9 @@ Two boundary behaviors worth remembering:
   missing file — data-faithful, and the scrub bar treatment (M4) must handle "nearly empty",
   not just "absent".
 
-## Storage: the budget is not tight
+## Historical storage baseline (pre-v3)
 
-Measured on one real day encoded to the 8-byte wire schema, zstd:
+Measured on one real day encoded before schema v3 added the uint16 `journey_id`, zstd:
 
 | Row group | Size/day | Bytes/leg |
 | --------- | -------: | --------: |
@@ -362,7 +362,8 @@ Measured on one real day encoded to the 8-byte wire schema, zstd:
 | 60,000    |  0.93 MB |      5.72 |
 | 122,880   |  0.90 MB |      5.53 |
 
-**The M1 gate passes**: 6.37 B/leg against an 8-byte budget and a 10-byte re-plan threshold.
+**The M1 gate passed** at 6.37 B/leg. Schema v3 must be remeasured after its full rebuild; the
+extra lookup id is integer-encoded and compressed rather than stored as two uncompressed bytes.
 
 Extrapolated over real coverage (2018-01 → 2026-06): M0 projected ~502M legs / ~3.2 GB by
 assuming today's 163k legs for every one of ~3,100 days. The M1 census refines both inputs —

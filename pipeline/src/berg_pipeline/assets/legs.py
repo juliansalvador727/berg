@@ -63,9 +63,9 @@ def journeys_parquet(
 ) -> dg.MaterializeResult:
     """Click-detail sidecar at journeys/YYYY/MM/DD.parquet — trip identity, per departure day.
 
-    Separate from legs_parquet on purpose. Identity is asked for a few times a session, so it
-    does not belong in a wire format paid for 460M times; keeping it out is what holds legs at
-    ~6.2 B/leg. Being additive also means the leg files never have to be re-exported to gain it.
+    One row per journey, keyed by the daily uint16 journey_id carried on each leg. Parallel
+    trains can share a departure second and route, so that explicit id is the only unambiguous
+    link; the larger trip identity and line text remain out of the per-leg wire.
 
     Materialize it for the same partitions as legs_parquet. Days it hasn't run for simply have
     no detail — the client treats a 404 here as "no info", never as an error.

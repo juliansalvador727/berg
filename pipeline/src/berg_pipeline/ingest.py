@@ -110,7 +110,7 @@ def create_tables(con) -> None:
             route_end   UTINYINT NOT NULL DEFAULT 255,
             -- The trip's line ('S3'), not the leg's. Never goes on the wire: it belongs to a
             -- journey, so it rides in the journeys sidecar where ~500 distinct values
-            -- dictionary-encode to almost nothing. legs stays 8 bytes.
+            -- dictionary-encode to almost nothing. The leg carries only its uint16 lookup id.
             line        VARCHAR
         )""")
     con.execute("""

@@ -8,7 +8,7 @@
  * vertex shader does the lookup and the lerp, simTime is a uniform — zero CPU per frame.
  *
  * Not TripsLayer: it wants per-vertex timestamps, which means expanding every leg client-side
- * and throwing away the 8-byte schema that the entire storage budget depends on.
+ * and throwing away the compact columnar schema that the storage budget depends on.
  */
 
 import { ScatterplotLayer } from "@deck.gl/layers";
