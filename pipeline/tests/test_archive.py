@@ -8,6 +8,7 @@ from datetime import date
 
 import pytest
 
+from berg_pipeline import archive
 from berg_pipeline.archive import (
     day_members,
     expected_usable_days,
@@ -15,6 +16,7 @@ from berg_pipeline.archive import (
     member_date,
     url_for_month,
 )
+from berg_pipeline.assets.raw import _assert_complete, _verified_cache, _write_cache_marker
 
 
 def test_url_naming_eras():
@@ -133,3 +135,30 @@ def test_census_lookup_is_optional_but_typed():
     """A missing census must not break ingest — it is a cross-check, not a dependency."""
     got = expected_usable_days("2025-07")
     assert got is None or isinstance(got, int)
+
+
+def test_cached_month_requires_an_atomic_completion_marker(tmp_path):
+    out = tmp_path / "2019-08"
+    out.mkdir()
+    (out / "2019-08-01.csv").write_bytes(b"complete")
+
+    assert _verified_cache("2019-08", out) is None
+
+
+def test_cached_month_rejects_a_truncated_file(tmp_path):
+    out = tmp_path / "2019-08"
+    out.mkdir()
+    day = out / "2019-08-31.csv"
+    day.write_bytes(b"complete")
+    _write_cache_marker("2019-08", out, {day.name: day.stat().st_size})
+    assert _verified_cache("2019-08", out) == [day]
+
+    day.write_bytes(b"short")
+    assert _verified_cache("2019-08", out) is None
+
+
+def test_month_completeness_rejects_extra_files(monkeypatch):
+    monkeypatch.setattr(archive, "census", lambda: {"2025-07": {"usable_days": 31}})
+
+    with pytest.raises(Exception, match="32 usable day CSVs"):
+        _assert_complete("2025-07", 32)

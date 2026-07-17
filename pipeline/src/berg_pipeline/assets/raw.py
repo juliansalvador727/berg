@@ -1,8 +1,10 @@
 """Ingest: monthly Ist-Daten archive ZIP → staged stop events in DuckDB."""
 
+import json
 import os
 import shutil
 import zipfile
+from pathlib import Path
 
 import dagster as dg
 import httpx
@@ -11,6 +13,8 @@ from dagster_duckdb import DuckDBResource
 from berg_pipeline import archive, ingest, paths
 from berg_pipeline.constants import V2_FIRST_FULL_MONTH
 from berg_pipeline.partitions import monthly_partitions
+
+_CACHE_MARKER = ".complete.json"
 
 
 def _month_key(context: dg.AssetExecutionContext) -> str:
@@ -28,12 +32,37 @@ def _assert_complete(month: str, got: int) -> None:
     against what the ZIP really has, not against the calendar.
     """
     expected = archive.expected_usable_days(month)
-    if expected is not None and got < expected:
+    if expected is not None and got != expected:
         raise dg.Failure(
             f"{month}: {got} usable day CSVs but the census expects {expected}. "
             f"Refusing to stage a short month — check the series (v1 vs v2, see "
             f"V2_FIRST_FULL_MONTH) and whether a previous run left a partial dir."
         )
+
+
+def _write_cache_marker(month: str, out_dir: Path, sizes: dict[str, int]) -> None:
+    """Commit an extracted month only after every CSV reached its exact archive size."""
+    marker = out_dir / _CACHE_MARKER
+    tmp = marker.with_name(f".{marker.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps({"month": month, "files": sizes}, sort_keys=True))
+    tmp.replace(marker)
+
+
+def _verified_cache(month: str, out_dir: Path) -> list[Path] | None:
+    """Return cached CSVs only when a completion marker matches every filename and byte."""
+    marker = out_dir / _CACHE_MARKER
+    if not marker.exists():
+        return None
+    try:
+        payload = json.loads(marker.read_text())
+        expected = {str(name): int(size) for name, size in payload["files"].items()}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if payload.get("month") != month:
+        return None
+    files = sorted(out_dir.glob("*.csv"))
+    actual = {p.name: p.stat().st_size for p in files}
+    return files if actual == expected else None
 
 
 @dg.asset(partitions_def=monthly_partitions, group_name="ingest")
@@ -42,7 +71,8 @@ def raw_zip(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
 
     The full archive is ~1.27 TB (measured — docs/archive-census.json), so nothing raw is
     precious: the ZIP is deleted right after extraction, and the CSVs after staging. A month
-    dir that already has CSVs is trusted as-is; delete it to force a re-download.
+    dir is reused only when its atomic completion marker matches every CSV's exact archive
+    size. An interrupted extraction has no marker and is discarded on the next run.
 
     day_members() is the only safe way to enumerate days — member paths take six shapes,
     five months ship __MACOSX resource forks with .csv names, and 29 days across the archive
@@ -52,39 +82,59 @@ def raw_zip(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     year, mon = int(month[:4]), int(month[5:7])
     out_dir = paths.RAW_ISTDATEN / month
 
-    existing = sorted(out_dir.glob("*.csv")) if out_dir.exists() else []
-    if existing:
-        _assert_complete(month, len(existing))  # a killed run leaves a partial dir
+    existing = _verified_cache(month, out_dir) if out_dir.exists() else None
+    if existing is not None:
+        _assert_complete(month, len(existing))
         return dg.MaterializeResult(
             metadata={"days": len(existing), "source": "cache", "dir": str(out_dir)}
         )
+    if out_dir.exists():
+        context.log.warning(f"{month}: discarding unverified raw cache")
+        shutil.rmtree(out_dir)
 
     url = archive.url_for_month(year, mon, v2=(year, mon) >= V2_FIRST_FULL_MONTH)
     zip_path = paths.DATA_ROOT / "raw" / "zips" / url.rsplit("/", 1)[-1]
     zip_path.parent.mkdir(parents=True, exist_ok=True)
+    download_tmp = zip_path.with_name(f".{zip_path.name}.{os.getpid()}.tmp")
     context.log.info(f"downloading {url}")
-    with httpx.stream("GET", url, follow_redirects=True, timeout=120.0) as r:
-        r.raise_for_status()
-        with open(zip_path, "wb") as fh:
-            for chunk in r.iter_bytes(1 << 20):
-                fh.write(chunk)
+    try:
+        with httpx.stream("GET", url, follow_redirects=True, timeout=120.0) as r:
+            r.raise_for_status()
+            with open(download_tmp, "wb") as fh:
+                for chunk in r.iter_bytes(1 << 20):
+                    fh.write(chunk)
+        download_tmp.replace(zip_path)
+    finally:
+        download_tmp.unlink(missing_ok=True)
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    days, skipped = [], []
+    days, skipped, sizes = [], [], {}
     with zipfile.ZipFile(zip_path) as zf:
         for day, info in sorted(archive.day_members(zf).items()):
             if info.file_size < archive.STUB_MAX_BYTES:
                 skipped.append(str(day))  # a ~20 KB stub is a hole, not a quiet day
                 continue
             dest = out_dir / f"{day.isoformat()}.csv"
-            with zf.open(info) as src, open(dest, "wb") as dst:
-                shutil.copyfileobj(src, dst, 1 << 20)
+            tmp = dest.with_name(f".{dest.name}.{os.getpid()}.tmp")
+            try:
+                with zf.open(info) as src, open(tmp, "wb") as dst:
+                    shutil.copyfileobj(src, dst, 1 << 20)
+                if tmp.stat().st_size != info.file_size:
+                    raise dg.Failure(
+                        f"{month}: extracted {dest.name} is {tmp.stat().st_size} bytes, "
+                        f"archive member is {info.file_size}"
+                    )
+                tmp.replace(dest)
+            finally:
+                tmp.unlink(missing_ok=True)
             days.append(str(day))
-    zip_path.unlink()
+            sizes[dest.name] = info.file_size
 
     if not days:
         raise dg.Failure(f"{month}: archive ZIP contained no usable day members")
     _assert_complete(month, len(days))
+    _write_cache_marker(month, out_dir, sizes)
+    zip_path.unlink()
     return dg.MaterializeResult(
         metadata={"days": len(days), "stub_days_skipped": skipped, "dir": str(out_dir)}
     )
