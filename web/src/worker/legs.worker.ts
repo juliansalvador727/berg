@@ -16,7 +16,13 @@ import duckdb_wasm_eh from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import eh_worker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
 
 import { MANIFEST_URL, dayFileUrl } from "../config";
-import { FLAG_ROUTE_FRACTION, type Leg, type Manifest } from "../types";
+import {
+  FLAG_ROUTE_FRACTION,
+  JOURNEY_ID_UNAVAILABLE,
+  LEG_SCHEMA_VERSION,
+  type Leg,
+  type Manifest,
+} from "../types";
 
 export type WorkerRequest =
   | { kind: "init" }
@@ -44,6 +50,11 @@ async function init(): Promise<Manifest> {
   const r = await fetch(MANIFEST_URL);
   if (!r.ok) throw new Error(`manifest: HTTP ${r.status} from ${MANIFEST_URL}`);
   manifest = (await r.json()) as Manifest;
+  if (manifest.schema_version > LEG_SCHEMA_VERSION) {
+    throw new Error(
+      `manifest schema ${manifest.schema_version} is newer than reader schema ${LEG_SCHEMA_VERSION}`,
+    );
+  }
   return manifest;
 }
 
@@ -92,8 +103,12 @@ async function windowAt(
   if (files.length === 0) return { from, to, legs: [] };
 
   const list = files.map((f) => `'${f}'`).join(", ");
+  const journeyColumn =
+    manifest.schema_version >= 3
+      ? "journey_id"
+      : `${JOURNEY_ID_UNAVAILABLE}::USMALLINT AS journey_id`;
   const res = await con.query(`
-    SELECT route_id, journey_id, t_dep, dur, type, delay, flags
+    SELECT route_id, ${journeyColumn}, t_dep, dur, type, delay, flags
     FROM read_parquet([${list}])
     WHERE t_dep BETWEEN ${from} AND ${to}
     ORDER BY t_dep`);

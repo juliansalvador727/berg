@@ -14,6 +14,8 @@ export interface Leg {
 export const FLAG_SCHEDULED_FALLBACK = 1 << 0;
 export const FLAG_SYNTHETIC_SPLIT = 1 << 1;
 export const FLAG_ROUTE_FRACTION = 1 << 2;
+export const LEG_SCHEMA_VERSION = 3;
+export const JOURNEY_ID_UNAVAILABLE = 0xffff;
 
 /** One published day. `legs` is the row count; `bytes` the file size. */
 export interface ManifestDay {
