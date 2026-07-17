@@ -95,7 +95,13 @@ def bootstrap_registries(con) -> dict:
     return ingest.seed_registries(con, route_pairs or {}, train_types or {})
 
 
-def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:
+def build_manifest(
+    legs_dir: Path,
+    base_days: dict | None = None,
+    *,
+    base_schema_version: int | None = None,
+    available_remote_keys: set[str] | None = None,
+) -> dict:
     """One duckdb query over the glob — cheaper than stat-ing thousands of files in Python.
 
     base_days is what the bucket already advertises. It matters because the local mirror is
@@ -106,8 +112,39 @@ def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:
     import duckdb
 
     files = sorted(legs_dir.glob("*/*/*.parquet"))
-    days: dict[str, dict] = dict(base_days or {})
+    local_days = {
+        date(int(f.parent.parent.name), int(f.parent.name), int(f.stem)).isoformat() for f in files
+    }
+    carried_days = dict(base_days or {})
+    if available_remote_keys is not None:
+        carried_days = {
+            day: metadata
+            for day, metadata in carried_days.items()
+            if f"legs/{day.replace('-', '/')}.parquet" in available_remote_keys
+        }
+
+    unreplaced = set(carried_days) - local_days
+    if unreplaced and base_schema_version != SCHEMA_VERSION:
+        raise RuntimeError(
+            f"cannot publish schema {SCHEMA_VERSION} while {len(unreplaced)} carried day(s) "
+            f"still use schema {base_schema_version}; rebuild the complete history"
+        )
+
+    days: dict[str, dict] = carried_days
     if files:
+        required = {"route_id", "journey_id", "t_dep", "dur", "type", "delay", "flags"}
+        schemas = duckdb.sql(
+            f"""SELECT file_name, list(name)
+                FROM parquet_schema('{legs_dir.as_posix()}/*/*/*.parquet')
+                GROUP BY file_name"""
+        ).fetchall()
+        bad_schema = [Path(filename) for filename, names in schemas if not required <= set(names)]
+        if bad_schema:
+            raise RuntimeError(
+                f"{len(bad_schema)} local leg file(s) do not match schema {SCHEMA_VERSION}; "
+                f"first: {bad_schema[0]}"
+            )
+
         rows = duckdb.sql(
             f"""
             SELECT filename, count(*) AS legs
@@ -151,10 +188,22 @@ def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:
     }
 
 
-def write_manifest(legs_dir: Path, out_path: Path, base_days: dict | None = None) -> dict:
+def write_manifest(
+    legs_dir: Path,
+    out_path: Path,
+    base_days: dict | None = None,
+    *,
+    base_schema_version: int | None = None,
+    available_remote_keys: set[str] | None = None,
+) -> dict:
     import json
 
-    manifest = build_manifest(legs_dir, base_days=base_days)
+    manifest = build_manifest(
+        legs_dir,
+        base_days=base_days,
+        base_schema_version=base_schema_version,
+        available_remote_keys=available_remote_keys,
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(manifest, indent=1))
     return manifest

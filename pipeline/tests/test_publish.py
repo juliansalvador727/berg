@@ -10,7 +10,11 @@ from berg_pipeline.publish import R2_ENV_VARS, build_manifest, r2_from_env
 
 def _write_day(path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    duckdb.sql(f"COPY (SELECT 1 AS x) TO '{path.as_posix()}' (FORMAT PARQUET)")
+    duckdb.sql(f"""
+        COPY (SELECT 1::UINTEGER AS route_id, 0::USMALLINT AS journey_id,
+                     1::UINTEGER AS t_dep, 1::USMALLINT AS dur, 1::UTINYINT AS type,
+                     0::SMALLINT AS delay, 0::UTINYINT AS flags)
+        TO '{path.as_posix()}' (FORMAT PARQUET)""")
 
 
 def test_build_manifest(tmp_path):
@@ -45,7 +49,9 @@ def test_ci_month_does_not_erase_published_history(tmp_path):
         "2018-05-01": {"bytes": 805012, "legs": 128535},
         "2018-05-02": {"bytes": 803000, "legs": 128000},
     }
-    manifest = build_manifest(legs_dir, base_days=already_published)
+    manifest = build_manifest(
+        legs_dir, base_days=already_published, base_schema_version=SCHEMA_VERSION
+    )
 
     assert manifest["start"] == "2018-05-01", "history must survive a one-month CI run"
     assert manifest["end"] == "2026-06-01"
@@ -57,7 +63,11 @@ def test_local_build_wins_over_the_published_entry(tmp_path):
     """A rebuilt day must replace what the bucket advertises, not be shadowed by it."""
     legs_dir = tmp_path / "legs"
     _write_day(legs_dir / "2018" / "05" / "01.parquet")
-    manifest = build_manifest(legs_dir, base_days={"2018-05-01": {"bytes": 1, "legs": 999999}})
+    manifest = build_manifest(
+        legs_dir,
+        base_days={"2018-05-01": {"bytes": 1, "legs": 999999}},
+        base_schema_version=SCHEMA_VERSION,
+    )
     assert manifest["days"]["2018-05-01"]["legs"] == 1  # the fixture day has one row
     assert manifest["days"]["2018-05-01"]["bytes"] > 1
 
@@ -83,6 +93,37 @@ def test_build_manifest_empty_dir(tmp_path):
     assert manifest["missing_days"] == []
     assert manifest["start"] is None
     assert manifest["end"] is None
+
+
+def test_manifest_drops_published_day_whose_remote_object_was_deleted(tmp_path):
+    manifest = build_manifest(
+        tmp_path / "legs",
+        base_days={"2026-06-04": {"bytes": 100, "legs": 20}},
+        base_schema_version=SCHEMA_VERSION,
+        available_remote_keys=set(),
+    )
+
+    assert manifest["days"] == {}
+
+
+def test_manifest_refuses_unrebuilt_history_from_an_older_schema(tmp_path):
+    with pytest.raises(RuntimeError, match="rebuild the complete history"):
+        build_manifest(
+            tmp_path / "legs",
+            base_days={"2018-05-01": {"bytes": 100, "legs": 20}},
+            base_schema_version=SCHEMA_VERSION - 1,
+            available_remote_keys={"legs/2018/05/01.parquet"},
+        )
+
+
+def test_manifest_refuses_old_local_leg_schema(tmp_path):
+    legs_dir = tmp_path / "legs"
+    old = legs_dir / "2018" / "05" / "01.parquet"
+    old.parent.mkdir(parents=True)
+    duckdb.sql(f"COPY (SELECT 1 AS route_id) TO '{old.as_posix()}' (FORMAT PARQUET)")
+
+    with pytest.raises(RuntimeError, match="do not match schema"):
+        build_manifest(legs_dir)
 
 
 def _clear_r2_env(monkeypatch):
