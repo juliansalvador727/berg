@@ -1,6 +1,7 @@
-/** The 8-byte wire schema. Keep it 8 bytes — 800M legs is 6.4 GB and the budget is 10. */
+/** The compact leg wire schema decoded from a daily Parquet file. */
 export interface Leg {
   route_id: number; // decoded base FK into routes.bin
+  journey_id: number; // uint16, unique within this departure-day file
   route_start: number; // normalized progress on the route, normally 0
   route_end: number; // normalized progress on the route, normally 1
   t_dep: number; // uint32, epoch seconds UTC

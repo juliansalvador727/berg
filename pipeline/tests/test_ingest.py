@@ -541,7 +541,7 @@ def test_migrate_tables_is_idempotent_and_preserves_rows(tmp_path, dim):
 
 
 def test_sidecar_carries_line_but_the_wire_does_not(tmp_path, dim):
-    """line belongs to a journey, so it rides in journeys/ — legs stays 8 bytes."""
+    """line belongs to a journey, so it rides in journeys/ rather than every leg."""
     con, _, _ = run_month(
         tmp_path,
         dim,
@@ -563,7 +563,8 @@ def test_sidecar_carries_line_but_the_wire_does_not(tmp_path, dim):
     wire = [
         d[0] for d in duckdb.sql(f"SELECT * FROM read_parquet('{legs.as_posix()}')").description
     ]
-    assert "line" not in wire, "the leg wire must stay 8 bytes"
+    assert "line" not in wire
+    assert "journey_id" in wire
 
 
 def test_departure_days_include_both_utc_boundaries():

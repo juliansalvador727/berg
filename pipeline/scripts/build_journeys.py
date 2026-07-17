@@ -82,7 +82,7 @@ def main(start: str | None, end: str | None, dry_run: bool, force: bool) -> int:
     print(f"\nbuilt {built} sidecars ({empty} days had no legs)")
     if total_rows:
         print(f"{'total MB':>18}: {total_bytes / 1e6:.1f}")
-        print(f"{'bytes/leg':>18}: {total_bytes / total_rows:.2f}")
+        print(f"{'bytes/journey':>18}: {total_bytes / total_rows:.2f}")
     return 0
 
 

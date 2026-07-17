@@ -1,8 +1,4 @@
-"""The click-detail sidecar contract.
-
-The invariant these pin down: journeys/ must line up with legs/ exactly — same rows, same
-order, same day boundary — because it exists to answer questions *about* those legs.
-"""
+"""The click-detail sidecar contract."""
 
 from datetime import date
 
@@ -32,8 +28,7 @@ def _leg(c, t_dep, trip_id="85:11:1", route_id=1, service_day=DAY, from_b=1, to_
     )
 
 
-def test_sidecar_matches_legs_row_for_row(con, tmp_path):
-    """Same WHERE and ORDER BY as export_day, so row N here is leg N there."""
+def test_sidecar_maps_every_leg_to_one_journey(con, tmp_path):
     for i, t in enumerate([T0 + 300, T0 + 100, T0 + 200]):
         _leg(con, t, trip_id=f"85:11:{i}", route_id=i + 1)
 
@@ -44,26 +39,49 @@ def test_sidecar_matches_legs_row_for_row(con, tmp_path):
 
     assert stats["rows"] == 3
     paired = duckdb.sql(f"""
-        SELECT l.t_dep, l.route_id, j.t_dep, j.route_id
-        FROM (SELECT *, row_number() OVER () AS rn FROM read_parquet('{legs.as_posix()}')) l
-        JOIN (SELECT *, row_number() OVER () AS rn FROM read_parquet('{journeys.as_posix()}')) j
-          USING (rn)""").fetchall()
-    assert [(a, b) for a, b, _, _ in paired] == [(c, d) for _, _, c, d in paired]
-    # and sorted by t_dep, which is what makes the lookup prune
-    assert [r[0] for r in paired] == [T0 + 100, T0 + 200, T0 + 300]
+        SELECT l.t_dep, l.journey_id, j.trip_id
+        FROM read_parquet('{legs.as_posix()}') l
+        JOIN read_parquet('{journeys.as_posix()}') j USING (journey_id)
+        ORDER BY l.t_dep""").fetchall()
+    assert paired == [
+        (T0 + 100, 1, "85:11:1"),
+        (T0 + 200, 2, "85:11:2"),
+        (T0 + 300, 0, "85:11:0"),
+    ]
 
 
-def test_lookup_by_t_dep_and_route_id_finds_the_trip(con, tmp_path):
-    """The actual click path: (t_dep, route_id) from the leg → trip identity."""
+def test_parallel_departures_have_unambiguous_journey_ids(con, tmp_path):
+    """The old (t_dep, route_id) key collided for parallel trains on the same pair."""
     _leg(con, T0 + 100, trip_id="85:11:AAA", route_id=7)
-    _leg(con, T0 + 100, trip_id="85:11:BBB", route_id=9)  # same second, different pair
-    out = tmp_path / "j.parquet"
-    ingest.export_journeys_day(con, DAY, out)
+    _leg(con, T0 + 100, trip_id="85:11:BBB", route_id=7)
+    legs = tmp_path / "l.parquet"
+    journeys = tmp_path / "j.parquet"
+    ingest.export_day(con, DAY, legs)
+    ingest.export_journeys_day(con, DAY, journeys)
 
     got = duckdb.sql(f"""
-        SELECT trip_id FROM read_parquet('{out.as_posix()}')
-        WHERE t_dep = {T0 + 100} AND route_id = 7""").fetchall()
-    assert got == [("85:11:AAA",)]
+        SELECT l.t_dep, l.route_id, l.journey_id, j.trip_id
+        FROM read_parquet('{legs.as_posix()}') l
+        JOIN read_parquet('{journeys.as_posix()}') j USING (journey_id)
+        ORDER BY journey_id""").fetchall()
+    assert got == [
+        (T0 + 100, 7, 0, "85:11:AAA"),
+        (T0 + 100, 7, 1, "85:11:BBB"),
+    ]
+
+
+def test_all_legs_of_a_trip_share_one_journey_id(con, tmp_path):
+    _leg(con, T0 + 100, trip_id="85:11:AAA", route_id=7)
+    _leg(con, T0 + 400, trip_id="85:11:AAA", route_id=8, from_b=2, to_b=3)
+    legs = tmp_path / "l.parquet"
+    journeys = tmp_path / "j.parquet"
+    ingest.export_day(con, DAY, legs)
+    stats = ingest.export_journeys_day(con, DAY, journeys)
+
+    assert duckdb.sql(
+        f"SELECT DISTINCT journey_id FROM read_parquet('{legs.as_posix()}')"
+    ).fetchall() == [(0,)]
+    assert stats["rows"] == 1
 
 
 def test_trip_id_alone_would_merge_two_service_days(con, tmp_path):
@@ -77,9 +95,9 @@ def test_trip_id_alone_would_merge_two_service_days(con, tmp_path):
     ingest.export_journeys_day(con, DAY, out)
 
     rows = duckdb.sql(f"""
-        SELECT service_day, count(*) FROM read_parquet('{out.as_posix()}')
-        WHERE trip_id = '85:11:1' GROUP BY 1 ORDER BY 1""").fetchall()
-    assert rows == [(date(2018, 5, 2), 1), (DAY, 1)]
+        SELECT journey_id, service_day FROM read_parquet('{out.as_posix()}')
+        WHERE trip_id = '85:11:1' ORDER BY service_day""").fetchall()
+    assert rows == [(0, date(2018, 5, 2)), (1, DAY)]
 
 
 def test_day_boundary_matches_legs(con, tmp_path):

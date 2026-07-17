@@ -46,6 +46,10 @@ TS_FORMATS = "['%d.%m.%Y %H:%M:%S','%d.%m.%Y %H:%M']"
 
 _MEASURED_SQL = "(" + ", ".join(f"'{s}'" for s in MEASURED_STATUSES) + ")"
 
+# journey_id is dense within one UTC departure-day file. Switzerland has roughly 20k train
+# journeys/day, leaving ample headroom while keeping the leg-side lookup key to two bytes.
+MAX_JOURNEYS_PER_DAY = 1 << 16
+
 
 def month_bounds(month: str) -> tuple[date, date]:
     """'YYYY-MM' → (first day, last day)."""
@@ -491,7 +495,7 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
 
 
 def export_day(con, day: date, out_path: Path) -> dict:
-    """One UTC calendar day of departures → the 8-byte wire Parquet.
+    """One UTC calendar day of departures → the compact wire Parquet.
 
     Keyed by DEPARTURE day (t_dep's UTC date), not service day: the client fetches day N and,
     near midnight, day N−1 — so an 01:30 departure from a late service must sit in its own
@@ -508,26 +512,41 @@ def export_day(con, day: date, out_path: Path) -> dict:
         out_path.unlink(missing_ok=True)
         return {"rows": 0, "bytes": 0}
 
+    n_journeys = con.execute(
+        """SELECT count(DISTINCT (service_day, trip_id)) FROM fct_legs
+           WHERE t_dep >= ? AND t_dep < ?""",
+        [lo, hi],
+    ).fetchone()[0]
+    if n_journeys > MAX_JOURNEYS_PER_DAY:
+        raise RuntimeError(
+            f"{day}: {n_journeys} journeys no longer fit the daily uint16 journey_id"
+        )
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = out_path.with_name(f".{out_path.name}.tmp")
     tmp_path.unlink(missing_ok=True)
     try:
         con.execute(f"""
             COPY (
+                WITH numbered AS (
+                    SELECT *, dense_rank() OVER (ORDER BY service_day, trip_id) - 1 AS journey_id
+                    FROM fct_legs
+                    WHERE t_dep >= {lo} AND t_dep < {hi}
+                )
                 SELECT CAST(
                            CASE WHEN flags & {FLAG_ROUTE_FRACTION} > 0
                                 THEN route_id | (route_start::UINTEGER << 16)
                                               | (route_end::UINTEGER << 24)
                                 ELSE route_id END
                            AS UINTEGER)             AS route_id,
+                       CAST(journey_id AS USMALLINT) AS journey_id,
                        CAST(t_dep    AS UINTEGER)  AS t_dep,
                        CAST(dur      AS USMALLINT) AS dur,
                        CAST(type_id  AS UTINYINT)  AS type,
                        delay,
                        CAST(flags    AS UTINYINT)  AS flags
-                FROM fct_legs
-                WHERE t_dep >= {lo} AND t_dep < {hi}
-                ORDER BY t_dep
+                FROM numbered
+                ORDER BY t_dep, journey_id, route_id, route_start, route_end
             ) TO '{tmp_path.as_posix()}'
             (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
         os.replace(tmp_path, out_path)
@@ -541,13 +560,9 @@ def export_day(con, day: date, out_path: Path) -> dict:
 def export_journeys_day(con, day: date, out_path: Path) -> dict:
     """One UTC calendar day of departures → the click-detail sidecar.
 
-    Additive by design: the 8-byte leg wire stays exactly as it is, and this pays for itself
-    only when someone actually clicks. Identity is deliberately NOT in the leg file — a
-    journey id on every leg taxes 460M rows to answer a question asked a few times a session.
-
-    Same WHERE and same ORDER BY as export_day, so row N here is leg N there. The client does
-    not rely on that (it looks up by t_dep + route_id, which prunes on the sorted t_dep), but
-    keeping them aligned makes the two files diffable when something looks wrong.
+    Each wire leg carries a daily uint16 journey_id. This sidecar has exactly one row per id,
+    making lookup unambiguous even when parallel trains depart over the same route in the same
+    second. Multiple legs of one (service_day, trip_id) share their id.
 
     Carries no station ids: (from, to) is a pure function of route_id, published once in
     static/route_pairs.json rather than repeated 460M times.
@@ -559,12 +574,16 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
     epoch_day = int((day - date(1970, 1, 1)).total_seconds())
     lo, hi = epoch_day, epoch_day + 86400
 
-    n = con.execute(
-        "SELECT count(*) FROM fct_legs WHERE t_dep >= ? AND t_dep < ?", [lo, hi]
-    ).fetchone()[0]
-    if n == 0:
+    n_legs, n = con.execute(
+        """SELECT count(*), count(DISTINCT (service_day, trip_id)) FROM fct_legs
+           WHERE t_dep >= ? AND t_dep < ?""",
+        [lo, hi],
+    ).fetchone()
+    if n_legs == 0:
         out_path.unlink(missing_ok=True)
         return {"rows": 0, "bytes": 0}
+    if n > MAX_JOURNEYS_PER_DAY:
+        raise RuntimeError(f"{day}: {n} journeys no longer fit the daily uint16 journey_id")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = out_path.with_name(f".{out_path.name}.tmp")
@@ -572,14 +591,18 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
     try:
         con.execute(f"""
             COPY (
-                SELECT CAST(t_dep    AS UINTEGER) AS t_dep,
-                       CAST(route_id AS UINTEGER) AS route_id,
-                       trip_id,
-                       service_day,
-                       line
-                FROM fct_legs
-                WHERE t_dep >= {lo} AND t_dep < {hi}
-                ORDER BY t_dep
+                WITH journeys AS (
+                    SELECT service_day, trip_id,
+                           first(line ORDER BY t_dep, route_id, from_bpuic, to_bpuic) AS line
+                    FROM fct_legs
+                    WHERE t_dep >= {lo} AND t_dep < {hi}
+                    GROUP BY service_day, trip_id
+                )
+                SELECT CAST(row_number() OVER (ORDER BY service_day, trip_id) - 1 AS USMALLINT)
+                           AS journey_id,
+                       trip_id, service_day, line
+                FROM journeys
+                ORDER BY journey_id
             ) TO '{tmp_path.as_posix()}'
             (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
         os.replace(tmp_path, out_path)
@@ -587,7 +610,7 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
         tmp_path.unlink(missing_ok=True)
 
     size = out_path.stat().st_size
-    return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
+    return {"rows": n, "bytes": size, "bytes_per_journey": round(size / n, 2)}
 
 
 def export_train_types(con, out_path: Path) -> dict:

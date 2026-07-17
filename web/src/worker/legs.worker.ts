@@ -93,7 +93,7 @@ async function windowAt(
 
   const list = files.map((f) => `'${f}'`).join(", ");
   const res = await con.query(`
-    SELECT route_id, t_dep, dur, type, delay, flags
+    SELECT route_id, journey_id, t_dep, dur, type, delay, flags
     FROM read_parquet([${list}])
     WHERE t_dep BETWEEN ${from} AND ${to}
     ORDER BY t_dep`);
@@ -106,6 +106,7 @@ async function windowAt(
     const hasFraction = (flags & FLAG_ROUTE_FRACTION) !== 0;
     legs[i] = {
       route_id: hasFraction ? wireRouteId & 0xffff : wireRouteId,
+      journey_id: Number(r.journey_id),
       route_start: hasFraction ? ((wireRouteId >>> 16) & 0xff) / 255 : 0,
       route_end: hasFraction ? (wireRouteId >>> 24) / 255 : 1,
       t_dep: Number(r.t_dep),

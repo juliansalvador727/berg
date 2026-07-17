@@ -4,7 +4,7 @@ Anything here that changes is a breaking change to published data: bump SCHEMA_V
 say so in manifest.json.
 """
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # The archive nominally starts in 2016, but 2016+2017 ship as a single ZIP named
 # "unvollstaendig" — 166 MB for 24 months, against 397 MB for January 2018 alone. Usable
