@@ -220,6 +220,21 @@ def test_split_rule(tmp_path, dim):
     ]
 
 
+def test_split_rule_preserves_a_tiny_final_fragment(tmp_path, dim):
+    """A remainder below half a uint8 progress unit must not collapse to [255, 255]."""
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00", ab_prog="03.05.2018 08:00:00", ab_status="REAL"),
+            ev(bpuic=4, an="03.05.2018 09:00", an_prog="03.05.2018 09:00:01", an_status="REAL"),
+        ],
+    )
+
+    rows = con.execute("SELECT dur, route_start, route_end FROM fct_legs ORDER BY t_dep").fetchall()
+    assert rows == [(3600, 0, 254), (1, 254, 255)]
+
+
 def test_leg_uses_one_clock_when_only_the_departure_is_measured(tmp_path, dim):
     """A leg's two ends must come from the same basis, or dur is not a duration.
 

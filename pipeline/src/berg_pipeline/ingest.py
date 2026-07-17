@@ -498,14 +498,28 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
                              THEN {FLAG_SYNTHETIC_SPLIT | FLAG_ROUTE_FRACTION} ELSE 0 END
                       AS TINYINT),
                    g.line,
-                   CAST(round(({MAX_LEG_DURATION_S} * s.i) * 255.0 / g.dur) AS UTINYINT),
-                   CAST(round(least(g.dur, {MAX_LEG_DURATION_S} * (s.i + 1))
-                              * 255.0 / g.dur) AS UTINYINT)
+                   -- Rounded uint8 progress can collapse a tiny final remainder: a 3,601 s
+                   -- leg used to become [0,255] + [255,255]. Clamp every boundary between
+                   -- its segment index and the space needed by the remaining segments, so
+                   -- all pieces stay continuous and strictly positive after quantization.
+                   CAST(greatest(
+                       s.i,
+                       least(255 - (parts.n - s.i),
+                             round(({MAX_LEG_DURATION_S} * s.i) * 255.0 / g.dur))
+                   ) AS UTINYINT),
+                   CAST(greatest(
+                       s.i + 1,
+                       least(255 - (parts.n - (s.i + 1)),
+                             round(least(g.dur, {MAX_LEG_DURATION_S} * (s.i + 1))
+                                   * 255.0 / g.dur))
+                   ) AS UTINYINT)
             FROM (SELECT * FROM _tagged WHERE verdict = 'ok') g
             JOIN station_pairs p USING (from_bpuic, to_bpuic)
             LEFT JOIN dim_train_type tt ON tt.category = g.category,
-            LATERAL generate_series(
-                0, CAST(ceil(g.dur / {MAX_LEG_DURATION_S}.0) AS INT) - 1) s(i)""")
+            LATERAL (
+                SELECT CAST(ceil(g.dur / {MAX_LEG_DURATION_S}.0) AS INT) AS n
+            ) parts,
+            LATERAL generate_series(0, parts.n - 1) s(i)""")
 
     stats = dict(
         con.execute(f"""
