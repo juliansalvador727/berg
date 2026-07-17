@@ -23,6 +23,7 @@ import calendar
 import codecs
 import json
 import os
+from contextlib import contextmanager
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -49,6 +50,19 @@ _MEASURED_SQL = "(" + ", ".join(f"'{s}'" for s in MEASURED_STATUSES) + ")"
 # journey_id is dense within one UTC departure-day file. Switzerland has roughly 20k train
 # journeys/day, leaving ample headroom while keeping the leg-side lookup key to two bytes.
 MAX_JOURNEYS_PER_DAY = 1 << 16
+
+
+@contextmanager
+def _transaction(con):
+    """Commit a logical replacement atomically and leave the connection usable on failure."""
+    con.execute("BEGIN TRANSACTION")
+    try:
+        yield
+    except BaseException:
+        con.execute("ROLLBACK")
+        raise
+    else:
+        con.execute("COMMIT")
 
 
 def month_bounds(month: str) -> tuple[date, date]:
@@ -294,29 +308,30 @@ def stage_month(con, month: str, csv_files: list[Path]) -> dict:
     encodings = _stage_raw_view(con, csv_files)
     n_raw, n_train, n_cancelled = con.execute(_COUNT_SQL).fetchone()
 
-    con.execute("DELETE FROM stg_istdaten WHERE service_day BETWEEN ? AND ?", [first, last])
-    con.execute(f"""
-        INSERT INTO stg_istdaten
-        SELECT CAST(strptime(BETRIEBSTAG, '%d.%m.%Y') AS DATE)      AS service_day,
-               FAHRT_BEZEICHNER                                     AS trip_id,
-               BETREIBER_ABK                                        AS operator,
-               VERKEHRSMITTEL_TEXT                                  AS category,
-               try_cast(BPUIC AS BIGINT)                            AS bpuic,
-               try_strptime(ANKUNFTSZEIT, {TS_FORMATS})             AS sched_arr,
-               try_strptime(ABFAHRTSZEIT, {TS_FORMATS})             AS sched_dep,
-               try_strptime(AN_PROGNOSE, {TS_FORMATS})              AS act_arr,
-               try_strptime(AB_PROGNOSE, {TS_FORMATS})              AS act_dep,
-               AN_PROGNOSE_STATUS IN {_MEASURED_SQL}
-                   AND try_strptime(AN_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS arr_measured,
-               AB_PROGNOSE_STATUS IN {_MEASURED_SQL}
-                   AND try_strptime(AB_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS dep_measured,
-               nullif(trim(LINIEN_TEXT), '')                         AS line,
-               nullif(trim(UMLAUF_ID), '')                          AS umlauf_id,
-               lower(ZUSATZFAHRT_TF) = 'true'                       AS is_extra,
-               lower(DURCHFAHRT_TF) = 'true'                        AS is_passthrough
-        FROM _raw
-        WHERE upper(PRODUKT_ID) = 'ZUG'
-          AND coalesce(lower(FAELLT_AUS_TF), 'false') <> 'true'""")
+    with _transaction(con):
+        con.execute("DELETE FROM stg_istdaten WHERE service_day BETWEEN ? AND ?", [first, last])
+        con.execute(f"""
+            INSERT INTO stg_istdaten
+            SELECT CAST(strptime(BETRIEBSTAG, '%d.%m.%Y') AS DATE)      AS service_day,
+                   FAHRT_BEZEICHNER                                     AS trip_id,
+                   BETREIBER_ABK                                        AS operator,
+                   VERKEHRSMITTEL_TEXT                                  AS category,
+                   try_cast(BPUIC AS BIGINT)                            AS bpuic,
+                   try_strptime(ANKUNFTSZEIT, {TS_FORMATS})             AS sched_arr,
+                   try_strptime(ABFAHRTSZEIT, {TS_FORMATS})             AS sched_dep,
+                   try_strptime(AN_PROGNOSE, {TS_FORMATS})              AS act_arr,
+                   try_strptime(AB_PROGNOSE, {TS_FORMATS})              AS act_dep,
+                   AN_PROGNOSE_STATUS IN {_MEASURED_SQL}
+                       AND try_strptime(AN_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS arr_measured,
+                   AB_PROGNOSE_STATUS IN {_MEASURED_SQL}
+                       AND try_strptime(AB_PROGNOSE, {TS_FORMATS}) IS NOT NULL AS dep_measured,
+                   nullif(trim(LINIEN_TEXT), '')                         AS line,
+                   nullif(trim(UMLAUF_ID), '')                          AS umlauf_id,
+                   lower(ZUSATZFAHRT_TF) = 'true'                       AS is_extra,
+                   lower(DURCHFAHRT_TF) = 'true'                        AS is_passthrough
+            FROM _raw
+            WHERE upper(PRODUKT_ID) = 'ZUG'
+              AND coalesce(lower(FAELLT_AUS_TF), 'false') <> 'true'""")
 
     n_staged = con.execute(
         "SELECT count(*) FROM stg_istdaten WHERE service_day BETWEEN ? AND ?", [first, last]
@@ -423,66 +438,74 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
         LEFT JOIN _dim t ON t.bpuic = c.to_bpuic
                         AND c.service_day BETWEEN t.valid_from AND t.valid_to""")
 
-    # Idempotence: this month's facts and quarantine rows are rebuilt from scratch.
-    con.execute("DELETE FROM fct_legs WHERE service_day BETWEEN ? AND ?", [first, last])
-    con.execute("DELETE FROM quarantine_legs WHERE service_day BETWEEN ? AND ?", [first, last])
+    # The old month, its quarantine, and any registry ids introduced by the replacement are
+    # one unit. A failed insert must leave the previously good month intact.
+    with _transaction(con):
+        con.execute("DELETE FROM fct_legs WHERE service_day BETWEEN ? AND ?", [first, last])
+        con.execute("DELETE FROM quarantine_legs WHERE service_day BETWEEN ? AND ?", [first, last])
 
-    # outside_ch is an expected clip, not a data defect — count it, don't quarantine it.
-    con.execute("""
-        INSERT INTO quarantine_legs
-        SELECT service_day, trip_id, from_bpuic, to_bpuic, t_dep, dur, verdict
-        FROM _tagged WHERE verdict NOT IN ('ok', 'outside_ch')""")
+        # outside_ch is an expected clip, not a data defect — count it, don't quarantine it.
+        con.execute("""
+            INSERT INTO quarantine_legs
+            SELECT service_day, trip_id, from_bpuic, to_bpuic, t_dep, dur, verdict
+            FROM _tagged WHERE verdict NOT IN ('ok', 'outside_ch')""")
 
-    # Registries append-only, ordered for deterministic ids on a fresh build.
-    con.execute("""
-        INSERT INTO station_pairs
-        SELECT from_bpuic, to_bpuic,
-               coalesce((SELECT max(route_id) FROM station_pairs), -1)
-                 + row_number() OVER (ORDER BY from_bpuic, to_bpuic)
-        FROM (SELECT DISTINCT from_bpuic, to_bpuic FROM _tagged WHERE verdict = 'ok')
-        WHERE (from_bpuic, to_bpuic) NOT IN (SELECT from_bpuic, to_bpuic FROM station_pairs)""")
-    con.execute("""
-        INSERT INTO dim_train_type
-        SELECT category,
-               coalesce((SELECT max(type_id) FROM dim_train_type), -1)
-                 + row_number() OVER (ORDER BY category)
-        FROM (SELECT DISTINCT category FROM _tagged WHERE verdict = 'ok' AND category IS NOT NULL)
-        WHERE category NOT IN (SELECT category FROM dim_train_type)""")
+        # Registries append-only, ordered for deterministic ids on a fresh build.
+        con.execute("""
+            INSERT INTO station_pairs
+            SELECT from_bpuic, to_bpuic,
+                   coalesce((SELECT max(route_id) FROM station_pairs), -1)
+                     + row_number() OVER (ORDER BY from_bpuic, to_bpuic)
+            FROM (SELECT DISTINCT from_bpuic, to_bpuic FROM _tagged WHERE verdict = 'ok')
+            WHERE (from_bpuic, to_bpuic) NOT IN
+                  (SELECT from_bpuic, to_bpuic FROM station_pairs)""")
+        con.execute("""
+            INSERT INTO dim_train_type
+            SELECT category,
+                   coalesce((SELECT max(type_id) FROM dim_train_type), -1)
+                     + row_number() OVER (ORDER BY category)
+            FROM (
+                SELECT DISTINCT category FROM _tagged
+                WHERE verdict = 'ok' AND category IS NOT NULL
+            )
+            WHERE category NOT IN (SELECT category FROM dim_train_type)""")
 
-    n_types = con.execute("SELECT count(*) FROM dim_train_type").fetchone()[0]
-    if n_types > 255:
-        raise RuntimeError(f"{n_types} train categories no longer fit uint8 (255 = unknown)")
-    max_route_id = con.execute("SELECT coalesce(max(route_id), 0) FROM station_pairs").fetchone()[0]
-    if max_route_id > MAX_BASE_ROUTE_ID:
-        raise RuntimeError(
-            f"route_id {max_route_id} no longer fits the packed wire's 16-bit base id"
-        )
+        n_types = con.execute("SELECT count(*) FROM dim_train_type").fetchone()[0]
+        if n_types > 255:
+            raise RuntimeError(f"{n_types} train categories no longer fit uint8 (255 = unknown)")
+        max_route_id = con.execute(
+            "SELECT coalesce(max(route_id), 0) FROM station_pairs"
+        ).fetchone()[0]
+        if max_route_id > MAX_BASE_ROUTE_ID:
+            raise RuntimeError(
+                f"route_id {max_route_id} no longer fits the packed wire's 16-bit base id"
+            )
 
-    # The split rule: sub-leg i covers [t_dep + i*3600, ...], all sub-legs flagged synthetic.
-    # delay is the run leg's departure delay, carried onto every sub-leg.
-    con.execute(f"""
-        INSERT INTO fct_legs (
-            service_day, trip_id, route_id, from_bpuic, to_bpuic, t_dep, dur, type_id,
-            delay, flags, line, route_start, route_end
-        )
-        SELECT g.service_day, g.trip_id, p.route_id, g.from_bpuic, g.to_bpuic,
-               g.t_dep + {MAX_LEG_DURATION_S} * s.i,
-               least({MAX_LEG_DURATION_S}, g.dur - {MAX_LEG_DURATION_S} * s.i),
-               coalesce(tt.type_id, 255),
-               CAST(greatest(-32768, least(32767, coalesce(g.delay_s, 0))) AS SMALLINT),
-               CAST(CASE WHEN g.measured THEN 0 ELSE {FLAG_SCHEDULED_FALLBACK} END
-                  | CASE WHEN g.dur > {MAX_LEG_DURATION_S}
-                         THEN {FLAG_SYNTHETIC_SPLIT | FLAG_ROUTE_FRACTION} ELSE 0 END
-                  AS TINYINT),
-               g.line,
-               CAST(round(({MAX_LEG_DURATION_S} * s.i) * 255.0 / g.dur) AS UTINYINT),
-               CAST(round(least(g.dur, {MAX_LEG_DURATION_S} * (s.i + 1))
-                          * 255.0 / g.dur) AS UTINYINT)
-        FROM (SELECT * FROM _tagged WHERE verdict = 'ok') g
-        JOIN station_pairs p USING (from_bpuic, to_bpuic)
-        LEFT JOIN dim_train_type tt ON tt.category = g.category,
-        LATERAL generate_series(
-            0, CAST(ceil(g.dur / {MAX_LEG_DURATION_S}.0) AS INT) - 1) s(i)""")
+        # The split rule: sub-leg i covers [t_dep + i*3600, ...], all sub-legs flagged
+        # synthetic. delay is the run leg's departure delay, carried onto every sub-leg.
+        con.execute(f"""
+            INSERT INTO fct_legs (
+                service_day, trip_id, route_id, from_bpuic, to_bpuic, t_dep, dur, type_id,
+                delay, flags, line, route_start, route_end
+            )
+            SELECT g.service_day, g.trip_id, p.route_id, g.from_bpuic, g.to_bpuic,
+                   g.t_dep + {MAX_LEG_DURATION_S} * s.i,
+                   least({MAX_LEG_DURATION_S}, g.dur - {MAX_LEG_DURATION_S} * s.i),
+                   coalesce(tt.type_id, 255),
+                   CAST(greatest(-32768, least(32767, coalesce(g.delay_s, 0))) AS SMALLINT),
+                   CAST(CASE WHEN g.measured THEN 0 ELSE {FLAG_SCHEDULED_FALLBACK} END
+                      | CASE WHEN g.dur > {MAX_LEG_DURATION_S}
+                             THEN {FLAG_SYNTHETIC_SPLIT | FLAG_ROUTE_FRACTION} ELSE 0 END
+                      AS TINYINT),
+                   g.line,
+                   CAST(round(({MAX_LEG_DURATION_S} * s.i) * 255.0 / g.dur) AS UTINYINT),
+                   CAST(round(least(g.dur, {MAX_LEG_DURATION_S} * (s.i + 1))
+                              * 255.0 / g.dur) AS UTINYINT)
+            FROM (SELECT * FROM _tagged WHERE verdict = 'ok') g
+            JOIN station_pairs p USING (from_bpuic, to_bpuic)
+            LEFT JOIN dim_train_type tt ON tt.category = g.category,
+            LATERAL generate_series(
+                0, CAST(ceil(g.dur / {MAX_LEG_DURATION_S}.0) AS INT) - 1) s(i)""")
 
     stats = dict(
         con.execute(f"""

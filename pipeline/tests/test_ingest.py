@@ -540,6 +540,66 @@ def test_migrate_tables_is_idempotent_and_preserves_rows(tmp_path, dim):
     assert {"line", "umlauf_id", "is_extra", "is_passthrough"} <= set(cols)
 
 
+def test_failed_stage_replacement_preserves_previous_month(tmp_path, dim):
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00"),
+            ev(bpuic=2, an="03.05.2018 08:30"),
+        ],
+    )
+    before = con.execute(
+        "SELECT service_day, trip_id, bpuic FROM stg_istdaten ORDER BY bpuic"
+    ).fetchall()
+    broken = tmp_path / "broken.csv"
+    broken.write_text("\n".join([HEADER, ev(day="not-a-date")]) + "\n")
+
+    with pytest.raises(duckdb.InvalidInputException):
+        ingest.stage_month(con, "2018-05", [broken])
+
+    assert (
+        con.execute(
+            "SELECT service_day, trip_id, bpuic FROM stg_istdaten ORDER BY bpuic"
+        ).fetchall()
+        == before
+    )
+
+
+def test_failed_fact_replacement_preserves_previous_month_and_registries(tmp_path, dim):
+    con, _, _ = run_month(
+        tmp_path,
+        dim,
+        [
+            ev(bpuic=1, ab="03.05.2018 08:00"),
+            ev(bpuic=2, an="03.05.2018 08:30"),
+        ],
+    )
+    before = con.execute(
+        "SELECT service_day, trip_id, route_id, t_dep, dur FROM fct_legs"
+    ).fetchall()
+    # IC already owns id 0. Fill the remaining valid uint8 ids, then make the replacement
+    # discover one more category so it fails after deleting the old fact rows.
+    con.executemany(
+        "INSERT INTO dim_train_type VALUES (?, ?)",
+        [(f"existing-{i}", i) for i in range(1, 255)],
+    )
+    con.execute("UPDATE stg_istdaten SET category = 'overflow'")
+
+    with pytest.raises(RuntimeError, match="256 train categories"):
+        ingest.build_legs(con, "2018-05", dim)
+
+    assert (
+        con.execute("SELECT service_day, trip_id, route_id, t_dep, dur FROM fct_legs").fetchall()
+        == before
+    )
+    assert con.execute("SELECT count(*) FROM dim_train_type").fetchone()[0] == 255
+    assert (
+        con.execute("SELECT count(*) FROM dim_train_type WHERE category = 'overflow'").fetchone()[0]
+        == 0
+    )
+
+
 def test_sidecar_carries_line_but_the_wire_does_not(tmp_path, dim):
     """line belongs to a journey, so it rides in journeys/ rather than every leg."""
     con, _, _ = run_month(
