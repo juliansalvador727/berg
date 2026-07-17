@@ -1,8 +1,8 @@
 """Materialize one month end to end through the real Dagster assets.
 
-raw_zip → stg_istdaten → fct_legs as one monthly run, then legs_parquet for every calendar
-day whose file gains rows (a service day's night trains depart after midnight, so day N+1
-gets a few of day N's legs). Prints the month summary the M1 gate cares about.
+raw_zip → stg_istdaten → fct_legs as one monthly run, then legs_parquet for every UTC calendar
+day affected by that service month, including both boundary days. Prints the month summary the
+M1 gate cares about.
 
 Usage:
     uv run python scripts/build_month.py 2018-05 [--skip-dim]
@@ -12,6 +12,7 @@ dimension (which would re-list the GTFS archive).
 """
 
 import argparse
+import os
 import sys
 from datetime import timedelta
 
@@ -19,19 +20,12 @@ import dagster as dg
 
 from berg_pipeline import ingest, paths, publish
 from berg_pipeline.assets import dimensions, legs, raw
+from berg_pipeline.constants import ARCHIVE_START
 from berg_pipeline.resources import default_duckdb
 
 
-def main(month: str, skip_dim: bool) -> None:
-    resources = {"duckdb": default_duckdb()}
+def _materialize_facts(month: str, resources: dict) -> None:
     monthly_assets = [raw.raw_zip, raw.stg_istdaten, legs.fct_legs]
-
-    if not skip_dim:
-        result = dg.materialize([dimensions.dim_station, dimensions.stations_json])
-        assert result.success
-    elif not paths.DIM_STATION_PARQUET.exists():
-        sys.exit(f"--skip-dim, but {paths.DIM_STATION_PARQUET} does not exist")
-
     result = dg.materialize(
         monthly_assets + [dimensions.dim_station.to_source_asset()],
         partition_key=f"{month}-01",
@@ -40,16 +34,55 @@ def main(month: str, skip_dim: bool) -> None:
     )
     assert result.success
 
-    # Export by departure day: the month's days plus the first day of the next month, which
-    # receives the last night's post-midnight departures.
+
+def _has_month_facts(month: str) -> bool:
+    first, last = ingest.month_bounds(month)
+    with default_duckdb().get_connection() as con:
+        ingest.create_tables(con)
+        return bool(
+            con.execute(
+                "SELECT count(*) > 0 FROM fct_legs WHERE service_day BETWEEN ? AND ?",
+                [first, last],
+            ).fetchone()[0]
+        )
+
+
+def main(month: str, skip_dim: bool) -> None:
+    # Fresh CI materializes the previous month too; retaining both 11-13 GB raw directories
+    # would exceed the runner disk. They are reproducible scratch once staging succeeds.
+    os.environ.setdefault("BERG_DELETE_RAW", "1")
+    resources = {"duckdb": default_duckdb()}
+
+    if not skip_dim:
+        result = dg.materialize([dimensions.dim_station, dimensions.stations_json])
+        assert result.success
+    elif not paths.DIM_STATION_PARQUET.exists():
+        sys.exit(f"--skip-dim, but {paths.DIM_STATION_PARQUET} does not exist")
+
+    # route_id/type_id are published wire ids. A fresh monthly-CI checkout has an empty DB, so
+    # inherit the append-only registries before assigning ids to this month's new pairs/types.
+    with default_duckdb().get_connection() as con:
+        publish.bootstrap_registries(con)
+
+    first, last = ingest.month_bounds(month)
+    previous_day = first - timedelta(days=1)
+    previous_month = f"{previous_day:%Y-%m}"
+    if previous_day.isoformat() >= ARCHIVE_START and not _has_month_facts(previous_month):
+        # A UTC boundary file contains facts from both adjacent service months. Persistent
+        # backfills already have the previous month; fresh CI must materialize it explicitly.
+        _materialize_facts(previous_month, resources)
+    _materialize_facts(month, resources)
+
+    # Export by UTC departure day. The first service day's 00:xx local departures land on the
+    # previous UTC day, while the last service's after-midnight tail can reach the next day.
     #
     # journeys_parquet rides along rather than being a separate pass: a month whose legs ship
     # without their sidecar has clickable trains that answer nothing, and the asymmetry only
     # shows up in the UI months later. scripts/build_journeys.py exists for the backlog, not
     # for months built here.
     day_assets = [legs.legs_parquet, legs.journeys_parquet]
-    first, last = ingest.month_bounds(month)
-    for day in [*ingest.days_in_month(month), last + timedelta(days=1)]:
+    departure_days = ingest.departure_days_for_month(month)
+    for day in departure_days:
         r = dg.materialize(
             [*day_assets, legs.fct_legs.to_source_asset()],
             partition_key=day.isoformat(),
@@ -60,10 +93,11 @@ def main(month: str, skip_dim: bool) -> None:
 
     # route_id → (from, to) for whatever pairs this month introduced. Cheap, and stale is
     # worse than useless: a new pair with no entry is an unnameable train.
+    registry_assets = [legs.route_pairs, legs.train_types]
     r = dg.materialize(
-        [legs.route_pairs, legs.fct_legs.to_source_asset()],
+        [*registry_assets, legs.fct_legs.to_source_asset()],
         resources=resources,
-        selection=[legs.route_pairs],
+        selection=registry_assets,
     )
     assert r.success
 
@@ -86,9 +120,7 @@ def main(month: str, skip_dim: bool) -> None:
             f"ingest, not an archive hole."
         )
 
-    upload = publish.upload_validated_outputs(
-        [*ingest.days_in_month(month), last + timedelta(days=1)]
-    )
+    upload = publish.upload_validated_outputs(departure_days)
 
     print(f"\n=== {month} ===")
     for k, v in summary.items():

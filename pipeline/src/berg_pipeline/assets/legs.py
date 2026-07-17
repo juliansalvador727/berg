@@ -91,10 +91,7 @@ def train_types(duckdb: DuckDBResource) -> dg.MaterializeResult:
     with duckdb.get_connection() as con:
         stats = ingest.export_train_types(con, paths.TRAIN_TYPES_JSON)
 
-    r2 = publish.r2_from_env()
-    if r2 is not None:
-        r2.upload(paths.TRAIN_TYPES_JSON, "static/train_types.json")
-    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+    return dg.MaterializeResult(metadata={**stats, "uploaded": False})
 
 
 @dg.asset(group_name="facts", deps=[fct_legs])

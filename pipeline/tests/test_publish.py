@@ -135,10 +135,12 @@ def test_validated_outputs_upload_as_one_post_validation_batch(tmp_path, monkeyp
     monkeypatch.setattr(paths, "LEGS_DIR", tmp_path / "legs")
     monkeypatch.setattr(paths, "JOURNEYS_DIR", tmp_path / "journeys")
     monkeypatch.setattr(paths, "ROUTE_PAIRS_JSON", tmp_path / "static" / "route_pairs.json")
+    monkeypatch.setattr(paths, "TRAIN_TYPES_JSON", tmp_path / "static" / "train_types.json")
     _write_day(paths.legs_parquet_path(day))
     _write_day(paths.journeys_parquet_path(day))
     paths.ROUTE_PAIRS_JSON.parent.mkdir(parents=True)
     paths.ROUTE_PAIRS_JSON.write_text("{}")
+    paths.TRAIN_TYPES_JSON.write_text("{}")
 
     class FakeR2:
         def __init__(self):
@@ -156,9 +158,10 @@ def test_validated_outputs_upload_as_one_post_validation_batch(tmp_path, monkeyp
 
     stats = publish.upload_validated_outputs([day])
 
-    assert stats == {"uploaded": 3, "upload_enabled": True}
+    assert stats == {"uploaded": 4, "upload_enabled": True}
     assert fake.keys == [
         "legs/2026/06/03.parquet",
         "journeys/2026/06/03.parquet",
         "static/route_pairs.json",
+        "static/train_types.json",
     ]

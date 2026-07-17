@@ -551,3 +551,31 @@ def test_sidecar_carries_line_but_the_wire_does_not(tmp_path, dim):
         d[0] for d in duckdb.sql(f"SELECT * FROM read_parquet('{legs.as_posix()}')").description
     ]
     assert "line" not in wire, "the leg wire must stay 8 bytes"
+
+
+def test_departure_days_include_both_utc_boundaries():
+    days = ingest.departure_days_for_month("2019-03")
+
+    assert days[0] == date(2019, 2, 28)
+    assert days[1] == date(2019, 3, 1)
+    assert days[-2] == date(2019, 3, 31)
+    assert days[-1] == date(2019, 4, 1)
+
+
+def test_published_registries_seed_stable_wire_ids():
+    con = duckdb.connect()
+    stats = ingest.seed_registries(
+        con,
+        {"42": [8507000, 8507100]},
+        {"7": "IC"},
+    )
+
+    assert stats == {"route_pairs_seeded": 1, "train_types_seeded": 1}
+    assert con.execute("SELECT * FROM station_pairs").fetchall() == [(8507000, 8507100, 42)]
+    assert con.execute("SELECT * FROM dim_train_type").fetchall() == [("IC", 7)]
+
+    # Compatible re-seeding is idempotent; the next locally discovered ids append after these.
+    assert ingest.seed_registries(con, {"42": [8507000, 8507100]}, {"7": "IC"}) == {
+        "route_pairs_seeded": 0,
+        "train_types_seeded": 0,
+    }

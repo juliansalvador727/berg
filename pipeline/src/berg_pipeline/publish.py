@@ -54,11 +54,40 @@ def upload_validated_outputs(days: Iterable[date]) -> dict:
                 files.append((path, f"{prefix}/{day:%Y/%m/%d}.parquet"))
     if paths.ROUTE_PAIRS_JSON.exists():
         files.append((paths.ROUTE_PAIRS_JSON, "static/route_pairs.json"))
+    if paths.TRAIN_TYPES_JSON.exists():
+        files.append((paths.TRAIN_TYPES_JSON, "static/train_types.json"))
 
     client = r2.client()
     for path, key in files:
         r2.upload(path, key, client=client)
     return {"uploaded": len(files), "upload_enabled": True}
+
+
+def bootstrap_registries(con) -> dict:
+    """Seed stable wire ids from R2 before a fresh CI database builds any facts."""
+    from berg_pipeline import ingest
+
+    ingest.create_tables(con)
+    pairs, types = con.execute(
+        "SELECT (SELECT count(*) FROM station_pairs), (SELECT count(*) FROM dim_train_type)"
+    ).fetchone()
+    if pairs and types:
+        return {"route_pairs_seeded": 0, "train_types_seeded": 0}
+
+    r2 = r2_from_env()
+    if r2 is None:
+        return {"route_pairs_seeded": 0, "train_types_seeded": 0}
+    client = r2.client()
+    route_pairs = r2.get_json("static/route_pairs.json", client=client)
+    train_types = r2.get_json("static/train_types.json", client=client)
+    if route_pairs is None or train_types is None:
+        manifest = r2.get_json("manifest.json", client=client)
+        if (manifest or {}).get("days"):
+            raise RuntimeError(
+                "published data exists but its route/type registries are missing; refusing "
+                "to assign incompatible ids from a fresh database"
+            )
+    return ingest.seed_registries(con, route_pairs or {}, train_types or {})
 
 
 def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:

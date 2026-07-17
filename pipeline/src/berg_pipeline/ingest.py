@@ -135,6 +135,71 @@ def migrate_tables(con) -> None:
         con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {type_}")
 
 
+def seed_registries(con, route_pairs: dict, train_types: dict) -> dict:
+    """Merge published append-only ids into a fresh monthly-CI database.
+
+    route_id/type_id are wire values, not local implementation details. A fresh checkout must
+    inherit them before it builds facts or the same number will point at different geometry.
+    Existing local state may be ahead of the bucket during a backfill, so merge compatible rows
+    and reject either direction of an id conflict.
+    """
+    create_tables(con)
+    migrate_tables(con)
+
+    existing_pairs = {
+        (int(f), int(t)): int(r)
+        for f, t, r in con.execute(
+            "SELECT from_bpuic, to_bpuic, route_id FROM station_pairs"
+        ).fetchall()
+    }
+    existing_route_ids = {r: pair for pair, r in existing_pairs.items()}
+    new_pairs = []
+    for route_id, ends in route_pairs.items():
+        pair = (int(ends[0]), int(ends[1]))
+        rid = int(route_id)
+        if pair in existing_pairs and existing_pairs[pair] != rid:
+            raise RuntimeError(
+                f"published pair {pair} is route_id {rid}, local registry has "
+                f"{existing_pairs[pair]}"
+            )
+        if rid in existing_route_ids and existing_route_ids[rid] != pair:
+            raise RuntimeError(
+                f"published route_id {rid} is {pair}, local registry has {existing_route_ids[rid]}"
+            )
+        if pair not in existing_pairs:
+            new_pairs.append((*pair, rid))
+    if new_pairs:
+        con.executemany("INSERT INTO station_pairs VALUES (?, ?, ?)", new_pairs)
+
+    existing_types = {
+        str(category): int(type_id)
+        for category, type_id in con.execute(
+            "SELECT category, type_id FROM dim_train_type"
+        ).fetchall()
+    }
+    existing_type_ids = {type_id: category for category, type_id in existing_types.items()}
+    new_types = []
+    for type_id, category in train_types.items():
+        tid = int(type_id)
+        category = str(category)
+        if category in existing_types and existing_types[category] != tid:
+            raise RuntimeError(
+                f"published category {category!r} is type_id {tid}, local registry has "
+                f"{existing_types[category]}"
+            )
+        if tid in existing_type_ids and existing_type_ids[tid] != category:
+            raise RuntimeError(
+                f"published type_id {tid} is {category!r}, local registry has "
+                f"{existing_type_ids[tid]!r}"
+            )
+        if category not in existing_types:
+            new_types.append((category, tid))
+    if new_types:
+        con.executemany("INSERT INTO dim_train_type VALUES (?, ?)", new_types)
+
+    return {"route_pairs_seeded": len(new_pairs), "train_types_seeded": len(new_types)}
+
+
 _COUNT_SQL = """
     SELECT count(*),
            count(*) FILTER (upper(PRODUKT_ID) = 'ZUG'),
@@ -600,3 +665,9 @@ def days_in_month(month: str):
     while d <= last:
         yield d
         d += timedelta(days=1)
+
+
+def departure_days_for_month(month: str) -> list[date]:
+    """UTC files affected by one service month, including both adjacent boundary days."""
+    first, last = month_bounds(month)
+    return [first - timedelta(days=1), *days_in_month(month), last + timedelta(days=1)]
