@@ -11,8 +11,8 @@ Two rules the ordering encodes:
   - It uploads *last*, after every leg file — a half-finished sync leaves the site showing
     the old date range rather than pointing at days that aren't up yet.
 
-Files already in the bucket at the same size are skipped, so re-running after an interrupted
-sync costs one LIST instead of re-uploading gigabytes.
+Files whose content checksum matches the bucket are skipped. Single-part objects verify via
+ETag; multipart objects use SHA-256 metadata written by this pipeline.
 
 Usage:
     set -a; source .env; set +a
@@ -50,13 +50,14 @@ def main(dry_run: bool) -> int:
         return 1
 
     client = r2.client()
-    existing = r2.existing_sizes(client)
+    existing = r2.existing_objects(client)
     print(f"bucket {r2.bucket}: {len(existing)} objects already present")
 
     sent = skipped = 0
     for p in payload:
         key = keys[p]
-        if existing.get(key) == p.stat().st_size:
+        remote = existing.get(key)
+        if remote is not None and r2.object_matches(p, key, remote, client=client):
             skipped += 1
             continue
         r2.upload(p, key, client=client)

@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import os
 from pathlib import Path
 
@@ -31,7 +33,13 @@ class R2Resource(dg.ConfigurableResource):
         )
 
     def upload(self, local_path: Path, key: str, client=None) -> None:
-        (client or self.client()).upload_file(str(local_path), self.bucket, key)
+        checksum = self._digest(local_path, "sha256")
+        (client or self.client()).upload_file(
+            str(local_path),
+            self.bucket,
+            key,
+            ExtraArgs={"Metadata": {"berg-sha256": checksum}},
+        )
 
     def delete(self, key: str, client=None) -> None:
         """Delete an authoritative output that rebuilt to zero rows."""
@@ -51,14 +59,39 @@ class R2Resource(dg.ConfigurableResource):
             raise
         return json.loads(body)
 
-    def existing_sizes(self, client=None) -> dict[str, int]:
-        """key → size for everything in the bucket, so a resumed sync can skip what's done."""
+    def existing_objects(self, client=None) -> dict[str, dict]:
+        """key → size/ETag for everything in the bucket."""
         client = client or self.client()
-        sizes: dict[str, int] = {}
+        objects: dict[str, dict] = {}
         for page in client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket):
             for obj in page.get("Contents", []):
-                sizes[obj["Key"]] = obj["Size"]
-        return sizes
+                objects[obj["Key"]] = {"size": obj["Size"], "etag": obj.get("ETag", "")}
+        return objects
+
+    @staticmethod
+    def _digest(path: Path, algorithm: str) -> str:
+        with path.open("rb") as fh:
+            return hashlib.file_digest(fh, algorithm).hexdigest()
+
+    def object_matches(self, local_path: Path, key: str, remote: dict, client=None) -> bool:
+        """True only when the remote object is proven to contain the local bytes.
+
+        S3-compatible single-part ETags are MD5 digests. Multipart ETags are not, so uploads
+        carry an explicit SHA-256 metadata value and resumed syncs verify that instead.
+        """
+        if remote.get("size") != local_path.stat().st_size:
+            return False
+
+        etag = str(remote.get("etag", "")).strip('"')
+        if len(etag) == 32 and "-" not in etag:
+            return hmac.compare_digest(etag.lower(), self._digest(local_path, "md5"))
+
+        client = client or self.client()
+        head = client.head_object(Bucket=self.bucket, Key=key)
+        remote_sha256 = head.get("Metadata", {}).get("berg-sha256", "")
+        return bool(remote_sha256) and hmac.compare_digest(
+            remote_sha256.lower(), self._digest(local_path, "sha256")
+        )
 
 
 def default_duckdb() -> DuckDBResource:
