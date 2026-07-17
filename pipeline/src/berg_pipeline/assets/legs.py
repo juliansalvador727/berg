@@ -44,7 +44,9 @@ def legs_parquet(context: dg.AssetExecutionContext, duckdb: DuckDBResource) -> d
     reads whatever is materialized, so backfills should run months in order (M3 wires the
     ordering). Zero rows is expected for the archive's 29 missing days — no file is written.
 
-    Upload to R2 happens at M3; until then this materializes the local publish mirror.
+    This asset only materializes the local publish mirror. build_month validates the complete
+    month and uploads its day files afterward; an individual day must never publish ahead of
+    the month-level checks.
     """
     day = date.fromisoformat(context.partition_key)
     out_path = paths.legs_parquet_path(day)
@@ -52,14 +54,7 @@ def legs_parquet(context: dg.AssetExecutionContext, duckdb: DuckDBResource) -> d
         stats = ingest.export_day(con, day, out_path)
     if stats["rows"] == 0:
         context.log.warning(f"{day}: no departures — archive hole or month not yet staged")
-        stats = {**stats, "uploaded": False}
-    else:
-        r2 = publish.r2_from_env()
-        if r2 is not None:
-            key = f"legs/{day.year:04d}/{day.month:02d}/{day.day:02d}.parquet"
-            r2.upload(out_path, key)
-        stats = {**stats, "uploaded": r2 is not None}
-    return dg.MaterializeResult(metadata=stats)
+    return dg.MaterializeResult(metadata={**stats, "uploaded": False})
 
 
 @dg.asset(partitions_def=daily_partitions, group_name="facts", deps=[fct_legs])
@@ -83,10 +78,7 @@ def journeys_parquet(
         context.log.warning(f"{day}: no departures — archive hole or month not yet staged")
         return dg.MaterializeResult(metadata={**stats, "uploaded": False})
 
-    r2 = publish.r2_from_env()
-    if r2 is not None:
-        r2.upload(out_path, f"journeys/{day.year:04d}/{day.month:02d}/{day.day:02d}.parquet")
-    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+    return dg.MaterializeResult(metadata={**stats, "uploaded": False})
 
 
 @dg.asset(group_name="facts", deps=[fct_legs])
@@ -115,10 +107,7 @@ def route_pairs(duckdb: DuckDBResource) -> dg.MaterializeResult:
     with duckdb.get_connection() as con:
         stats = ingest.export_route_pairs(con, paths.ROUTE_PAIRS_JSON)
 
-    r2 = publish.r2_from_env()
-    if r2 is not None:
-        r2.upload(paths.ROUTE_PAIRS_JSON, "static/route_pairs.json")
-    return dg.MaterializeResult(metadata={**stats, "uploaded": r2 is not None})
+    return dg.MaterializeResult(metadata={**stats, "uploaded": False})
 
 
 @dg.asset(group_name="facts", deps=[legs_parquet])

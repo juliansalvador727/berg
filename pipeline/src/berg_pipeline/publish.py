@@ -5,9 +5,11 @@ schema_version and max_leg_duration_s rather than trusting the client to know th
 """
 
 import os
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from berg_pipeline import paths
 from berg_pipeline.constants import MAX_LEG_DURATION_S, SCHEMA_VERSION
 from berg_pipeline.resources import R2Resource
 
@@ -36,6 +38,27 @@ def r2_from_env() -> R2Resource | None:
         access_key_id=os.environ["R2_ACCESS_KEY_ID"],
         secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
     )
+
+
+def upload_validated_outputs(days: Iterable[date]) -> dict:
+    """Upload one already-validated month's day artifacts, never an unchecked partial month."""
+    r2 = r2_from_env()
+    if r2 is None:
+        return {"uploaded": 0, "upload_enabled": False}
+
+    files: list[tuple[Path, str]] = []
+    for day in days:
+        for root, prefix in ((paths.LEGS_DIR, "legs"), (paths.JOURNEYS_DIR, "journeys")):
+            path = root / f"{day.year:04d}" / f"{day.month:02d}" / f"{day.day:02d}.parquet"
+            if path.exists():
+                files.append((path, f"{prefix}/{day:%Y/%m/%d}.parquet"))
+    if paths.ROUTE_PAIRS_JSON.exists():
+        files.append((paths.ROUTE_PAIRS_JSON, "static/route_pairs.json"))
+
+    client = r2.client()
+    for path, key in files:
+        r2.upload(path, key, client=client)
+    return {"uploaded": len(files), "upload_enabled": True}
 
 
 def build_manifest(legs_dir: Path, base_days: dict | None = None) -> dict:

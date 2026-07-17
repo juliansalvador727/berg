@@ -123,13 +123,16 @@ def main(start: str, end: str, force: bool) -> int:
             print(f"=== {month}: FAILED — {e} ===")
             failed.append(month)
 
-    print("\n=== manifest ===")
-    result = dg.materialize(
-        [legs.manifest, legs.legs_parquet.to_source_asset()],
-        selection=[legs.manifest],
-        resources={"duckdb": default_duckdb()},
-    )
-    assert result.success
+    if failed:
+        print("\n=== manifest skipped: one or more months failed ===")
+    else:
+        print("\n=== manifest ===")
+        result = dg.materialize(
+            [legs.manifest, legs.legs_parquet.to_source_asset()],
+            selection=[legs.manifest],
+            resources={"duckdb": default_duckdb()},
+        )
+        assert result.success
 
     print(f"\n=== backfill {start} .. {end} ===")
     print(f"{'done':>10}: {len(done)} {done}")

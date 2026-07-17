@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import dagster as dg
 
-from berg_pipeline import ingest, paths
+from berg_pipeline import ingest, paths, publish
 from berg_pipeline.assets import dimensions, legs, raw
 from berg_pipeline.resources import default_duckdb
 
@@ -72,9 +72,9 @@ def main(month: str, skip_dim: bool) -> None:
         bad_days = ingest.validate_month_days(c, month)
         summary = ingest.month_summary(c, month)
 
-    # After the exports, not before: this asserts on what actually shipped. Raising here is
-    # what makes the month a failure the backfill retries, rather than 28 tiny files that
-    # every downstream step accepts.
+    # The daily assets above stage locally only. Validate the complete month before a single
+    # byte reaches R2, so a collapsed ingest cannot overwrite good published files and fail
+    # only afterward.
     if bad_days:
         listed = ", ".join(f"{d} ({n} legs)" for d, n in bad_days[:5])
         more = f" (+{len(bad_days) - 5} more)" if len(bad_days) > 5 else ""
@@ -86,6 +86,10 @@ def main(month: str, skip_dim: bool) -> None:
             f"ingest, not an archive hole."
         )
 
+    upload = publish.upload_validated_outputs(
+        [*ingest.days_in_month(month), last + timedelta(days=1)]
+    )
+
     print(f"\n=== {month} ===")
     for k, v in summary.items():
         print(f"{k:>24}: {v}")
@@ -94,6 +98,7 @@ def main(month: str, skip_dim: bool) -> None:
     total_bytes = sum(f.stat().st_size for f in files)
     print(f"{'day files':>24}: {len(files)}")
     print(f"{'total MB':>24}: {total_bytes / 1e6:.1f}")
+    print(f"{'files uploaded':>24}: {upload['uploaded']}")
     if summary["legs"]:
         print(f"{'bytes/leg (month)':>24}: {total_bytes / summary['legs']:.2f}")
 

@@ -1,6 +1,9 @@
+from datetime import date
+
 import duckdb
 import pytest
 
+from berg_pipeline import paths, publish
 from berg_pipeline.constants import MAX_LEG_DURATION_S, SCHEMA_VERSION
 from berg_pipeline.publish import R2_ENV_VARS, build_manifest, r2_from_env
 
@@ -125,3 +128,37 @@ def test_r2_from_env_required_is_satisfied_when_configured(monkeypatch):
     _set_r2_env(monkeypatch)
     monkeypatch.setenv("BERG_REQUIRE_R2", "1")
     assert r2_from_env() is not None
+
+
+def test_validated_outputs_upload_as_one_post_validation_batch(tmp_path, monkeypatch):
+    day = date(2026, 6, 3)
+    monkeypatch.setattr(paths, "LEGS_DIR", tmp_path / "legs")
+    monkeypatch.setattr(paths, "JOURNEYS_DIR", tmp_path / "journeys")
+    monkeypatch.setattr(paths, "ROUTE_PAIRS_JSON", tmp_path / "static" / "route_pairs.json")
+    _write_day(paths.legs_parquet_path(day))
+    _write_day(paths.journeys_parquet_path(day))
+    paths.ROUTE_PAIRS_JSON.parent.mkdir(parents=True)
+    paths.ROUTE_PAIRS_JSON.write_text("{}")
+
+    class FakeR2:
+        def __init__(self):
+            self.keys = []
+
+        def client(self):
+            return self
+
+        def upload(self, _path, key, client=None):
+            assert client is self
+            self.keys.append(key)
+
+    fake = FakeR2()
+    monkeypatch.setattr(publish, "r2_from_env", lambda: fake)
+
+    stats = publish.upload_validated_outputs([day])
+
+    assert stats == {"uploaded": 3, "upload_enabled": True}
+    assert fake.keys == [
+        "legs/2026/06/03.parquet",
+        "journeys/2026/06/03.parquet",
+        "static/route_pairs.json",
+    ]
