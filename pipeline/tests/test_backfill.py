@@ -14,8 +14,17 @@ def test_failed_month_does_not_publish_manifest(monkeypatch):
         raise RuntimeError("collapsed month")
 
     monkeypatch.setattr(backfill.build_month, "main", fail)
-    published = []
-    monkeypatch.setattr(backfill.dg, "materialize", lambda *a, **k: published.append((a, k)))
+    materializations = []
+
+    class Success:
+        success = True
+
+    def materialize(*args, **kwargs):
+        materializations.append((args, kwargs))
+        return Success()
+
+    monkeypatch.setattr(backfill.dg, "materialize", materialize)
 
     assert backfill.main("2023-09", "2023-09", force=True) == 1
-    assert published == []
+    assert len(materializations) == 1  # station dimension only
+    assert backfill.legs.manifest not in materializations[0][0][0]

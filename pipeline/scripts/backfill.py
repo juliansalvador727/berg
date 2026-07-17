@@ -26,7 +26,7 @@ import build_month  # noqa: E402
 import dagster as dg  # noqa: E402
 
 from berg_pipeline import archive, paths  # noqa: E402
-from berg_pipeline.assets import legs  # noqa: E402
+from berg_pipeline.assets import dimensions, legs  # noqa: E402
 from berg_pipeline.constants import MIN_LEGS_PER_DAY  # noqa: E402
 from berg_pipeline.resources import default_duckdb  # noqa: E402
 
@@ -110,6 +110,12 @@ def month_looks_done(month: str) -> bool:
 def main(start: str, end: str, force: bool) -> int:
     _lock = acquire_lock()  # noqa: F841 — held for the process lifetime
     done, skipped, failed = [], [], []
+
+    # The fact join trusts this file for every month. Rebuild it once per backfill so a station
+    # validity code fix cannot run against a stale Parquet and quietly reproduce old losses.
+    print("=== station dimension ===")
+    dim_result = dg.materialize([dimensions.dim_station, dimensions.stations_json])
+    assert dim_result.success
 
     for month in months_between(start, end):
         if not force and month_looks_done(month):
