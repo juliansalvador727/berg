@@ -1,5 +1,9 @@
 import hashlib
 
+import pytest
+from botocore.exceptions import ConnectionClosedError
+
+from berg_pipeline import resources
 from berg_pipeline.resources import R2Resource
 
 
@@ -61,3 +65,45 @@ def test_upload_records_sha256_metadata(tmp_path):
         (str(path), "bucket", "static/stations.json"),
         {"ExtraArgs": {"Metadata": {"berg-sha256": hashlib.sha256(b"{}").hexdigest()}}},
     )
+
+
+def test_upload_retries_transient_connection_failure(tmp_path, monkeypatch):
+    path = tmp_path / "stations.json"
+    path.write_bytes(b"{}")
+
+    class Client:
+        calls = 0
+
+        def upload_file(self, *_args, **_kwargs):
+            self.calls += 1
+            if self.calls < 3:
+                raise ConnectionClosedError(endpoint_url="https://r2.example")
+
+    delays = []
+    monkeypatch.setattr(resources.time, "sleep", delays.append)
+    client = Client()
+
+    _r2().upload(path, "static/stations.json", client=client)
+
+    assert client.calls == 3
+    assert delays == [1, 2]
+
+
+def test_upload_does_not_retry_nontransient_failure(tmp_path, monkeypatch):
+    path = tmp_path / "stations.json"
+    path.write_bytes(b"{}")
+
+    class Client:
+        calls = 0
+
+        def upload_file(self, *_args, **_kwargs):
+            self.calls += 1
+            raise ValueError("bad request")
+
+    monkeypatch.setattr(resources.time, "sleep", lambda _delay: pytest.fail("must not retry"))
+    client = Client()
+
+    with pytest.raises(ValueError, match="bad request"):
+        _r2().upload(path, "static/stations.json", client=client)
+
+    assert client.calls == 1

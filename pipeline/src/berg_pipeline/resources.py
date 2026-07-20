@@ -1,12 +1,19 @@
 import hashlib
 import hmac
 import os
+import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
 from berg_pipeline import paths
+
+R2_OUTER_ATTEMPTS = 6
+R2_RETRY_MAX_DELAY_S = 30
 
 
 class R2Resource(dg.ConfigurableResource):
@@ -24,26 +31,82 @@ class R2Resource(dg.ConfigurableResource):
     def client(self):
         """A fresh client. Reuse one across a bulk sync; per-file clients are pure overhead."""
         import boto3
+        from botocore.config import Config
 
         return boto3.client(
             "s3",
             endpoint_url=self.endpoint_url,
             aws_access_key_id=self.access_key_id,
             aws_secret_access_key=self.secret_access_key,
+            config=Config(
+                connect_timeout=30,
+                read_timeout=120,
+                tcp_keepalive=True,
+                retries={"max_attempts": 10, "mode": "adaptive"},
+            ),
         )
+
+    @staticmethod
+    def _retryable(error: Exception) -> bool:
+        from botocore.exceptions import (
+            ClientError,
+            ConnectionClosedError,
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+        )
+
+        if isinstance(
+            error,
+            (ConnectionClosedError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError),
+        ):
+            return True
+        if isinstance(error, ClientError):
+            response = error.response
+            status = response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            code = response.get("Error", {}).get("Code", "")
+            return status >= 500 or code in {"RequestTimeout", "SlowDown", "Throttling"}
+        return False
+
+    @classmethod
+    def _with_transient_retries(cls, operation: Callable[[], Any], description: str) -> Any:
+        """Retry beyond botocore's request retries so one dead connection cannot kill a sync."""
+        for attempt in range(1, R2_OUTER_ATTEMPTS + 1):
+            try:
+                return operation()
+            except Exception as error:
+                if attempt == R2_OUTER_ATTEMPTS or not cls._retryable(error):
+                    raise
+                delay = min(2 ** (attempt - 1), R2_RETRY_MAX_DELAY_S)
+                print(
+                    f"R2 transient failure during {description}; retrying in {delay}s "
+                    f"({attempt}/{R2_OUTER_ATTEMPTS}): {error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(delay)
+        raise AssertionError("retry loop exhausted without returning or raising")
 
     def upload(self, local_path: Path, key: str, client=None) -> None:
         checksum = self._digest(local_path, "sha256")
-        (client or self.client()).upload_file(
-            str(local_path),
-            self.bucket,
-            key,
-            ExtraArgs={"Metadata": {"berg-sha256": checksum}},
+        client = client or self.client()
+        self._with_transient_retries(
+            lambda: client.upload_file(
+                str(local_path),
+                self.bucket,
+                key,
+                ExtraArgs={"Metadata": {"berg-sha256": checksum}},
+            ),
+            f"upload {key}",
         )
 
     def delete(self, key: str, client=None) -> None:
         """Delete an authoritative output that rebuilt to zero rows."""
-        (client or self.client()).delete_object(Bucket=self.bucket, Key=key)
+        client = client or self.client()
+        self._with_transient_retries(
+            lambda: client.delete_object(Bucket=self.bucket, Key=key),
+            f"delete {key}",
+        )
 
     def get_json(self, key: str, client=None) -> dict | None:
         """Parsed JSON at key, or None if the object does not exist."""
