@@ -280,6 +280,7 @@ async function main(): Promise<void> {
   const timeElement = byId<HTMLTimeElement>("time");
   const countElement = byId<HTMLSpanElement>("count");
   const speedBadge = byId<HTMLButtonElement>("speed-badge");
+  const speedValue = byId<HTMLElement>("speed-value");
   const playbackButton = byId<HTMLButtonElement>("playback-button");
   const playbackIcon = byId<HTMLSpanElement>("playback-icon");
   const playbackLabel = byId<HTMLElement>("playback-label");
@@ -540,7 +541,7 @@ async function main(): Promise<void> {
       button.onclick = () => {
         clock.setSpeed(speed);
         clock.play();
-        speedBadge.textContent = `${speed}×`;
+        speedValue.textContent = `${speed}×`;
         closeCommand();
       };
       commandResults.appendChild(button);
@@ -551,7 +552,7 @@ async function main(): Promise<void> {
     pause.innerHTML = `<span class="token">Ⅱ</span><span><strong>${clock.paused ? "Resume" : "Pause"}</strong><small>Keep the current historical instant</small></span><kbd>Space</kbd>`;
     pause.onclick = () => {
       togglePlayback();
-      speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
+      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
       closeCommand();
     };
     commandResults.appendChild(pause);
@@ -655,7 +656,7 @@ async function main(): Promise<void> {
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedBadge.textContent = "1×";
+    speedValue.textContent = "1×";
     const watchTime = seekToStart ? Math.max(tMin, result.start) : clock.simTime;
     if (seekToStart) {
       clock.seek(watchTime);
@@ -720,7 +721,7 @@ async function main(): Promise<void> {
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedBadge.textContent = "1×";
+    speedValue.textContent = "1×";
     const route = routeDescription(item.leg.route_id);
     showDetails(`
       <div class="eyebrow">Selecting train · 1× playback</div>
@@ -762,7 +763,7 @@ async function main(): Promise<void> {
     } else if (event.code === "Space" && command.classList.contains("hidden")) {
       event.preventDefault();
       togglePlayback();
-      speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
+      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
     }
   });
 
@@ -871,7 +872,7 @@ async function main(): Promise<void> {
     timeElement.dateTime = new Date(time * 1000).toISOString();
     playbackIcon.textContent = clock.paused ? "▶" : "Ⅱ";
     playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
-    speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
+    speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
     countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
     requestAnimationFrame(frame);
   }
