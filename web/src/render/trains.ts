@@ -246,7 +246,9 @@ export function trainsLayer(
   mode: ColorMode = "type",
   selectedJourneyId: number | null = null,
   mapBearing = 0,
+  mapZoom = 13,
 ): IconLayer<PositionedLeg> {
+  const arrowSize = Math.max(6, Math.min(18, 6 + (mapZoom - 7) * 1.5));
   return new IconLayer<PositionedLeg>({
     id: "trains",
     data: items,
@@ -263,19 +265,22 @@ export function trainsLayer(
             : (colors[d.leg.type] ?? [200, 200, 200]);
       return [...color, Math.round(255 * d.opacity)] as [number, number, number, number];
     },
-    getSize: (d) => (d.leg.journey_id === selectedJourneyId ? 24 : 15),
+    getSize: (d) =>
+      d.leg.journey_id === selectedJourneyId ? Math.min(28, arrowSize * 1.55) : arrowSize,
     // Geographic bearings increase clockwise. IconLayer's billboard shader rotates positive
     // angles counter-clockwise in screen space, so invert the relative map bearing.
     getAngle: (d) => mapBearing - d.bearing,
     sizeUnits: "pixels",
-    sizeMinPixels: 10,
+    sizeMinPixels: 6,
     sizeMaxPixels: 28,
     billboard: true,
-    pickable: true,
+    // Train click details are not implemented yet. Keeping this layer pickable makes arrows
+    // (especially dwelling trains) intercept station-board clicks underneath them.
+    pickable: false,
     updateTriggers: {
       getPosition: simTime,
       getColor: [mode, selectedJourneyId],
-      getSize: selectedJourneyId,
+      getSize: [selectedJourneyId, mapZoom],
       getAngle: [simTime, mapBearing],
     },
   });

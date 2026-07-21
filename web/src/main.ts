@@ -350,10 +350,12 @@ async function main(): Promise<void> {
     getPosition: (station) => [station.lon, station.lat],
     getFillColor: [177, 190, 205, 165],
     getLineColor: [7, 11, 17, 220],
-    getRadius: 2.4,
-    radiusUnits: "pixels",
-    radiusMinPixels: 2,
-    radiusMaxPixels: 8,
+    // A geographic radius naturally grows on screen as the user zooms in. Pixel clamps keep
+    // stations usable at national zoom without letting them dominate close-up views.
+    getRadius: 80,
+    radiusUnits: "meters",
+    radiusMinPixels: 4,
+    radiusMaxPixels: 15,
     stroked: true,
     lineWidthMinPixels: 1,
     pickable: true,
@@ -678,7 +680,15 @@ async function main(): Promise<void> {
         trackLayer,
         selectedTrackLayer,
         stationLayer,
-        trainsLayer(items, time, colors, colorMode, selectedJourneyId, map.getBearing()),
+        trainsLayer(
+          items,
+          time,
+          colors,
+          colorMode,
+          selectedJourneyId,
+          map.getBearing(),
+          map.getZoom(),
+        ),
       ],
     });
 
