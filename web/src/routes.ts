@@ -18,6 +18,12 @@ export const ROUTES_MAGIC = 0x53545242; // 'BRTS' little-endian
 export const ROUTES_VERSION = 1;
 export const FLAG_STRAIGHT_FALLBACK = 1 << 0;
 
+export interface RoutePath {
+  routeId: number;
+  path: [number, number][];
+  fallback: boolean;
+}
+
 const HEADER_BYTES = 44; // magic(4) + version(4) + n(4) + bbox(32)
 
 export class Routes {
@@ -160,6 +166,25 @@ export class Routes {
     const x = this.points[a * 2]! + (this.points[b * 2]! - this.points[a * 2]!) * local;
     const y = this.points[a * 2 + 1]! + (this.points[b * 2 + 1]! - this.points[a * 2 + 1]!) * local;
     return this.toLonLat(x, y);
+  }
+
+  /** Decode every observed station-pair route once for the low-opacity network layer. */
+  paths(): RoutePath[] {
+    const out: RoutePath[] = new Array(this.routeIds.length);
+    for (let i = 0; i < this.routeIds.length; i++) {
+      const start = this.offsets[i]!;
+      const end = this.offsets[i + 1]!;
+      const path: [number, number][] = new Array(end - start);
+      for (let j = start; j < end; j++) {
+        path[j - start] = this.toLonLat(this.points[j * 2]!, this.points[j * 2 + 1]!);
+      }
+      out[i] = {
+        routeId: this.routeIds[i]!,
+        path,
+        fallback: (this.flags[i]! & FLAG_STRAIGHT_FALLBACK) !== 0,
+      };
+    }
+    return out;
   }
 
   get length(): number {

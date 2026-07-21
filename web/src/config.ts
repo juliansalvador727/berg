@@ -7,10 +7,17 @@ export const STATIONS_URL = `${DATA_BASE_URL}/static/stations.json`;
 export const TRAIN_TYPES_URL = `${DATA_BASE_URL}/static/train_types.json`;
 export const ROUTE_PAIRS_URL = `${DATA_BASE_URL}/static/route_pairs.json`;
 export const PMTILES_URL = `${DATA_BASE_URL}/tiles/switzerland.pmtiles`;
+export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+export const TERRAIN_TILEJSON_URL = "https://demotiles.maplibre.org/terrain-tiles/tiles.json";
 
 export const dayFileUrl = (day: string): string => {
   const [y, m, d] = day.split("-");
   return `${DATA_BASE_URL}/legs/${y}/${m}/${d}.parquet`;
+};
+
+export const journeyFileUrl = (day: string): string => {
+  const [y, m, d] = day.split("-");
+  return `${DATA_BASE_URL}/journeys/${y}/${m}/${d}.parquet`;
 };
 
 /** Initial view: all of Switzerland. */

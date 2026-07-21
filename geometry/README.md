@@ -3,8 +3,11 @@
 One-off job. Produces `routes.bin`: one polyline per station pair that trains actually run,
 keyed by the `route_id` the pipeline assigned at ingest (the `station_pairs` table in
 `data/berg.duckdb` is this job's input queue). The frontend ships it as a static asset and
-lerps along it — measured 463 KB for the 4,614 pairs of 2018-05, so the ~20 MB the plan
-budgeted has enormous headroom.
+interpolates along it.
+
+The full-history build on 2026-07-20 contains 11,502 routes and 512,412 points in 2,153,214
+bytes. `dim_route` verifies that every route ID referenced by the facts exists in the file and
+fails loudly if geometry is stale.
 
 Slow and rare — the OSM rail graph changes far less than the timetable. Rerun it when new
 station pairs show up (the pipeline's `dim_route` asset fails loudly when facts reference
@@ -23,7 +26,8 @@ uv run python -m berg_geometry.build \
     --out ../data/publish/static/routes.bin
 ```
 
-~3 minutes total: ~45 s PBF scan, ~90 s routing. A JSON report lands next to the output.
+The full-history run took 110 seconds: it loaded 402,921 nodes and 409,536 edges, snapped 1,894
+of 2,148 referenced stations, and routed 11,502 pairs. A JSON report lands next to the output.
 
 ## How it works
 
@@ -40,9 +44,14 @@ uv run python -m berg_geometry.build \
    CH bounding box — ~7 m resolution, below the simplify tolerance, so it costs nothing.
 
 Unroutable pairs get a straight line and a flag (`binfmt.FLAG_STRAIGHT_FALLBACK`). A train
-cutting a corner beats a missing train. The real fallbacks are almost all the Italian legs of
-the Simplon/Centovalli lines — inside the map bbox but outside the *Switzerland* PBF extract,
-so there is literally no track data to route on.
+cutting a corner beats a missing train. The current file has 1,347 flagged fallbacks: 948
+unsnappable, 384 unreachable, and 15 rejected as absurd detours. The count is expected to be
+larger for full-history data than for a single month: it includes foreign and cross-border
+stations outside the *Switzerland* PBF plus disconnected rail components. Fallbacks are a
+disclosed visual-quality limitation, not absent records.
+
+Current routed distance ratios are p50 1.115, p99 2.543, and max 6.379. Snap distance is p50
+9.3 m and p95 36.3 m.
 
 `routes.bin` format lives in `src/berg_geometry/binfmt.py` (the authority); the pipeline has a
 stdlib-only header reader (`berg_pipeline/routesbin.py`) and a byte-level contract test.

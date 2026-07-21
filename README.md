@@ -1,56 +1,78 @@
 # berg
 
-Every measured Swiss train movement since 2016, replayed in the browser.
+Historical Swiss train movements, replayed in the browser.
 
-No backend in the serving path: Parquet on object storage, DuckDB WASM in the browser, GPU
-rendering. The source data ([Ist-Daten](https://opentransportdata.swiss)) records measured times at
-every intermediate stop, so interpolated train positions are anchored to reality at every station.
+The serving path has no application backend: daily Parquet files live on Cloudflare R2,
+DuckDB WASM queries them in a Web Worker, and MapLibre/deck.gl renders trains in the browser.
+Measured arrival and departure times anchor each train at intermediate stops rather than only
+at the ends of a trip.
+
+## Status
+
+The full usable Ist-Daten archive has been rebuilt and published. As of 2026-07-20:
+
+- 422,103,769 legs across 3,090 UTC day files
+- source coverage from 2018-01 through 2026-06 (manifest range 2017-12-31 through 2026-07-01)
+- 11,502 station-pair routes with a geometry for every route ID
+- schema version 3, with matching local and R2 leg/journey inventories
+- 15 manifest days explicitly marked missing; no partial day is advertised
+
+The pipeline and publication work are complete for the historical backfill. The frontend now has
+the train-observer foundation: automatic 600× playback, command-palette train/date search,
+spectating, service filters, clickable observed station boards, and dark terrain-aware mapping.
+The immediate next work is its interactive smoke test, deployment, GLB fleet assets, semantic
+rail/tunnel tiles, and production-owned basemap/terrain data.
+See [`current_state.md`](current_state.md) for the authoritative checklist and known limitations.
 
 ## Layout
 
-| Directory   | What it is                                                                       |
-| ----------- | -------------------------------------------------------------------------------- |
-| `pipeline/` | Dagster + DuckDB: Ist-Daten archives → per-day leg Parquet → R2                   |
-| `geometry/` | One-off OSM job: rail graph → per-station-pair polylines → `routes.bin`           |
-| `web/`      | Vite + TypeScript + MapLibre + deck.gl + DuckDB WASM frontend                     |
-| `infra/`    | R2 bucket setup, CORS config, GitHub Actions workflows                            |
-
-Each directory has its own README with setup and run instructions.
+| Directory | What it is |
+|---|---|
+| `pipeline/` | Dagster + DuckDB: Ist-Daten archives to daily leg/journey Parquet and R2 |
+| `geometry/` | OSM rail graph to one shared polyline per station pair |
+| `web/` | Vite + TypeScript + MapLibre + deck.gl + DuckDB WASM frontend |
+| `infra/` | R2 CORS configuration and the monthly GitHub Actions workflow |
+| `docs/` | Measured archive/schema findings and the source coverage census |
 
 ## Quick start
 
-```sh
-# Pipeline
-cd pipeline && uv sync && uv run dagster dev
-
-# Frontend (needs the M0 export below to exist)
-cd web && npm install && npm run dev
-```
-
-## Status: M0 done — trains move
-
-One real service day (2026-06-03) replays in the browser: 153,771 legs, 1,820 stations, straight-line
-geometry, playback at 1×–600× with pause and scrub. That closes the loop end to end and retires the
-integration risk.
-
-Rebuild the M0 data (needs a day of Ist-Daten and a GTFS `stops.txt` in `data/raw/` — see
-`docs/data-notes.md` for how to pull them without downloading whole archives):
+The R2 CORS policy permits the exact local origin `http://localhost:5173`:
 
 ```sh
-cd pipeline && uv run python scripts/m0_export.py \
-  --raw ../data/raw/2026-06-03_IstDaten.csv \
-  --stops ../data/raw/stops-2026.txt \
-  --out ../web/public/m0
+cd web
+npm install
+npm run dev -- --host localhost --port 5173
 ```
 
-Everything past M0 is still a stub. **[`docs/data-notes.md`](docs/data-notes.md) is the important
-document** — it records what the data actually does, measured rather than assumed, and several of
-its findings overturned the original design assumptions (measured status is `REAL`, 2016–17 is
-unusable, and the storage budget has 3× more headroom than feared).
+Open <http://localhost:5173>. Do not substitute `127.0.0.1`; it is a different browser origin
+and is intentionally not in the production bucket's CORS allowlist.
+
+Pipeline development:
+
+```sh
+cd pipeline
+uv sync
+uv run pytest
+uv run ruff check .
+uv run dagster dev -m berg_pipeline.definitions
+```
+
+The production dataset is already published. Rebuild and sync procedures are in
+[`pipeline/README.md`](pipeline/README.md); do not start a historical backfill for ordinary
+frontend work.
+
+## Documentation
+
+- [`current_state.md`](current_state.md): current numbers, validation evidence, known issues,
+  cleanup, and next work
+- [`docs/data-notes.md`](docs/data-notes.md): measured source-data behavior and design decisions
+- [`docs/product-roadmap.md`](docs/product-roadmap.md): observer UI, GLB, detailed rail map,
+  terrain, search, and station-board plan
+- [`infra/README.md`](infra/README.md): bucket contract, CORS, and steady-state operations
 
 ## Attribution
 
-- Timetable and actual-movement data: [opentransportdata.swiss](https://opentransportdata.swiss),
-  CC BY-style — see the About page.
-- Rail geometry: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL.
-- Basemap tiles: [Protomaps](https://protomaps.com), OpenStreetMap data.
+- Timetable and actual-movement data: [opentransportdata.swiss](https://opentransportdata.swiss)
+- Rail geometry and map data: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
+  ODbL
+- Planned production basemap packaging: [Protomaps](https://protomaps.com)

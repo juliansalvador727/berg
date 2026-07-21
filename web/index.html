@@ -3,106 +3,66 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>berg — every Swiss train since 2016</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-      }
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: #0b0d12;
-        color: #e8eaf0;
-      }
-      #map {
-        position: absolute;
-        inset: 0;
-      }
-      #controls {
-        position: absolute;
-        left: 16px;
-        bottom: 16px;
-        z-index: 10;
-        width: min(420px, calc(100vw - 32px));
-        padding: 12px 14px;
-        border-radius: 10px;
-        background: rgba(14, 17, 24, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(8px);
-      }
-      .row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-      }
-      button {
-        font: inherit;
-        font-size: 12px;
-        color: #e8eaf0;
-        background: rgba(255, 255, 255, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 6px;
-        padding: 4px 9px;
-        cursor: pointer;
-      }
-      button:hover {
-        background: rgba(255, 255, 255, 0.14);
-      }
-      button.on {
-        background: #38bdf8;
-        border-color: #38bdf8;
-        color: #06121c;
-        font-weight: 600;
-      }
-      #time {
-        font-variant-numeric: tabular-nums;
-        font-size: 20px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-      }
-      #scrub {
-        width: 100%;
-        margin: 4px 0 10px;
-        accent-color: #38bdf8;
-      }
-      .muted {
-        color: #949bab;
-      }
-      .small {
-        font-size: 11px;
-        margin-top: 2px;
-      }
-      #count {
-        margin-left: auto;
-        font-variant-numeric: tabular-nums;
-        font-size: 12px;
-      }
-      #legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px 10px;
-        margin-left: auto;
-        color: #949bab;
-      }
-      .key {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        white-space: nowrap;
-      }
-      .key i {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-      }
-    </style>
+    <meta name="theme-color" content="#080b10" />
+    <title>berg — Swiss trains, live through history</title>
   </head>
   <body>
     <div id="map"></div>
-    <div id="controls">loading…</div>
+
+    <div id="loading" role="status" aria-live="polite">
+      <div class="loading-card">
+        <div class="brand-mark">B</div>
+        <div class="loading-copy">
+          <strong>Loading the railway</strong>
+          <span id="loading-label">Starting DuckDB…</span>
+        </div>
+        <div class="progress-track"><i id="loading-progress"></i></div>
+      </div>
+    </div>
+
+    <header id="topbar" class="glass hidden">
+      <a class="brand" href="#" aria-label="Reset map view"><b>berg</b><span>rail observer</span></a>
+      <div class="sim-state">
+        <time id="time">--</time>
+        <span id="speed-badge">600×</span>
+        <span id="count">0 trains</span>
+      </div>
+      <button id="command-button" class="command-button" type="button">
+        <span>Search trains or change speed</span><kbd>Ctrl K</kbd>
+      </button>
+    </header>
+
+    <section id="filters" class="glass hidden" aria-label="Train filters">
+      <div class="panel-label">Services</div>
+      <div id="filter-chips" class="chips"></div>
+      <div class="divider"></div>
+      <div class="mode-row">
+        <button id="mode-type" class="text-button on" type="button">Service</button>
+        <button id="mode-delay" class="text-button" type="button">Delay</button>
+      </div>
+      <div id="legend" class="legend"></div>
+      <div id="archive-meta" class="micro"></div>
+    </section>
+
+    <aside id="details" class="glass details hidden" aria-live="polite">
+      <button id="details-close" class="icon-button close" type="button" aria-label="Close">×</button>
+      <div id="details-content"></div>
+    </aside>
+
+    <div id="command" class="command-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="command-panel">
+        <div class="command-input-row">
+          <span class="search-icon">⌕</span>
+          <input id="command-input" autocomplete="off" spellcheck="false"
+            placeholder="Train, line, or YYYY-MM-DD HH:MM…" />
+          <kbd>Esc</kbd>
+        </div>
+        <div id="command-context" class="command-context"></div>
+        <div id="command-results" class="command-results"></div>
+      </div>
+    </div>
+
+    <div id="error" class="error hidden"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

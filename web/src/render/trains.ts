@@ -142,6 +142,7 @@ export function trainsLayer(
   simTime: number,
   colors: RGB[],
   mode: ColorMode = "type",
+  selectedJourneyId: number | null = null,
 ): ScatterplotLayer<PositionedLeg> {
   return new ScatterplotLayer<PositionedLeg>({
     id: "trains",
@@ -149,12 +150,21 @@ export function trainsLayer(
     getPosition: (d) => d.pos,
     getFillColor: (d) =>
       mode === "delay" ? delayColor(d.leg) : (colors[d.leg.type] ?? [200, 200, 200]),
-    getRadius: 3,
+    getRadius: (d) => (d.leg.journey_id === selectedJourneyId ? 7 : 3.5),
     radiusUnits: "pixels",
     radiusMinPixels: 2,
     pickable: true,
     // simTime drives every position; mode drives every colour. deck.gl caches accessor output,
     // so a mode flip without its trigger repaints nothing until the data array happens to change.
-    updateTriggers: { getPosition: simTime, getFillColor: mode },
+    stroked: true,
+    getLineColor: (d) =>
+      d.leg.journey_id === selectedJourneyId ? [255, 255, 255, 255] : [10, 15, 23, 180],
+    lineWidthMinPixels: 1,
+    updateTriggers: {
+      getPosition: simTime,
+      getFillColor: mode,
+      getRadius: selectedJourneyId,
+      getLineColor: selectedJourneyId,
+    },
   });
 }

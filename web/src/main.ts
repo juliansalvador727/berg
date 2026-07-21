@@ -1,26 +1,23 @@
-/**
- * M4: the whole published archive, replayed from R2.
- *
- * No data ships with the app. DuckDB WASM range-queries one day file at a time in a worker,
- * routes.bin supplies the track geometry, and every position is a lerp along a polyline at
- * simTime — so scrub precision is free regardless of how coarse the files are.
- */
+/** Browser-only historical train observer. */
 
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./style.css";
 
 import { Clock, SPEEDS } from "./clock";
 import {
   BUFFER_SECONDS,
   INITIAL_VIEW,
+  MAP_STYLE_URL,
   ROUTE_PAIRS_URL,
   ROUTES_URL,
   STATIONS_URL,
+  TERRAIN_TILEJSON_URL,
   TRAIN_TYPES_URL,
 } from "./config";
-import { fetchRoutes, type Routes } from "./routes";
+import { fetchRoutes, type RoutePath, type Routes } from "./routes";
 import {
   activeAt,
   type ColorMode,
@@ -31,7 +28,12 @@ import {
   typeColors,
 } from "./render/trains";
 import { FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
-import type { WorkerRequest, WorkerResponse } from "./worker/legs.worker";
+import type {
+  JourneySearchResult,
+  StationBoardLeg,
+  WorkerRequestPayload,
+  WorkerResponse,
+} from "./worker/legs.worker";
 
 interface Station {
   id: number;
@@ -40,147 +42,248 @@ interface Station {
   lat: number;
 }
 
-/** Refetch when simTime is within this much of the window's end — never mid-frame. */
-const REFETCH_MARGIN_S = 60;
+interface ServiceGroup {
+  id: string;
+  label: string;
+  codes: ReadonlySet<string>;
+}
 
-const fmtClock = (epoch: number) =>
+const SERVICE_GROUPS: ServiceGroup[] = [
+  { id: "s", label: "S-Bahn", codes: new Set(["S", "SN"]) },
+  { id: "regional", label: "Regional", codes: new Set(["R", "RB", "RE", "IRE", "TER", "PE"]) },
+  { id: "intercity", label: "IC / IR", codes: new Set(["IC", "IR"]) },
+  { id: "fast", label: "ICE / fast", codes: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]) },
+  { id: "night", label: "Night", codes: new Set(["NJ", "EN", "NZ"]) },
+];
+
+const REFETCH_MARGIN_S = 60;
+let nextRequestId = 1;
+
+const byId = <T extends HTMLElement>(id: string): T => {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`missing #${id}`);
+  return element as T;
+};
+
+const escapeHtml = (value: string): string =>
+  value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]!);
+
+const fmtClock = (epoch: number): string =>
   new Date(epoch * 1000).toLocaleString("de-CH", {
+    timeZone: "Europe/Zurich",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+const fmtShortTime = (epoch: number): string =>
+  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
+    timeZone: "Europe/Zurich",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const trainNumber = (tripId: string): string => {
+  const parts = tripId.split(":");
+  if (tripId.includes(":sjyid:")) return parts[parts.length - 1]?.split("-")[0] ?? tripId;
+  return parts.length >= 3 ? parts[parts.length - 2]! : tripId;
+};
+
+/** Convert a Europe/Zurich wall-clock value without depending on the viewer's own timezone. */
+function zurichEpoch(value: string): number | null {
+  const match = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const hour = Number(match[2] ?? 8);
+  const minute = Number(match[3] ?? 0);
+  if (hour > 23 || minute > 59) return null;
+  const desiredAsUtc = Date.parse(`${match[1]}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
+  if (!Number.isFinite(desiredAsUtc)) return null;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Zurich",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
+    hourCycle: "h23",
   });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(new Date(desiredAsUtc)).map((part) => [part.type, part.value]),
+  );
+  const renderedAsUtc = Date.parse(
+    `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:00Z`,
+  );
+  return (desiredAsUtc - (renderedAsUtc - desiredAsUtc)) / 1000;
+}
 
-function ask(worker: Worker, req: WorkerRequest): Promise<WorkerResponse> {
+function ask(worker: Worker, payload: WorkerRequestPayload): Promise<WorkerResponse> {
+  const requestId = nextRequestId++;
   return new Promise((resolve, reject) => {
-    const onMsg = (e: MessageEvent<WorkerResponse>) => {
-      if (e.data.kind === "error") {
-        worker.removeEventListener("message", onMsg);
-        reject(new Error(e.data.message));
-        return;
-      }
-      worker.removeEventListener("message", onMsg);
-      resolve(e.data);
+    const onMessage = (event: MessageEvent<WorkerResponse>) => {
+      if (event.data.requestId !== requestId) return;
+      worker.removeEventListener("message", onMessage);
+      if (event.data.kind === "error") reject(new Error(event.data.message));
+      else resolve(event.data);
     };
-    worker.addEventListener("message", onMsg);
-    worker.postMessage(req);
+    worker.addEventListener("message", onMessage);
+    worker.postMessage({ ...payload, requestId });
   });
 }
 
 async function main(): Promise<void> {
-  const status = document.getElementById("controls")!;
-  status.textContent = "starting DuckDB…";
+  const loading = byId<HTMLDivElement>("loading");
+  const loadingLabel = byId<HTMLSpanElement>("loading-label");
+  const loadingProgress = byId<HTMLElement>("loading-progress");
+  const setProgress = (percent: number, label: string) => {
+    loadingProgress.style.width = `${percent}%`;
+    loadingLabel.textContent = label;
+  };
 
-  const worker = new Worker(new URL("./worker/legs.worker.ts", import.meta.url), {
-    type: "module",
-  });
-
+  setProgress(8, "Starting the in-browser database…");
+  const worker = new Worker(new URL("./worker/legs.worker.ts", import.meta.url), { type: "module" });
   const ready = await ask(worker, { kind: "init" });
   if (ready.kind !== "ready") throw new Error("worker did not become ready");
   const manifest: Manifest = ready.manifest;
   if (!manifest.start || !manifest.end) throw new Error("manifest advertises no days");
 
-  status.textContent = "loading geometry…";
+  setProgress(24, "Loading routes, stations, and train classes…");
   const [routes, allStations, typeMap, routePairs] = await Promise.all([
     fetchRoutes(ROUTES_URL) as Promise<Routes>,
-    fetch(STATIONS_URL).then((r) => r.json() as Promise<Station[]>),
-    fetch(TRAIN_TYPES_URL).then((r) => r.json() as Promise<Record<string, string>>),
-    fetch(ROUTE_PAIRS_URL).then((r) => r.json() as Promise<Record<string, [number, number]>>),
+    fetch(STATIONS_URL).then((response) => response.json() as Promise<Station[]>),
+    fetch(TRAIN_TYPES_URL).then((response) => response.json() as Promise<Record<string, string>>),
+    fetch(ROUTE_PAIRS_URL).then(
+      (response) => response.json() as Promise<Record<string, [number, number]>>,
+    ),
   ]);
 
-  // stations.json is the whole dimension — 32k stops, most of them bus stops that no train
-  // ever calls at, and drawn raw they bury the trains in grey. The stations worth showing are
-  // exactly the ones a leg ends at, which route_pairs already enumerates.
+  setProgress(48, "Preparing the observed rail network…");
   const served = new Set<number>();
-  for (const [from, to] of Object.values(routePairs)) {
+  const stationRouteIds = new Map<number, number[]>();
+  for (const [routeIdText, [from, to]] of Object.entries(routePairs)) {
+    const routeId = Number(routeIdText);
     served.add(from);
     served.add(to);
+    stationRouteIds.set(from, [...(stationRouteIds.get(from) ?? []), routeId]);
+    stationRouteIds.set(to, [...(stationRouteIds.get(to) ?? []), routeId]);
   }
-  const stations = allStations.filter((s) => served.has(s.id));
+  const stations = allStations.filter((station) => served.has(station.id));
+  const stationById = new Map(stations.map((station) => [station.id, station]));
+  const trackPaths = routes.paths();
 
-  // type_id is a dense uint8; the published map is keyed by its decimal string.
   const maxType = Math.max(...Object.keys(typeMap).map(Number));
-  const types = Array.from({ length: maxType + 1 }, (_, i) => typeMap[String(i)] ?? "?");
+  const types = Array.from({ length: maxType + 1 }, (_, index) => typeMap[String(index)] ?? "?");
   const colors = typeColors(types);
+  const knownGroupedTypes = new Set(SERVICE_GROUPS.flatMap((group) => [...group.codes]));
+  const allGroups = [
+    ...SERVICE_GROUPS,
+    {
+      id: "other",
+      label: "Other",
+      codes: new Set(types.filter((type) => !knownGroupedTypes.has(type))),
+    },
+  ];
+  const enabledGroups = new Set(allGroups.map((group) => group.id));
 
+  setProgress(64, "Loading the dark map and mountain relief…");
   const map = new maplibregl.Map({
     container: "map",
-    style: "https://demotiles.maplibre.org/style.json", // M0 placeholder; Protomaps at M6
+    style: MAP_STYLE_URL,
     center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude],
     zoom: INITIAL_VIEW.zoom,
+    pitch: 24,
+    bearing: 0,
+    maxPitch: 70,
     attributionControl: { compact: true },
   });
   await map.once("load");
+
+  try {
+    map.addSource("berg-terrain", {
+      type: "raster-dem",
+      url: TERRAIN_TILEJSON_URL,
+      tileSize: 256,
+    });
+    const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+    map.addLayer(
+      {
+        id: "berg-hillshade",
+        type: "hillshade",
+        source: "berg-terrain",
+        paint: {
+          "hillshade-method": "multidirectional",
+          "hillshade-exaggeration": 0.28,
+          "hillshade-shadow-color": "#020509",
+          "hillshade-highlight-color": "#607184",
+          "hillshade-accent-color": "#111b25",
+        },
+      },
+      firstLabel,
+    );
+  } catch (error) {
+    console.warn("terrain relief unavailable", error);
+  }
+
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
   map.addControl(overlay);
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
 
-  // Scrub spans the whole published archive; start at 08:00 local on the first full day.
   const days = Object.keys(manifest.days).sort();
+  const substantialDays = days.filter((day) => manifest.days[day]!.legs >= 10_000);
+  const initialDay = substantialDays[substantialDays.length - 1] ?? days[days.length - 1]!;
   const tMin = Date.parse(`${days[0]}T00:00:00Z`) / 1000;
   const tMax = Date.parse(`${days[days.length - 1]}T23:59:59Z`) / 1000;
-  const clock = new Clock(tMin + 6 * 3600);
-  clock.setSpeed(60);
+  const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);
+  clock.setSpeed(600);
   clock.play();
 
-  status.innerHTML = `
-    <div class="row">
-      <button id="play">⏸</button>
-      <span id="time">--</span>
-      <span id="count" class="muted">0 trains</span>
-    </div>
-    <input id="scrub" type="range" min="${tMin}" max="${tMax}" step="1" />
-    <div class="row" id="speeds"></div>
-    <div class="row">
-      <span class="muted small">colour</span>
-      <button id="mode-type" class="on">type</button>
-      <button id="mode-delay">delay</button>
-      <span id="legend" class="small"></span>
-    </div>
-    <div class="muted small">
-      ${days.length.toLocaleString()} days · ${manifest.start} → ${manifest.end}
-      · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations
-      <span id="dropped"></span>
-    </div>`;
+  const topbar = byId<HTMLElement>("topbar");
+  const filters = byId<HTMLElement>("filters");
+  const timeElement = byId<HTMLTimeElement>("time");
+  const countElement = byId<HTMLSpanElement>("count");
+  const speedBadge = byId<HTMLSpanElement>("speed-badge");
+  const archiveMeta = byId<HTMLDivElement>("archive-meta");
+  const details = byId<HTMLElement>("details");
+  const detailsContent = byId<HTMLDivElement>("details-content");
+  const command = byId<HTMLDivElement>("command");
+  const commandInput = byId<HTMLInputElement>("command-input");
+  const commandContext = byId<HTMLDivElement>("command-context");
+  const commandResults = byId<HTMLDivElement>("command-results");
+  const filterChips = byId<HTMLDivElement>("filter-chips");
+  const legendElement = byId<HTMLDivElement>("legend");
 
-  const timeEl = document.getElementById("time")!;
-  const countEl = document.getElementById("count")!;
-  const droppedEl = document.getElementById("dropped")!;
-  const scrub = document.getElementById("scrub") as HTMLInputElement;
-  const playBtn = document.getElementById("play")!;
+  archiveMeta.textContent = `${days.length.toLocaleString()} days · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations`;
 
-  const speedsEl = document.getElementById("speeds")!;
-  for (const s of SPEEDS) {
-    const b = document.createElement("button");
-    b.textContent = `${s}×`;
-    b.onclick = () => {
-      clock.setSpeed(s);
-      for (const el of speedsEl.children) el.classList.toggle("on", el === b);
+  for (const group of allGroups) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip on";
+    button.textContent = group.label;
+    button.onclick = () => {
+      if (enabledGroups.has(group.id)) enabledGroups.delete(group.id);
+      else enabledGroups.add(group.id);
+      button.classList.toggle("on", enabledGroups.has(group.id));
     };
-    if (s === 60) b.classList.add("on");
-    speedsEl.appendChild(b);
+    filterChips.appendChild(button);
   }
-  playBtn.onclick = () => {
-    if (clock.paused) clock.play();
-    else clock.pause();
-    playBtn.textContent = clock.paused ? "▶" : "⏸";
+
+  const typeEnabled = (typeId: number): boolean => {
+    const code = types[typeId] ?? "?";
+    return allGroups.some((group) => enabledGroups.has(group.id) && group.codes.has(code));
   };
 
-  // The legend asks the same functions the layer does, so a ramp edit cannot leave the key
-  // describing colours the map stopped using.
-  const swatch = (c: [number, number, number], label: string) =>
-    `<span class="key"><i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>${label}</span>`;
-  const legendEl = document.getElementById("legend")!;
-  const modeBtns: Record<ColorMode, HTMLElement> = {
-    type: document.getElementById("mode-type")!,
-    delay: document.getElementById("mode-delay")!,
+  const swatch = (color: [number, number, number], label: string): string =>
+    `<span class="key"><i style="background:rgb(${color.join(",")})"></i>${label}</span>`;
+  const modeButtons: Record<ColorMode, HTMLElement> = {
+    type: byId("mode-type"),
+    delay: byId("mode-delay"),
   };
   let colorMode: ColorMode = "type";
-
-  function renderLegend() {
-    const leg = (delay: number, flags = 0): Leg => ({
+  const renderLegend = () => {
+    const sample = (delay: number, flags = 0): Leg => ({
       route_id: 0,
       journey_id: 0,
       route_start: 0,
@@ -191,93 +294,346 @@ async function main(): Promise<void> {
       delay,
       flags,
     });
-    legendEl.innerHTML =
+    legendElement.innerHTML =
       colorMode === "delay"
         ? [
-            swatch(delayColor(leg(0)), "on time"),
-            swatch(delayColor(leg(PUNCTUAL_S)), "3 min"),
-            swatch(delayColor(leg(600)), "10 min"),
-            swatch(delayColor(leg(1800)), "30 min+"),
-            swatch(delayColor(leg(0, FLAG_SCHEDULED_FALLBACK)), "unmeasured"),
+            swatch(delayColor(sample(0)), "On time"),
+            swatch(delayColor(sample(PUNCTUAL_S)), "3 minutes"),
+            swatch(delayColor(sample(600)), "10 minutes"),
+            swatch(delayColor(sample(1800)), "30+ minutes"),
+            swatch(delayColor(sample(0, FLAG_SCHEDULED_FALLBACK)), "Unmeasured"),
           ].join("")
         : [
-            swatch(typeColors(["S"])[0]!, "local"),
-            swatch(typeColors(["R"])[0]!, "regional"),
-            swatch(typeColors(["IC"])[0]!, "long-distance"),
+            swatch(typeColors(["S"])[0]!, "S-Bahn"),
+            swatch(typeColors(["RE"])[0]!, "Regional"),
+            swatch(typeColors(["IC"])[0]!, "Long-distance"),
           ].join("");
-  }
-
-  for (const m of ["type", "delay"] as ColorMode[]) {
-    modeBtns[m].onclick = () => {
-      colorMode = m;
-      for (const [k, el] of Object.entries(modeBtns)) el.classList.toggle("on", k === m);
+  };
+  for (const mode of ["type", "delay"] as ColorMode[]) {
+    modeButtons[mode].onclick = () => {
+      colorMode = mode;
+      for (const [key, element] of Object.entries(modeButtons)) {
+        element.classList.toggle("on", key === mode);
+      }
       renderLegend();
     };
   }
   renderLegend();
 
-  let scrubbing = false;
-  scrub.oninput = () => {
-    scrubbing = true;
-    clock.seek(Number(scrub.value));
+  const trackLayer = new PathLayer<RoutePath>({
+    id: "observed-rail-network",
+    data: trackPaths,
+    getPath: (route) => route.path,
+    getColor: (route) => (route.fallback ? [92, 102, 116, 30] : [105, 124, 143, 85]),
+    getWidth: 1,
+    widthUnits: "pixels",
+    widthMinPixels: 0.65,
+    pickable: false,
+  });
+
+  let selectedJourney: JourneySearchResult | null = null;
+  let lastFollowAt = 0;
+
+  const showDetails = (html: string) => {
+    detailsContent.innerHTML = html;
+    details.classList.remove("hidden");
   };
-  scrub.onchange = () => {
-    scrubbing = false;
-  };
+  const hideDetails = () => details.classList.add("hidden");
+  byId<HTMLButtonElement>("details-close").onclick = hideDetails;
 
   const stationLayer = new ScatterplotLayer<Station>({
     id: "stations",
     data: stations,
-    getPosition: (d) => [d.lon, d.lat],
-    getFillColor: [130, 130, 140, 90],
-    getRadius: 2,
+    getPosition: (station) => [station.lon, station.lat],
+    getFillColor: [177, 190, 205, 165],
+    getLineColor: [7, 11, 17, 220],
+    getRadius: 2.4,
     radiusUnits: "pixels",
-    pickable: false,
+    radiusMinPixels: 2,
+    radiusMaxPixels: 8,
+    stroked: true,
+    lineWidthMinPixels: 1,
+    pickable: true,
+    autoHighlight: true,
+    highlightColor: [94, 234, 212, 220],
+    onClick: ({ object }) => {
+      if (object) void openStation(object);
+    },
   });
 
-  // The window the worker last delivered. Frames read this; only a refetch replaces it.
+  function stationName(id: number): string {
+    return stationById.get(id)?.name ?? `Station ${id}`;
+  }
+
+  function routeDescription(routeId: number): { from: string; to: string } {
+    const pair = routePairs[String(routeId)];
+    return pair
+      ? { from: stationName(pair[0]), to: stationName(pair[1]) }
+      : { from: "Unknown origin", to: "Unknown destination" };
+  }
+
+  async function openStation(station: Station): Promise<void> {
+    showDetails(`
+      <div class="eyebrow">Station</div>
+      <h2>${escapeHtml(station.name)}</h2>
+      <div class="sub">Loading observed arrivals and departures…</div>`);
+    map.easeTo({ center: [station.lon, station.lat], zoom: Math.max(map.getZoom(), 11), duration: 650 });
+    try {
+      const response = await ask(worker, {
+        kind: "station-board",
+        routeIds: stationRouteIds.get(station.id) ?? [],
+        simTime: clock.simTime,
+        horizon: 3 * 3600,
+      });
+      if (response.kind !== "station-board") return;
+      renderStationBoard(station, response.legs);
+    } catch (error) {
+      showDetails(`
+        <div class="eyebrow">Station</div><h2>${escapeHtml(station.name)}</h2>
+        <div class="empty">Could not load the board: ${escapeHtml(String(error))}</div>`);
+    }
+  }
+
+  function renderStationBoard(station: Station, legs: StationBoardLeg[]): void {
+    const rows: { time: number; kind: "arr" | "dep"; other: string; line: string }[] = [];
+    for (const leg of legs) {
+      const pair = routePairs[String(leg.route_id)];
+      if (!pair) continue;
+      if (pair[0] === station.id && leg.t_dep >= clock.simTime - 15 * 60) {
+        rows.push({ time: leg.t_dep, kind: "dep", other: stationName(pair[1]), line: leg.line });
+      }
+      const arrival = leg.t_dep + leg.dur;
+      if (pair[1] === station.id && arrival >= clock.simTime - 15 * 60) {
+        rows.push({ time: arrival, kind: "arr", other: stationName(pair[0]), line: leg.line });
+      }
+    }
+    rows.sort((a, b) => a.time - b.time);
+    const visible = rows.slice(0, 36);
+    const body = visible.length
+      ? visible
+          .map(
+            (row) => `<div class="board-row">
+              <time>${fmtShortTime(row.time)}</time>
+              <b>${escapeHtml(row.line || "Train")}</b>
+              <span>${row.kind === "dep" ? "to" : "from"} ${escapeHtml(row.other)}</span>
+              <em>${row.kind}</em>
+            </div>`,
+          )
+          .join("")
+      : `<div class="empty">No observed movements in the next three simulated hours.</div>`;
+    showDetails(`
+      <div class="eyebrow">Station board · observed data</div>
+      <h2>${escapeHtml(station.name)}</h2>
+      <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime)}</div>
+      <div class="board"><h3>Arrivals & departures</h3>${body}</div>`);
+  }
+
+  const showSpeedCommands = () => {
+    commandContext.textContent = "Playback · automatically running unless paused";
+    commandResults.innerHTML = "";
+    for (const speed of SPEEDS) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `command-item${clock.speed === speed && !clock.paused ? " active" : ""}`;
+      button.innerHTML = `<span class="token">${speed}×</span><span><strong>Run at ${speed}×</strong><small>${speed === 600 ? "Default observer speed" : "Historical playback speed"}</small></span><kbd>Enter</kbd>`;
+      button.onclick = () => {
+        clock.setSpeed(speed);
+        clock.play();
+        speedBadge.textContent = `${speed}×`;
+        closeCommand();
+      };
+      commandResults.appendChild(button);
+    }
+    const pause = document.createElement("button");
+    pause.type = "button";
+    pause.className = `command-item${clock.paused ? " active" : ""}`;
+    pause.innerHTML = `<span class="token">Ⅱ</span><span><strong>${clock.paused ? "Resume" : "Pause"}</strong><small>Keep the current historical instant</small></span><kbd>Space</kbd>`;
+    pause.onclick = () => {
+      if (clock.paused) clock.play();
+      else clock.pause();
+      speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
+      closeCommand();
+    };
+    commandResults.appendChild(pause);
+  };
+
+  const openCommand = () => {
+    command.classList.remove("hidden");
+    commandInput.value = "";
+    showSpeedCommands();
+    requestAnimationFrame(() => commandInput.focus());
+  };
+  const closeCommand = () => command.classList.add("hidden");
+  byId<HTMLButtonElement>("command-button").onclick = openCommand;
+  command.onclick = (event) => {
+    if (event.target === command) closeCommand();
+  };
+
+  let searchGeneration = 0;
+  let searchTimer = 0;
+  commandInput.oninput = () => {
+    window.clearTimeout(searchTimer);
+    const query = commandInput.value.trim();
+    if (!query) {
+      showSpeedCommands();
+      return;
+    }
+    const requestedTime = zurichEpoch(query);
+    if (requestedTime !== null) {
+      commandContext.textContent = "Historical navigation · Europe/Zurich time";
+      commandResults.innerHTML = "";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "command-item";
+      const inRange = requestedTime >= tMin && requestedTime <= tMax;
+      button.disabled = !inRange;
+      button.innerHTML = `<span class="token">GO</span><span><strong>${escapeHtml(fmtClock(requestedTime))}</strong><small>${inRange ? "Jump to this instant, then search trains on that day" : "Outside the published archive"}</small></span><kbd>Enter</kbd>`;
+      button.onclick = () => {
+        clock.seek(requestedTime);
+        win = { from: 0, to: -1, legs: [] };
+        selectedJourney = null;
+        closeCommand();
+        void refill(requestedTime);
+      };
+      commandResults.appendChild(button);
+      return;
+    }
+    commandContext.textContent = `Searching trains on ${new Date(clock.simTime * 1000).toISOString().slice(0, 10)}…`;
+    commandResults.innerHTML = `<div class="empty">Querying the journey sidecar…</div>`;
+    const generation = ++searchGeneration;
+    searchTimer = window.setTimeout(async () => {
+      try {
+        const response = await ask(worker, { kind: "search", query, simTime: clock.simTime });
+        if (generation !== searchGeneration || response.kind !== "search-results") return;
+        renderSearchResults(response.day, response.results);
+      } catch (error) {
+        commandResults.innerHTML = `<div class="empty">Search failed: ${escapeHtml(String(error))}</div>`;
+      }
+    }, 180);
+  };
+
+  function renderSearchResults(day: string, results: JourneySearchResult[]): void {
+    commandContext.textContent = `Trains on ${day} · search uses exact published journey identities and lines`;
+    commandResults.innerHTML = "";
+    if (results.length === 0) {
+      commandResults.innerHTML = `<div class="empty">No matching train on this day. Search a line such as IC5, S1, ICE, or a train number contained in its trip ID.</div>`;
+      return;
+    }
+    for (const result of results) {
+      const route = routeDescription(result.firstRouteId);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "command-item";
+      button.innerHTML = `
+        <span class="token">${escapeHtml(result.line || trainNumber(result.tripId))}</span>
+        <span><strong>${escapeHtml(route.from)} → ${escapeHtml(route.to)}</strong>
+        <small>Train ${escapeHtml(trainNumber(result.tripId))} · ${escapeHtml(result.tripId)}</small></span>
+        <time>${fmtShortTime(result.start)}</time>`;
+      button.onclick = () => watchJourney(result);
+      commandResults.appendChild(button);
+    }
+  }
+
+  function watchJourney(result: JourneySearchResult): void {
+    selectedJourney = result;
+    clock.seek(Math.max(tMin, result.start - 30));
+    win = { from: 0, to: -1, legs: [] };
+    const route = routeDescription(result.firstRouteId);
+    showDetails(`
+      <div class="eyebrow">Spectating train</div>
+      <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departs ${fmtShortTime(result.start)}</div>
+      <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
+      <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
+    byId<HTMLButtonElement>("stop-watch").onclick = () => {
+      selectedJourney = null;
+      hideDetails();
+    };
+    closeCommand();
+    void refill(clock.simTime);
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
+      event.preventDefault();
+      if (command.classList.contains("hidden")) openCommand();
+      else closeCommand();
+    } else if (event.key === "Escape" && !command.classList.contains("hidden")) {
+      closeCommand();
+    } else if (event.code === "Space" && command.classList.contains("hidden")) {
+      event.preventDefault();
+      if (clock.paused) clock.play();
+      else clock.pause();
+      speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
+    }
+  });
+
   let win: { from: number; to: number; legs: Leg[] } = { from: 0, to: -1, legs: [] };
   let inFlight = false;
-
-  /** Buffer scales with speed: at 600x a second of wall clock is ten minutes of simulation. */
   const lookahead = () => Math.max(BUFFER_SECONDS, BUFFER_SECONDS * (clock.speed / 60));
-
-  async function refill(t: number): Promise<void> {
+  async function refill(time: number): Promise<void> {
     if (inFlight) return;
     inFlight = true;
     try {
-      const res = await ask(worker, { kind: "window", simTime: t, lookahead: lookahead() });
-      if (res.kind === "window") win = res;
-    } catch (e) {
-      console.error("window fetch failed", e);
+      const response = await ask(worker, { kind: "window", simTime: time, lookahead: lookahead() });
+      if (response.kind === "window") win = response;
+    } catch (error) {
+      console.error("window fetch failed", error);
     } finally {
       inFlight = false;
     }
   }
+
+  setProgress(82, "Fetching the first train window…");
   await refill(clock.simTime);
+  setProgress(100, "Ready");
+  topbar.classList.remove("hidden");
+  filters.classList.remove("hidden");
+  loading.classList.add("done");
 
-  function frame() {
-    const t = clock.tick();
-    if (t > tMax) clock.seek(tMin);
+  byId<HTMLAnchorElement>("topbar").querySelector<HTMLAnchorElement>(".brand")!.onclick = (event) => {
+    event.preventDefault();
+    map.easeTo({ center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude], zoom: INITIAL_VIEW.zoom, pitch: 24, bearing: 0, duration: 700 });
+  };
 
-    // Outside the buffered window, or close enough to its edge to be worth topping up.
-    if (t < win.from || t > win.to - REFETCH_MARGIN_S) void refill(t);
+  function frame(): void {
+    const time = clock.tick();
+    if (time > tMax) clock.seek(tMin);
+    if (time < win.from || time > win.to - REFETCH_MARGIN_S) void refill(time);
 
-    const live = activeAt(win.legs, t);
-    const { items, dropped } = positioned(live, t, routes);
-    overlay.setProps({ layers: [stationLayer, trainsLayer(items, t, colors, colorMode)] });
+    const live = activeAt(win.legs, time).filter((leg) => typeEnabled(leg.type));
+    const { items, dropped } = positioned(live, time, routes);
+    overlay.setProps({
+      layers: [
+        trackLayer,
+        stationLayer,
+        trainsLayer(items, time, colors, colorMode, selectedJourney?.journeyId ?? null),
+      ],
+    });
 
-    timeEl.textContent = fmtClock(t);
-    countEl.textContent = `${items.length.toLocaleString()} trains`;
-    // Loud, not silent: routes.bin lagging the pipeline means trains we cannot draw.
-    droppedEl.textContent = dropped > 0 ? ` · ⚠ ${dropped} without geometry` : "";
-    if (!scrubbing) scrub.value = String(Math.floor(t));
+    if (selectedJourney) {
+      const selected = items.find((item) => item.leg.journey_id === selectedJourney!.journeyId);
+      if (selected && performance.now() - lastFollowAt > 300) {
+        map.easeTo({ center: selected.pos, zoom: Math.max(map.getZoom(), 12), duration: 260 });
+        lastFollowAt = performance.now();
+      }
+      if (time > selectedJourney.end + 60) selectedJourney = null;
+    }
+
+    timeElement.textContent = fmtClock(time);
+    countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }
 
-main().catch((err) => {
-  console.error(err);
-  document.getElementById("controls")!.textContent = `failed: ${err.message}`;
+main().catch((error: unknown) => {
+  console.error(error);
+  const loadingLabel = document.getElementById("loading-label");
+  if (loadingLabel) loadingLabel.textContent = "Could not start";
+  const errorElement = document.getElementById("error");
+  if (errorElement) {
+    errorElement.textContent = error instanceof Error ? error.message : String(error);
+    errorElement.classList.remove("hidden");
+  }
 });

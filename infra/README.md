@@ -7,11 +7,14 @@ storage and zero egress, which is the constraint the entire data model is built 
 
 ```
 r2://berg/
-  legs/YYYY/MM/DD.parquet      one file per service day, ~3–8 MB
+  legs/YYYY/MM/DD.parquet      compact movement facts, one file per UTC day
+  journeys/YYYY/MM/DD.parquet  journey identity/metadata sidecar for the same day
   static/routes.bin
+  static/route_pairs.json
   static/stations.json
-  static/aggregates/*.json
-  tiles/switzerland.pmtiles
+  static/train_types.json
+  static/routes.report.json
+  tiles/switzerland.pmtiles    planned; not published yet
   manifest.json                date range, file sizes, max_leg_duration, schema version
 ```
 
@@ -36,6 +39,10 @@ curl -sI -H "Origin: https://berg.ch" -H "Range: bytes=0-99" \
 # want: 206 Partial Content, access-control-allow-origin, content-range
 ```
 
+`infra/cors.json` also permits the exact development origin `http://localhost:5173`. Browser
+origins are exact: `http://127.0.0.1:4173` is different and will be rejected. Run local frontend
+smoke tests on localhost port 5173 rather than weakening the production allowlist.
+
 ## The Parquet contract
 
 Row group size is the load-bearing tuning knob — it is literally the number of bytes downloaded
@@ -48,12 +55,14 @@ handshakes. Decide that on a measurement, not a hunch.
 
 ## Budget
 
-800M legs at 8 bytes is 6.4 GB against a 10 GB tier. Headroom is thin. Measure bytes/leg at M1
-after one month is backfilled, not at the end. The escape hatch is dropping the oldest years;
-overshoot costs cents, not the project.
+The completed historical mirror is about 3.7 GB plus its manifest for 422,103,769 legs, including
+the journey sidecars and static assets. It is comfortably below the 10 GB free-tier storage
+allowance. Continue checking bucket size as new months arrive; the old 800M-leg/6.4 GB figure was
+a planning estimate, not a measurement.
 
 ## Backfill vs steady state
 
-The ~1.8 TB backfill does not run in CI — run it locally or on a rented box over a weekend.
-Steady state is `.github/workflows/monthly-ingest.yml`: one archive ZIP, one partition, ~150 MB
-to R2, comfortably inside CI limits.
+The measured ~1.27 TB raw historical backfill is complete and does not run in CI. Steady state is
+`.github/workflows/monthly-ingest.yml`: one archive ZIP and one month build. Before relying on the
+schedule, manually dispatch it for a known month and verify upload, manifest-last behavior, and
+rerun idempotency.

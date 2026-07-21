@@ -1,5 +1,25 @@
 # Ist-Daten: what the data actually does
 
+## Full rebuild and publication (2026-07-20)
+
+The final rebuild of all usable source months is complete and published. The authoritative
+snapshot is 422,103,769 legs in 3,090 daily leg files with matching journey sidecars, spanning
+manifest dates 2017-12-31 through 2026-07-01. The manifest has schema version 3 and explicitly
+marks 15 fully absent UTC days. The UTC range extends one day beyond the 2018-01 through 2026-06
+source service-day bounds because Europe/Zurich times are converted to UTC.
+
+The geometry registry and `routes.bin` both contain 11,502 routes. Of these, 1,347 use an
+explicitly flagged straight-line fallback when a usable path is absent from the Switzerland OSM
+rail graph. The local publish mirror is about 3.7 GB plus its manifest.
+
+Final reason-coded quarantine totals are 4,599,076 candidates: 2,224,176 negative-duration,
+1,407,200 zero-duration, 933,967 unmatched-station, 33,664 missing-time, and 69 absurd-duration
+rows. These are excluded and auditable; they are not represented as published movements.
+
+The sections below preserve the historical measurements that drove the design. Where an older
+projection or prototype count differs from this section, use the final snapshot above and
+[`../current_state.md`](../current_state.md).
+
 Measured against one full service day (2026-06-03, a Wednesday) during the M0 spike, and
 extended at M1 by a census of **every month 2018-01 → 2026-06**, header samples across both URL
 series, and full-day probes of the v1 era (2018-01, 2018-05, 2019-07, 2023-06, 2025-08). Every
