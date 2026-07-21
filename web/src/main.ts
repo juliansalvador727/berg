@@ -19,7 +19,6 @@ import {
 } from "./config";
 import { fetchRoutes, type RoutePath, type Routes } from "./routes";
 import {
-  activeAt,
   type ColorMode,
   delayColor,
   positioned,
@@ -58,6 +57,10 @@ const SERVICE_GROUPS: ServiceGroup[] = [
 
 const REFETCH_MARGIN_S = 60;
 let nextRequestId = 1;
+
+/** Approximate ground resolution at the map center for zoom-adaptive arrow smoothing. */
+const metersPerPixel = (latitude: number, zoom: number): number =>
+  (156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom;
 
 const byId = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -173,6 +176,7 @@ async function main(): Promise<void> {
   const stations = allStations.filter((station) => served.has(station.id));
   const stationById = new Map(stations.map((station) => [station.id, station]));
   const trackPaths = routes.paths();
+  const trackPathById = new Map(trackPaths.map((route) => [route.routeId, route]));
 
   const maxType = Math.max(...Object.keys(typeMap).map(Number));
   const types = Array.from({ length: maxType + 1 }, (_, index) => typeMap[String(index)] ?? "?");
@@ -332,7 +336,6 @@ async function main(): Promise<void> {
   });
 
   let selectedJourney: JourneySearchResult | null = null;
-  let lastFollowAt = 0;
 
   const showDetails = (html: string) => {
     detailsContent.innerHTML = html;
@@ -529,28 +532,58 @@ async function main(): Promise<void> {
         <span><strong>${escapeHtml(route.from)} → ${escapeHtml(route.to)}</strong>
         <small>Train ${escapeHtml(trainNumber(result.tripId))} · ${escapeHtml(result.tripId)}</small></span>
         <time>${fmtShortTime(result.start)}</time>`;
-      button.onclick = () => watchJourney(result);
+      button.onclick = () => void watchJourney(result);
       commandResults.appendChild(button);
     }
   }
 
-  function watchJourney(result: JourneySearchResult): void {
+  async function watchJourney(result: JourneySearchResult): Promise<void> {
     selectedJourney = result;
-    clock.seek(Math.max(tMin, result.start - 30));
+    clock.setSpeed(1);
+    clock.play();
+    speedBadge.textContent = "1×";
+    clock.seek(Math.max(tMin, result.start));
     win = { from: 0, to: -1, legs: [] };
     const route = routeDescription(result.firstRouteId);
     showDetails(`
       <div class="eyebrow">Spectating train</div>
       <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
       <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departs ${fmtShortTime(result.start)}</div>
-      <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
+      <div class="board"><h3>Loading train…</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
       <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
     byId<HTMLButtonElement>("stop-watch").onclick = () => {
       selectedJourney = null;
       hideDetails();
     };
     closeCommand();
-    void refill(clock.simTime);
+    await refill(result.start);
+
+    // A newer selection may have replaced this one while its remote window was loading.
+    if (selectedJourney?.journeyId !== result.journeyId) return;
+    const selected = positioned(
+      win.legs,
+      clock.simTime,
+      routes,
+      Math.max(30, Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6)),
+    ).items.find(
+      (item) => item.leg.journey_id === result.journeyId,
+    );
+    if (selected) {
+      map.jumpTo({
+        center: selected.pos,
+        zoom: Math.max(map.getZoom(), 13),
+      });
+    }
+    showDetails(`
+      <div class="eyebrow">Spectating train · 1× playback</div>
+      <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departed ${fmtShortTime(result.start)}</div>
+      <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
+      <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
+    byId<HTMLButtonElement>("stop-watch").onclick = () => {
+      selectedJourney = null;
+      hideDetails();
+    };
   }
 
   document.addEventListener("keydown", (event) => {
@@ -569,18 +602,30 @@ async function main(): Promise<void> {
   });
 
   let win: { from: number; to: number; legs: Leg[] } = { from: 0, to: -1, legs: [] };
-  let inFlight = false;
+  let refillInFlight: Promise<void> | null = null;
   const lookahead = () => Math.max(BUFFER_SECONDS, BUFFER_SECONDS * (clock.speed / 60));
+  // Keep two wall-clock seconds of data in hand. A fixed 60 simulated-second margin was only
+  // 100 ms at 600×, so a normal range request could exhaust the window and flash the map.
+  const refetchMargin = () => Math.max(REFETCH_MARGIN_S, clock.speed * 2);
   async function refill(time: number): Promise<void> {
-    if (inFlight) return;
-    inFlight = true;
+    // If another window is being fetched, wait for it and then decide whether it covered this
+    // seek. Spectating must not silently lose its load because ordinary playback was fetching.
+    while (refillInFlight) await refillInFlight;
+    if (time >= win.from && time <= win.to - refetchMargin()) return;
+
+    const request = (async () => {
+      try {
+        const response = await ask(worker, { kind: "window", simTime: time, lookahead: lookahead() });
+        if (response.kind === "window") win = response;
+      } catch (error) {
+        console.error("window fetch failed", error);
+      }
+    })();
+    refillInFlight = request;
     try {
-      const response = await ask(worker, { kind: "window", simTime: time, lookahead: lookahead() });
-      if (response.kind === "window") win = response;
-    } catch (error) {
-      console.error("window fetch failed", error);
+      await request;
     } finally {
-      inFlight = false;
+      if (refillInFlight === request) refillInFlight = null;
     }
   }
 
@@ -599,24 +644,48 @@ async function main(): Promise<void> {
   function frame(): void {
     const time = clock.tick();
     if (time > tMax) clock.seek(tMin);
-    if (time < win.from || time > win.to - REFETCH_MARGIN_S) void refill(time);
+    if (time < win.from || time > win.to - refetchMargin()) void refill(time);
 
-    const live = activeAt(win.legs, time).filter((leg) => typeEnabled(leg.type));
-    const { items, dropped } = positioned(live, time, routes);
+    const selectedJourneyId = selectedJourney?.journeyId ?? null;
+    const relevantLegs = win.legs.filter(
+      (leg) => typeEnabled(leg.type) || leg.journey_id === selectedJourneyId,
+    );
+    // Average the route tangent across roughly six screen pixels. At national zoom this removes
+    // noisy vertex-to-vertex heading changes; close up it converges to the precise local track.
+    const bearingWindowM = Math.max(
+      30,
+      Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6),
+    );
+    const { items, dropped } = positioned(relevantLegs, time, routes, bearingWindowM);
+    const selected = selectedJourneyId === null
+      ? undefined
+      : items.find((item) => item.leg.journey_id === selectedJourneyId);
+    const selectedTrack = selected ? trackPathById.get(selected.leg.route_id) : undefined;
+    const selectedTrackLayer = new PathLayer<RoutePath>({
+      id: "selected-train-track",
+      data: selectedTrack ? [selectedTrack] : [],
+      getPath: (route) => route.path,
+      getColor: [94, 234, 212, 235],
+      getWidth: 4,
+      widthUnits: "pixels",
+      widthMinPixels: 3,
+      capRounded: true,
+      jointRounded: true,
+      pickable: false,
+    });
     overlay.setProps({
       layers: [
         trackLayer,
+        selectedTrackLayer,
         stationLayer,
-        trainsLayer(items, time, colors, colorMode, selectedJourney?.journeyId ?? null),
+        trainsLayer(items, time, colors, colorMode, selectedJourneyId, map.getBearing()),
       ],
     });
 
     if (selectedJourney) {
-      const selected = items.find((item) => item.leg.journey_id === selectedJourney!.journeyId);
-      if (selected && performance.now() - lastFollowAt > 300) {
-        map.easeTo({ center: selected.pos, zoom: Math.max(map.getZoom(), 12), duration: 260 });
-        lastFollowAt = performance.now();
-      }
+      // Keep the camera locked to the interpolated position. Repeated easeTo calls restart an
+      // animation and visibly hitch at 8×; a direct per-frame center update stays continuous.
+      if (selected) map.setCenter(selected.pos);
       if (time > selectedJourney.end + 60) selectedJourney = null;
     }
 

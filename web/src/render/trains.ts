@@ -11,8 +11,9 @@
  * and throwing away the compact columnar schema that the storage budget depends on.
  */
 
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { IconLayer } from "@deck.gl/layers";
 
+import trainArrowUrl from "../assets/train-arrow.svg?url&no-inline";
 import type { Routes } from "../routes";
 import { FLAG_SCHEDULED_FALLBACK, type Leg } from "../types";
 
@@ -111,10 +112,31 @@ export function activeAt(legs: Leg[], simTime: number): Leg[] {
 export interface PositionedLeg {
   leg: Leg;
   pos: [number, number];
+  bearing: number;
+  opacity: number;
 }
 
+// At 600×, fifteen simulated minutes is 1.5 seconds on screen: long enough for a terminal
+// arrival/departure to fade rather than flash, without claiming the vehicle remains indefinitely.
+const ENDPOINT_GRACE_S = 15 * 60;
+
+interface LegAtPosition {
+  leg: Leg;
+  fraction: number;
+  opacity: number;
+}
+
+/** journey_id is unique within a departure-day file, not across the whole archive. */
+const journeyKey = (leg: Leg): number =>
+  Math.floor(leg.t_dep / 86_400) * 65_536 + leg.journey_id;
+
 /**
- * Active legs paired with their position, dropping any route routes.bin has never heard of.
+ * Moving and dwelling trains paired with their position.
+ *
+ * A movement-only renderer drops a train at arrival and recreates it at its next departure.
+ * That is both semantically wrong and extremely visible at high playback speeds. For every
+ * journey, retain the last arrived leg at its endpoint until the next leg departs. At the ends
+ * of a known journey, fade in/out over a short grace period instead of popping a marker.
  *
  * Dropping matters: a leg whose route_id has no polyline is not a train at [0, 0], it is a
  * train we cannot place, and defaulting the coordinate would scatter phantom trains into the
@@ -126,16 +148,96 @@ export function positioned(
   legs: Leg[],
   simTime: number,
   routes: Routes,
+  bearingWindowM = 0,
 ): { items: PositionedLeg[]; dropped: number } {
+  const previous = new Map<number, Leg>();
+  const upcoming = new Map<number, Leg>();
+  for (const leg of legs) {
+    const key = journeyKey(leg);
+    if (leg.t_dep <= simTime) {
+      const current = previous.get(key);
+      if (!current || leg.t_dep > current.t_dep) previous.set(key, leg);
+    } else {
+      const current = upcoming.get(key);
+      if (!current || leg.t_dep < current.t_dep) upcoming.set(key, leg);
+    }
+  }
+
+  const visible: LegAtPosition[] = [];
+  for (const [key, leg] of previous) {
+    const arrival = leg.t_dep + leg.dur;
+    if (simTime <= arrival) {
+      const local = leg.dur > 0 ? (simTime - leg.t_dep) / leg.dur : 0;
+      visible.push({
+        leg,
+        fraction: leg.route_start + local * (leg.route_end - leg.route_start),
+        opacity: 1,
+      });
+      continue;
+    }
+
+    if (upcoming.has(key)) {
+      // The vehicle is dwelling at the station between two observed movements.
+      visible.push({ leg, fraction: leg.route_end, opacity: 1 });
+      continue;
+    }
+
+    const sinceArrival = simTime - arrival;
+    if (sinceArrival <= ENDPOINT_GRACE_S) {
+      visible.push({
+        leg,
+        fraction: leg.route_end,
+        opacity: Math.max(0, 1 - sinceArrival / ENDPOINT_GRACE_S),
+      });
+    }
+  }
+
+  for (const [key, leg] of upcoming) {
+    if (previous.has(key)) continue;
+    const untilDeparture = leg.t_dep - simTime;
+    if (untilDeparture <= ENDPOINT_GRACE_S) {
+      visible.push({
+        leg,
+        fraction: leg.route_start,
+        opacity: Math.max(0, 1 - untilDeparture / ENDPOINT_GRACE_S),
+      });
+    }
+  }
+
   const items: PositionedLeg[] = [];
   let dropped = 0;
-  for (const leg of legs) {
-    const pos = legPosition(leg, simTime, routes);
-    if (pos) items.push({ leg, pos });
+  for (const state of visible) {
+    const { leg } = state;
+    const sample = routes.sampleAt(
+      leg.route_id,
+      state.fraction,
+      leg.route_end - leg.route_start,
+      bearingWindowM,
+    );
+    if (sample) {
+      items.push({
+        leg,
+        pos: sample.position,
+        bearing: sample.bearing,
+        opacity: state.opacity,
+      });
+    }
     else dropped++;
   }
   return { items, dropped };
 }
+
+const TRAIN_ICON_MAPPING = {
+  arrow: {
+    x: 0,
+    y: 0,
+    width: 32,
+    height: 32,
+    anchorX: 16,
+    anchorY: 16,
+    mask: true,
+  },
+};
 
 export function trainsLayer(
   items: PositionedLeg[],
@@ -143,28 +245,38 @@ export function trainsLayer(
   colors: RGB[],
   mode: ColorMode = "type",
   selectedJourneyId: number | null = null,
-): ScatterplotLayer<PositionedLeg> {
-  return new ScatterplotLayer<PositionedLeg>({
+  mapBearing = 0,
+): IconLayer<PositionedLeg> {
+  return new IconLayer<PositionedLeg>({
     id: "trains",
     data: items,
     getPosition: (d) => d.pos,
-    getFillColor: (d) =>
-      mode === "delay" ? delayColor(d.leg) : (colors[d.leg.type] ?? [200, 200, 200]),
-    getRadius: (d) => (d.leg.journey_id === selectedJourneyId ? 7 : 3.5),
-    radiusUnits: "pixels",
-    radiusMinPixels: 2,
+    iconAtlas: trainArrowUrl,
+    iconMapping: TRAIN_ICON_MAPPING,
+    getIcon: () => "arrow",
+    getColor: (d) => {
+      const color =
+        d.leg.journey_id === selectedJourneyId
+          ? [255, 255, 255]
+          : mode === "delay"
+            ? delayColor(d.leg)
+            : (colors[d.leg.type] ?? [200, 200, 200]);
+      return [...color, Math.round(255 * d.opacity)] as [number, number, number, number];
+    },
+    getSize: (d) => (d.leg.journey_id === selectedJourneyId ? 24 : 15),
+    // Geographic bearings increase clockwise. IconLayer's billboard shader rotates positive
+    // angles counter-clockwise in screen space, so invert the relative map bearing.
+    getAngle: (d) => mapBearing - d.bearing,
+    sizeUnits: "pixels",
+    sizeMinPixels: 10,
+    sizeMaxPixels: 28,
+    billboard: true,
     pickable: true,
-    // simTime drives every position; mode drives every colour. deck.gl caches accessor output,
-    // so a mode flip without its trigger repaints nothing until the data array happens to change.
-    stroked: true,
-    getLineColor: (d) =>
-      d.leg.journey_id === selectedJourneyId ? [255, 255, 255, 255] : [10, 15, 23, 180],
-    lineWidthMinPixels: 1,
     updateTriggers: {
       getPosition: simTime,
-      getFillColor: mode,
-      getRadius: selectedJourneyId,
-      getLineColor: selectedJourneyId,
+      getColor: [mode, selectedJourneyId],
+      getSize: selectedJourneyId,
+      getAngle: [simTime, mapBearing],
     },
   });
 }

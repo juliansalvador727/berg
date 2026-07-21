@@ -24,6 +24,12 @@ export interface RoutePath {
   fallback: boolean;
 }
 
+export interface RouteSample {
+  position: [number, number];
+  /** Clockwise degrees from geographic north. */
+  bearing: number;
+}
+
 const HEADER_BYTES = 44; // magic(4) + version(4) + n(4) + bbox(32)
 
 export class Routes {
@@ -35,6 +41,7 @@ export class Routes {
 
   /** Cumulative segment length per route, built on first use — most routes are never drawn. */
   private cumCache = new Map<number, Float32Array>();
+  private lengthCache = new Map<number, number>();
 
   constructor(buf: ArrayBuffer) {
     const dv = new DataView(buf);
@@ -125,6 +132,9 @@ export class Routes {
       total += Math.hypot(dx, dy);
       cum[k] = total;
     }
+    // sx/sy are degrees corrected for longitude convergence. One latitude degree is close
+    // enough to 111.2 km for choosing a visual tangent window; positions remain exact.
+    this.lengthCache.set(i, total * 111_200);
     if (total > 0) for (let k = 1; k < n; k++) cum[k]! /= total;
     this.cumCache.set(i, cum);
     return cum;
@@ -137,7 +147,12 @@ export class Routes {
    * on curves and sparse ones on straights, so a train would crawl through bends and jump
    * across tangents.
    */
-  positionAt(routeId: number, frac: number): [number, number] | null {
+  sampleAt(
+    routeId: number,
+    frac: number,
+    direction = 1,
+    bearingWindowM = 0,
+  ): RouteSample | null {
     const i = this.indexOf(routeId);
     if (i < 0) return null;
 
@@ -145,7 +160,12 @@ export class Routes {
     const end = this.offsets[i + 1]!;
     const n = end - start;
     if (n === 0) return null;
-    if (n === 1) return this.toLonLat(this.points[start * 2]!, this.points[start * 2 + 1]!);
+    if (n === 1) {
+      return {
+        position: this.toLonLat(this.points[start * 2]!, this.points[start * 2 + 1]!),
+        bearing: 0,
+      };
+    }
 
     const t = frac <= 0 ? 0 : frac >= 1 ? 1 : frac;
     const cum = this.cumulative(i);
@@ -165,7 +185,41 @@ export class Routes {
 
     const x = this.points[a * 2]! + (this.points[b * 2]! - this.points[a * 2]!) * local;
     const y = this.points[a * 2 + 1]! + (this.points[b * 2 + 1]! - this.points[a * 2 + 1]!) * local;
-    return this.toLonLat(x, y);
+    const position = this.toLonLat(x, y);
+    let pointA = this.toLonLat(this.points[a * 2]!, this.points[a * 2 + 1]!);
+    let pointB = this.toLonLat(this.points[b * 2]!, this.points[b * 2 + 1]!);
+    const routeLengthM = this.lengthCache.get(i) ?? 0;
+    if (bearingWindowM > 0 && routeLengthM > 0) {
+      const delta = Math.min(0.5, bearingWindowM / routeLengthM);
+      const before = this.sampleAt(routeId, Math.max(0, t - delta));
+      const after = this.sampleAt(routeId, Math.min(1, t + delta));
+      if (
+        before &&
+        after &&
+        (before.position[0] !== after.position[0] || before.position[1] !== after.position[1])
+      ) {
+        pointA = before.position;
+        pointB = after.position;
+      }
+    }
+    const latA = (pointA[1] * Math.PI) / 180;
+    const latB = (pointB[1] * Math.PI) / 180;
+    const deltaLon = ((pointB[0] - pointA[0]) * Math.PI) / 180;
+    const heading =
+      (Math.atan2(
+        Math.sin(deltaLon) * Math.cos(latB),
+        Math.cos(latA) * Math.sin(latB) -
+          Math.sin(latA) * Math.cos(latB) * Math.cos(deltaLon),
+      ) *
+        180) /
+      Math.PI;
+    const bearing = (heading + (direction < 0 ? 180 : 0) + 360) % 360;
+    return { position, bearing };
+  }
+
+  /** Position-only compatibility helper for callers that do not need the route tangent. */
+  positionAt(routeId: number, frac: number): [number, number] | null {
+    return this.sampleAt(routeId, frac)?.position ?? null;
   }
 
   /** Decode every observed station-pair route once for the low-opacity network layer. */
