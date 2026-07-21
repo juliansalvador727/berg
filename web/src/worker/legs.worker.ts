@@ -28,6 +28,7 @@ export type WorkerRequestPayload =
   | { kind: "init" }
   | { kind: "window"; simTime: number; lookahead: number }
   | { kind: "search"; query: string; simTime: number }
+  | { kind: "journey"; journeyId: number; simTime: number }
   | { kind: "station-board"; routeIds: number[]; simTime: number; horizon: number }
   | { kind: "prefetch"; days: string[] };
 
@@ -51,6 +52,7 @@ export type WorkerResponsePayload =
   | { kind: "ready"; manifest: Manifest }
   | { kind: "window"; from: number; to: number; legs: Leg[] }
   | { kind: "search-results"; day: string; results: JourneySearchResult[] }
+  | { kind: "journey-result"; result: JourneySearchResult | null }
   | { kind: "station-board"; legs: StationBoardLeg[] }
   | { kind: "error"; message: string };
 
@@ -209,6 +211,43 @@ async function searchJourneys(query: string, simTime: number): Promise<JourneySe
   return results;
 }
 
+/** Resolve one compact daily journey ID to the identity shown by the spectator UI. */
+async function journeyById(
+  journeyId: number,
+  simTime: number,
+): Promise<JourneySearchResult | null> {
+  if (!con || !manifest) throw new Error("worker used before init");
+  const day = dayKey(simTime);
+  if (!(day in manifest.days)) return null;
+  const id = Math.max(0, Math.min(0xffff, Math.floor(journeyId)));
+  const res = await con.query(`
+    SELECT
+      j.journey_id,
+      j.trip_id,
+      coalesce(j.line, '') AS line,
+      min(l.t_dep) AS "start",
+      max(l.t_dep + l.dur) AS "end",
+      arg_min(l.route_id, l.t_dep) AS first_route_id,
+      arg_min(l.flags, l.t_dep) AS first_flags
+    FROM read_parquet(${sqlString(journeyFileUrl(day))}) j
+    JOIN read_parquet(${sqlString(dayFileUrl(day))}) l USING (journey_id)
+    WHERE j.journey_id = ${id}
+    GROUP BY j.journey_id, j.trip_id, j.line
+    LIMIT 1`);
+  if (res.numRows === 0) return null;
+  const row = res.get(0)!;
+  const wireRouteId = Number(row.first_route_id);
+  const flags = Number(row.first_flags);
+  return {
+    journeyId: Number(row.journey_id),
+    tripId: String(row.trip_id),
+    line: String(row.line),
+    start: Number(row.start),
+    end: Number(row.end),
+    firstRouteId: (flags & FLAG_ROUTE_FRACTION) !== 0 ? wireRouteId & 0xffff : wireRouteId,
+  };
+}
+
 /** Upcoming arrivals/departures for every observed route touching one station. */
 async function stationBoard(
   routeIds: number[],
@@ -270,6 +309,12 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         post({ kind: "search-results", day, results: await searchJourneys(e.data.query, e.data.simTime) });
         break;
       }
+      case "journey":
+        post({
+          kind: "journey-result",
+          result: await journeyById(e.data.journeyId, e.data.simTime),
+        });
+        break;
       case "station-board":
         post({
           kind: "station-board",

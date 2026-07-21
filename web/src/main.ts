@@ -14,7 +14,7 @@ import {
   ROUTE_PAIRS_URL,
   ROUTES_URL,
   STATIONS_URL,
-  TERRAIN_TILEJSON_URL,
+  TERRAIN_TILE_URL,
   TRAIN_TYPES_URL,
 } from "./config";
 import { fetchRoutes, type RoutePath, type Routes } from "./routes";
@@ -24,6 +24,7 @@ import {
   positioned,
   PUNCTUAL_S,
   trainsLayer,
+  type PositionedLeg,
   typeColors,
 } from "./render/trains";
 import { FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
@@ -208,8 +209,11 @@ async function main(): Promise<void> {
   try {
     map.addSource("berg-terrain", {
       type: "raster-dem",
-      url: TERRAIN_TILEJSON_URL,
+      tiles: [TERRAIN_TILE_URL],
       tileSize: 256,
+      maxzoom: 15,
+      encoding: "terrarium",
+      attribution: '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data sources</a>',
     });
     const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
     map.addLayer(
@@ -354,7 +358,7 @@ async function main(): Promise<void> {
     // stations usable at national zoom without letting them dominate close-up views.
     getRadius: 80,
     radiusUnits: "meters",
-    radiusMinPixels: 4,
+    radiusMinPixels: 2.5,
     radiusMaxPixels: 15,
     stroked: true,
     lineWidthMinPixels: 1,
@@ -539,29 +543,40 @@ async function main(): Promise<void> {
     }
   }
 
-  async function watchJourney(result: JourneySearchResult): Promise<void> {
+  let spectateGeneration = 0;
+
+  async function watchJourney(
+    result: JourneySearchResult,
+    seekToStart = true,
+    generation = ++spectateGeneration,
+  ): Promise<void> {
+    if (generation !== spectateGeneration) return;
     selectedJourney = result;
     clock.setSpeed(1);
     clock.play();
     speedBadge.textContent = "1×";
-    clock.seek(Math.max(tMin, result.start));
-    win = { from: 0, to: -1, legs: [] };
+    const watchTime = seekToStart ? Math.max(tMin, result.start) : clock.simTime;
+    if (seekToStart) {
+      clock.seek(watchTime);
+      win = { from: 0, to: -1, legs: [] };
+    }
     const route = routeDescription(result.firstRouteId);
     showDetails(`
       <div class="eyebrow">Spectating train</div>
       <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
-      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departs ${fmtShortTime(result.start)}</div>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · ${seekToStart ? "departs" : "started"} ${fmtShortTime(result.start)}</div>
       <div class="board"><h3>Loading train…</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
       <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
     byId<HTMLButtonElement>("stop-watch").onclick = () => {
+      spectateGeneration++;
       selectedJourney = null;
       hideDetails();
     };
     closeCommand();
-    await refill(result.start);
+    await refill(watchTime);
 
     // A newer selection may have replaced this one while its remote window was loading.
-    if (selectedJourney?.journeyId !== result.journeyId) return;
+    if (generation !== spectateGeneration || selectedJourney?.journeyId !== result.journeyId) return;
     const selected = positioned(
       win.legs,
       clock.simTime,
@@ -583,9 +598,47 @@ async function main(): Promise<void> {
       <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
       <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
     byId<HTMLButtonElement>("stop-watch").onclick = () => {
+      spectateGeneration++;
       selectedJourney = null;
       hideDetails();
     };
+  }
+
+  async function spectatePositionedTrain(item: PositionedLeg): Promise<void> {
+    const generation = ++spectateGeneration;
+    selectedJourney = null;
+    clock.setSpeed(1);
+    clock.play();
+    speedBadge.textContent = "1×";
+    const route = routeDescription(item.leg.route_id);
+    showDetails(`
+      <div class="eyebrow">Selecting train · 1× playback</div>
+      <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)}</div>
+      <div class="board"><h3>Loading journey identity…</h3></div>`);
+    try {
+      const response = await ask(worker, {
+        kind: "journey",
+        journeyId: item.leg.journey_id,
+        // Journey IDs are only unique inside the file containing this leg.
+        simTime: item.leg.t_dep,
+      });
+      if (generation !== spectateGeneration) return;
+      if (response.kind !== "journey-result" || !response.result) {
+        showDetails(`
+          <div class="eyebrow">Train unavailable</div>
+          <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+          <div class="empty">The journey identity could not be loaded for this train.</div>`);
+        return;
+      }
+      await watchJourney(response.result, false, generation);
+    } catch (error) {
+      if (generation !== spectateGeneration) return;
+      showDetails(`
+        <div class="eyebrow">Train unavailable</div>
+        <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+        <div class="empty">Could not load this train: ${escapeHtml(String(error))}</div>`);
+    }
   }
 
   document.addEventListener("keydown", (event) => {
@@ -688,6 +741,7 @@ async function main(): Promise<void> {
           selectedJourneyId,
           map.getBearing(),
           map.getZoom(),
+          (item) => void spectatePositionedTrain(item),
         ),
       ],
     });

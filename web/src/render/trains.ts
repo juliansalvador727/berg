@@ -247,6 +247,7 @@ export function trainsLayer(
   selectedJourneyId: number | null = null,
   mapBearing = 0,
   mapZoom = 13,
+  onTrainClick?: (item: PositionedLeg) => void,
 ): IconLayer<PositionedLeg> {
   const arrowSize = Math.max(6, Math.min(18, 6 + (mapZoom - 7) * 1.5));
   return new IconLayer<PositionedLeg>({
@@ -274,9 +275,10 @@ export function trainsLayer(
     sizeMinPixels: 6,
     sizeMaxPixels: 28,
     billboard: true,
-    // Train click details are not implemented yet. Keeping this layer pickable makes arrows
-    // (especially dwelling trains) intercept station-board clicks underneath them.
-    pickable: false,
+    pickable: true,
+    onClick: ({ object }) => {
+      if (object) onTrainClick?.(object);
+    },
     updateTriggers: {
       getPosition: simTime,
       getColor: [mode, selectedJourneyId],

@@ -8,7 +8,8 @@ export const TRAIN_TYPES_URL = `${DATA_BASE_URL}/static/train_types.json`;
 export const ROUTE_PAIRS_URL = `${DATA_BASE_URL}/static/route_pairs.json`;
 export const PMTILES_URL = `${DATA_BASE_URL}/tiles/switzerland.pmtiles`;
 export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
-export const TERRAIN_TILEJSON_URL = "https://demotiles.maplibre.org/terrain-tiles/tiles.json";
+export const TERRAIN_TILE_URL =
+  "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png";
 
 export const dayFileUrl = (day: string): string => {
   const [y, m, d] = day.split("-");
