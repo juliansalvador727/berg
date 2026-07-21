@@ -3,6 +3,7 @@
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import maplibregl from "maplibre-gl";
+import "@fontsource-variable/noto-sans";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./style.css";
 
@@ -57,6 +58,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
 ];
 
 const REFETCH_MARGIN_S = 60;
+const DEFAULT_DAY = "2018-01-01";
 let nextRequestId = 1;
 
 /** Approximate ground resolution at the map center for zoom-adaptive arrow smoothing. */
@@ -89,6 +91,23 @@ const fmtShortTime = (epoch: number): string =>
     timeZone: "Europe/Zurich",
     hour: "2-digit",
     minute: "2-digit",
+  });
+
+const fmtHudDate = (epoch: number): string =>
+  new Date(epoch * 1000).toLocaleDateString("de-CH", {
+    timeZone: "Europe/Zurich",
+    weekday: "short",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+const fmtHudTime = (epoch: number): string =>
+  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
+    timeZone: "Europe/Zurich",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 
 const trainNumber = (tripId: string): string => {
@@ -235,12 +254,19 @@ async function main(): Promise<void> {
     console.warn("terrain relief unavailable", error);
   }
 
-  const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
+  const overlay = new MapboxOverlay({
+    interleaved: false,
+    layers: [],
+    getCursor: ({ isDragging, isHovering }) =>
+      isDragging ? "grabbing" : isHovering ? "pointer" : "grab",
+  });
   map.addControl(overlay);
 
   const days = Object.keys(manifest.days).sort();
   const substantialDays = days.filter((day) => manifest.days[day]!.legs >= 10_000);
-  const initialDay = substantialDays[substantialDays.length - 1] ?? days[days.length - 1]!;
+  const initialDay = DEFAULT_DAY in manifest.days
+    ? DEFAULT_DAY
+    : (substantialDays[substantialDays.length - 1] ?? days[days.length - 1]!);
   const tMin = Date.parse(`${days[0]}T00:00:00Z`) / 1000;
   const tMax = Date.parse(`${days[days.length - 1]}T23:59:59Z`) / 1000;
   const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);
@@ -249,9 +275,15 @@ async function main(): Promise<void> {
 
   const topbar = byId<HTMLElement>("topbar");
   const filters = byId<HTMLElement>("filters");
+  const hudDateElement = byId<HTMLSpanElement>("hud-date");
   const timeElement = byId<HTMLTimeElement>("time");
   const countElement = byId<HTMLSpanElement>("count");
-  const speedBadge = byId<HTMLSpanElement>("speed-badge");
+  const speedBadge = byId<HTMLButtonElement>("speed-badge");
+  const playbackButton = byId<HTMLButtonElement>("playback-button");
+  const playbackIcon = byId<HTMLSpanElement>("playback-icon");
+  const playbackLabel = byId<HTMLElement>("playback-label");
+  const filterButton = byId<HTMLButtonElement>("filter-button");
+  const filterSummary = byId<HTMLElement>("filter-summary");
   const archiveMeta = byId<HTMLDivElement>("archive-meta");
   const details = byId<HTMLElement>("details");
   const detailsContent = byId<HTMLDivElement>("details-content");
@@ -261,6 +293,26 @@ async function main(): Promise<void> {
   const commandResults = byId<HTMLDivElement>("command-results");
   const filterChips = byId<HTMLDivElement>("filter-chips");
   const legendElement = byId<HTMLDivElement>("legend");
+  let colorMode: ColorMode = "type";
+
+  const setFiltersOpen = (open: boolean) => {
+    filters.classList.toggle("hidden", !open);
+    filterButton.setAttribute("aria-expanded", String(open));
+  };
+  filterButton.onclick = () => setFiltersOpen(filters.classList.contains("hidden"));
+  byId<HTMLButtonElement>("filters-close").onclick = () => setFiltersOpen(false);
+
+  const togglePlayback = () => {
+    if (clock.paused) clock.play();
+    else clock.pause();
+  };
+  playbackButton.onclick = togglePlayback;
+
+  const updateFilterSummary = () => {
+    const enabled = enabledGroups.size;
+    const services = enabled === allGroups.length ? "All services" : `${enabled} of ${allGroups.length} services`;
+    filterSummary.textContent = `${services} · ${colorMode === "type" ? "service" : "delay"} colours`;
+  };
 
   archiveMeta.textContent = `${days.length.toLocaleString()} days · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations`;
 
@@ -273,6 +325,7 @@ async function main(): Promise<void> {
       if (enabledGroups.has(group.id)) enabledGroups.delete(group.id);
       else enabledGroups.add(group.id);
       button.classList.toggle("on", enabledGroups.has(group.id));
+      updateFilterSummary();
     };
     filterChips.appendChild(button);
   }
@@ -288,7 +341,6 @@ async function main(): Promise<void> {
     type: byId("mode-type"),
     delay: byId("mode-delay"),
   };
-  let colorMode: ColorMode = "type";
   const renderLegend = () => {
     const sample = (delay: number, flags = 0): Leg => ({
       route_id: 0,
@@ -323,9 +375,11 @@ async function main(): Promise<void> {
         element.classList.toggle("on", key === mode);
       }
       renderLegend();
+      updateFilterSummary();
     };
   }
   renderLegend();
+  updateFilterSummary();
 
   const trackLayer = new PathLayer<RoutePath>({
     id: "observed-rail-network",
@@ -385,7 +439,7 @@ async function main(): Promise<void> {
     lineWidthMinPixels: 1,
     pickable: true,
     autoHighlight: true,
-    highlightColor: [94, 234, 212, 220],
+    highlightColor: [255, 0, 0, 220],
     onClick: ({ object }) => {
       if (object) void openStation(object);
     },
@@ -482,22 +536,30 @@ async function main(): Promise<void> {
     pause.className = `command-item${clock.paused ? " active" : ""}`;
     pause.innerHTML = `<span class="token">Ⅱ</span><span><strong>${clock.paused ? "Resume" : "Pause"}</strong><small>Keep the current historical instant</small></span><kbd>Space</kbd>`;
     pause.onclick = () => {
-      if (clock.paused) clock.play();
-      else clock.pause();
+      togglePlayback();
       speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
       closeCommand();
     };
     commandResults.appendChild(pause);
   };
 
-  const openCommand = () => {
+  const showTrainSearchPrompt = () => {
+    commandContext.textContent = "Find a train on the displayed day";
+    commandResults.innerHTML = `<div class="empty">Search by train number, journey identity, or line — for example IC5, S1, or ICE.</div>`;
+  };
+
+  let commandHome: "search" | "speed" = "search";
+  const openCommand = (home: "search" | "speed" = "search") => {
+    commandHome = home;
     command.classList.remove("hidden");
     commandInput.value = "";
-    showSpeedCommands();
+    if (home === "speed") showSpeedCommands();
+    else showTrainSearchPrompt();
     requestAnimationFrame(() => commandInput.focus());
   };
   const closeCommand = () => command.classList.add("hidden");
-  byId<HTMLButtonElement>("command-button").onclick = openCommand;
+  byId<HTMLButtonElement>("command-button").onclick = () => openCommand("search");
+  speedBadge.onclick = () => openCommand("speed");
   command.onclick = (event) => {
     if (event.target === command) closeCommand();
   };
@@ -508,7 +570,8 @@ async function main(): Promise<void> {
     window.clearTimeout(searchTimer);
     const query = commandInput.value.trim();
     if (!query) {
-      showSpeedCommands();
+      if (commandHome === "speed") showSpeedCommands();
+      else showTrainSearchPrompt();
       return;
     }
     const requestedTime = zurichEpoch(query);
@@ -678,14 +741,13 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
       event.preventDefault();
-      if (command.classList.contains("hidden")) openCommand();
+      if (command.classList.contains("hidden")) openCommand("search");
       else closeCommand();
     } else if (event.key === "Escape" && !command.classList.contains("hidden")) {
       closeCommand();
     } else if (event.code === "Space" && command.classList.contains("hidden")) {
       event.preventDefault();
-      if (clock.paused) clock.play();
-      else clock.pause();
+      togglePlayback();
       speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
     }
   });
@@ -722,13 +784,7 @@ async function main(): Promise<void> {
   await refill(clock.simTime);
   setProgress(100, "Ready");
   topbar.classList.remove("hidden");
-  filters.classList.remove("hidden");
   loading.classList.add("done");
-
-  byId<HTMLAnchorElement>("topbar").querySelector<HTMLAnchorElement>(".brand")!.onclick = (event) => {
-    event.preventDefault();
-    map.easeTo({ center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude], zoom: INITIAL_VIEW.zoom, pitch: 24, bearing: 0, duration: 700 });
-  };
 
   function frame(): void {
     const time = clock.tick();
@@ -759,7 +815,7 @@ async function main(): Promise<void> {
       id: "selected-train-track",
       data: highlightedTracks,
       getPath: (route) => route.path,
-      getColor: [94, 234, 212, 235],
+      getColor: [255, 0, 0, 235],
       getWidth: 4,
       widthUnits: "pixels",
       widthMinPixels: 3,
@@ -795,7 +851,12 @@ async function main(): Promise<void> {
       }
     }
 
-    timeElement.textContent = fmtClock(time);
+    hudDateElement.textContent = fmtHudDate(time);
+    timeElement.textContent = fmtHudTime(time);
+    timeElement.dateTime = new Date(time * 1000).toISOString();
+    playbackIcon.textContent = clock.paused ? "▶" : "Ⅱ";
+    playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
+    speedBadge.textContent = clock.paused ? "paused" : `${clock.speed}×`;
     countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
     requestAnimationFrame(frame);
   }

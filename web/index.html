@@ -20,22 +20,44 @@
       </div>
     </div>
 
-    <header id="topbar" class="glass hidden">
-      <a class="brand" href="#" aria-label="Reset map view"><b>berg</b><span>rail observer</span></a>
-      <div class="sim-state">
-        <time id="time">--</time>
-        <span id="speed-badge">600×</span>
-        <span id="count">0 trains</span>
+    <header id="topbar" class="hidden">
+      <nav class="map-actions glass" aria-label="Map controls">
+        <button id="command-button" class="map-action" type="button">
+          <span class="map-action-icon" aria-hidden="true">⌕</span>
+          <span class="map-action-copy"><strong>Find a train</strong><small>Identity, line, or date</small></span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button id="playback-button" class="map-action" type="button">
+          <span id="playback-icon" class="map-action-icon" aria-hidden="true">Ⅱ</span>
+          <span class="map-action-copy"><strong id="playback-label">Pause playback</strong><small>Historical simulation</small></span>
+          <kbd>Space</kbd>
+        </button>
+        <button id="filter-button" class="map-action" type="button" aria-expanded="false" aria-controls="filters">
+          <span class="map-action-icon display-icon" aria-hidden="true">◫</span>
+          <span class="map-action-copy"><strong>Train display</strong><small id="filter-summary">All services · service colours</small></span>
+          <span class="map-action-chevron" aria-hidden="true">›</span>
+        </button>
+      </nav>
+
+      <div class="clock-card glass" aria-label="Simulation time">
+        <span id="hud-date" class="hud-date">--</span>
+        <time id="time">--:--:--</time>
+        <div class="clock-meta">
+          <button id="speed-badge" type="button" aria-label="Change playback speed">600×</button>
+          <span id="count">0 trains</span>
+        </div>
       </div>
-      <button id="command-button" class="command-button" type="button">
-        <span>Search trains or change speed</span><kbd>Ctrl K</kbd>
-      </button>
     </header>
 
     <section id="filters" class="glass hidden" aria-label="Train filters">
+      <div class="filter-heading">
+        <div><strong>Train display</strong><small>Choose what appears on the map</small></div>
+        <button id="filters-close" class="icon-button" type="button" aria-label="Close train display">×</button>
+      </div>
       <div class="panel-label">Services</div>
       <div id="filter-chips" class="chips"></div>
       <div class="divider"></div>
+      <div class="panel-label">Colour arrows by</div>
       <div class="mode-row">
         <button id="mode-type" class="text-button on" type="button">Service</button>
         <button id="mode-delay" class="text-button" type="button">Delay</button>

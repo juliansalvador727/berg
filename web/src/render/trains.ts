@@ -21,9 +21,9 @@ type RGB = [number, number, number];
 
 /** Colour by service class: local, regional, long-distance. */
 const CLASS_COLOR: Record<string, RGB> = {
-  local: [56, 189, 248],
-  regional: [74, 222, 128],
-  intercity: [248, 113, 113],
+  local: [0, 101, 166],
+  regional: [45, 125, 70],
+  intercity: [218, 41, 28],
 };
 
 const REGIONAL = new Set(["R", "RB", "RE", "TER", "PE", "EXT"]);
@@ -276,6 +276,8 @@ export function trainsLayer(
     sizeMaxPixels: 28,
     billboard: true,
     pickable: true,
+    autoHighlight: true,
+    highlightColor: [255, 255, 255, 170],
     onClick: ({ object }) => {
       if (object) onTrainClick?.(object);
     },
