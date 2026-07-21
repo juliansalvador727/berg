@@ -64,6 +64,9 @@ kbd { padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line-strong)
 .key { display: inline-flex; align-items: center; gap: 6px; }
 .key i { width: 7px; height: 7px; border-radius: 50%; }
 .micro { margin-top: 12px; color: #667386; font-size: 9px; line-height: 1.5; }
+.map-credits { margin-top: 5px; }
+.map-credits a { color: inherit; text-decoration: none; }
+.map-credits a:hover { color: var(--muted); }
 
 .details { position: absolute; z-index: 11; top: 86px; right: 14px; width: min(360px, calc(100vw - 28px)); max-height: calc(100vh - 104px); overflow: auto; border-radius: 16px; padding: 18px; }
 .icon-button { border: 0; background: transparent; cursor: pointer; color: var(--muted); }
@@ -97,10 +100,6 @@ kbd { padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line-strong)
 .command-item small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
 .command-item time { color: #c8d0db; font-size: 10px; font-variant-numeric: tabular-nums; }
 .error { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 10px 13px; border: 1px solid rgba(248,113,113,.35); border-radius: 9px; background: rgba(60,13,18,.94); color: #fecaca; font-size: 11px; }
-
-.maplibregl-ctrl-bottom-right { bottom: 6px; right: 6px; }
-.maplibregl-ctrl-attrib { background: rgba(8,11,16,.7) !important; color: #778296; }
-.maplibregl-ctrl-attrib a { color: #9aa5b5; }
 
 @media (max-width: 760px) {
   #topbar { grid-template-columns: auto 1fr; }

@@ -202,7 +202,7 @@ async function main(): Promise<void> {
     pitch: 24,
     bearing: 0,
     maxPitch: 70,
-    attributionControl: { compact: true },
+    attributionControl: false,
   });
   await map.once("load");
 
@@ -237,7 +237,6 @@ async function main(): Promise<void> {
 
   const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
   map.addControl(overlay);
-  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
 
   const days = Object.keys(manifest.days).sort();
   const substantialDays = days.filter((day) => manifest.days[day]!.legs >= 10_000);
@@ -340,13 +339,35 @@ async function main(): Promise<void> {
   });
 
   let selectedJourney: JourneySearchResult | null = null;
+  let selectedJourneyTracks: RoutePath[] = [];
+  let spectateGeneration = 0;
 
   const showDetails = (html: string) => {
     detailsContent.innerHTML = html;
     details.classList.remove("hidden");
   };
   const hideDetails = () => details.classList.add("hidden");
-  byId<HTMLButtonElement>("details-close").onclick = hideDetails;
+  const stopSpectating = (hidePanel = true) => {
+    spectateGeneration++;
+    selectedJourney = null;
+    selectedJourneyTracks = [];
+    if (hidePanel) hideDetails();
+  };
+  const stationSpectateAction = () =>
+    selectedJourney
+      ? `<div class="watch-actions"><button class="primary" data-stop-spectating data-keep-details type="button">Stop spectating</button></div>`
+      : "";
+  detailsContent.addEventListener("click", (event) => {
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLButtonElement>("[data-stop-spectating]")
+      : null;
+    if (!target) return;
+    const keepDetails = target.hasAttribute("data-keep-details");
+    stopSpectating(!keepDetails);
+    if (keepDetails) target.closest(".watch-actions")?.remove();
+  });
+  // Closing a panel must never leave an invisible camera-follow session behind.
+  byId<HTMLButtonElement>("details-close").onclick = () => stopSpectating();
 
   const stationLayer = new ScatterplotLayer<Station>({
     id: "stations",
@@ -385,7 +406,8 @@ async function main(): Promise<void> {
     showDetails(`
       <div class="eyebrow">Station</div>
       <h2>${escapeHtml(station.name)}</h2>
-      <div class="sub">Loading observed arrivals and departures…</div>`);
+      <div class="sub">Loading observed arrivals and departures…</div>
+      ${stationSpectateAction()}`);
     map.easeTo({ center: [station.lon, station.lat], zoom: Math.max(map.getZoom(), 11), duration: 650 });
     try {
       const response = await ask(worker, {
@@ -399,7 +421,8 @@ async function main(): Promise<void> {
     } catch (error) {
       showDetails(`
         <div class="eyebrow">Station</div><h2>${escapeHtml(station.name)}</h2>
-        <div class="empty">Could not load the board: ${escapeHtml(String(error))}</div>`);
+        <div class="empty">Could not load the board: ${escapeHtml(String(error))}</div>
+        ${stationSpectateAction()}`);
     }
   }
 
@@ -434,7 +457,8 @@ async function main(): Promise<void> {
       <div class="eyebrow">Station board · observed data</div>
       <h2>${escapeHtml(station.name)}</h2>
       <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime)}</div>
-      <div class="board"><h3>Arrivals & departures</h3>${body}</div>`);
+      <div class="board"><h3>Arrivals & departures</h3>${body}</div>
+      ${stationSpectateAction()}`);
   }
 
   const showSpeedCommands = () => {
@@ -501,6 +525,7 @@ async function main(): Promise<void> {
         clock.seek(requestedTime);
         win = { from: 0, to: -1, legs: [] };
         selectedJourney = null;
+        selectedJourneyTracks = [];
         closeCommand();
         void refill(requestedTime);
       };
@@ -543,8 +568,6 @@ async function main(): Promise<void> {
     }
   }
 
-  let spectateGeneration = 0;
-
   async function watchJourney(
     result: JourneySearchResult,
     seekToStart = true,
@@ -552,6 +575,7 @@ async function main(): Promise<void> {
   ): Promise<void> {
     if (generation !== spectateGeneration) return;
     selectedJourney = result;
+    selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
     speedBadge.textContent = "1×";
@@ -566,16 +590,30 @@ async function main(): Promise<void> {
       <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
       <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · ${seekToStart ? "departs" : "started"} ${fmtShortTime(result.start)}</div>
       <div class="board"><h3>Loading train…</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
-      <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
-    byId<HTMLButtonElement>("stop-watch").onclick = () => {
-      spectateGeneration++;
-      selectedJourney = null;
-      hideDetails();
-    };
+      <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>`);
     closeCommand();
     await refill(watchTime);
 
     // A newer selection may have replaced this one while its remote window was loading.
+    if (generation !== spectateGeneration || selectedJourney?.journeyId !== result.journeyId) return;
+    try {
+      const routeResponse = await ask(worker, {
+        kind: "journey-route",
+        journeyId: result.journeyId,
+        simTime: result.start,
+      });
+      if (
+        generation === spectateGeneration &&
+        selectedJourney?.journeyId === result.journeyId &&
+        routeResponse.kind === "journey-route-result"
+      ) {
+        selectedJourneyTracks = routeResponse.routeIds
+          .map((routeId) => trackPathById.get(routeId))
+          .filter((route): route is RoutePath => route !== undefined);
+      }
+    } catch (error) {
+      console.warn("full journey route unavailable", error);
+    }
     if (generation !== spectateGeneration || selectedJourney?.journeyId !== result.journeyId) return;
     const selected = positioned(
       win.legs,
@@ -596,17 +634,13 @@ async function main(): Promise<void> {
       <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
       <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departed ${fmtShortTime(result.start)}</div>
       <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
-      <div class="watch-actions"><button id="stop-watch" class="primary" type="button">Stop spectating</button></div>`);
-    byId<HTMLButtonElement>("stop-watch").onclick = () => {
-      spectateGeneration++;
-      selectedJourney = null;
-      hideDetails();
-    };
+      <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>`);
   }
 
   async function spectatePositionedTrain(item: PositionedLeg): Promise<void> {
     const generation = ++spectateGeneration;
     selectedJourney = null;
+    selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
     speedBadge.textContent = "1×";
@@ -716,9 +750,14 @@ async function main(): Promise<void> {
       ? undefined
       : items.find((item) => item.leg.journey_id === selectedJourneyId);
     const selectedTrack = selected ? trackPathById.get(selected.leg.route_id) : undefined;
+    const highlightedTracks = selectedJourneyTracks.length > 0
+      ? selectedJourneyTracks
+      : selectedTrack
+        ? [selectedTrack]
+        : [];
     const selectedTrackLayer = new PathLayer<RoutePath>({
       id: "selected-train-track",
-      data: selectedTrack ? [selectedTrack] : [],
+      data: highlightedTracks,
       getPath: (route) => route.path,
       getColor: [94, 234, 212, 235],
       getWidth: 4,
@@ -750,7 +789,10 @@ async function main(): Promise<void> {
       // Keep the camera locked to the interpolated position. Repeated easeTo calls restart an
       // animation and visibly hitch at 8×; a direct per-frame center update stays continuous.
       if (selected) map.setCenter(selected.pos);
-      if (time > selectedJourney.end + 60) selectedJourney = null;
+      if (time > selectedJourney.end + 60) {
+        selectedJourney = null;
+        selectedJourneyTracks = [];
+      }
     }
 
     timeElement.textContent = fmtClock(time);

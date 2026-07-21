@@ -29,6 +29,7 @@ export type WorkerRequestPayload =
   | { kind: "window"; simTime: number; lookahead: number }
   | { kind: "search"; query: string; simTime: number }
   | { kind: "journey"; journeyId: number; simTime: number }
+  | { kind: "journey-route"; journeyId: number; simTime: number }
   | { kind: "station-board"; routeIds: number[]; simTime: number; horizon: number }
   | { kind: "prefetch"; days: string[] };
 
@@ -53,6 +54,7 @@ export type WorkerResponsePayload =
   | { kind: "window"; from: number; to: number; legs: Leg[] }
   | { kind: "search-results"; day: string; results: JourneySearchResult[] }
   | { kind: "journey-result"; result: JourneySearchResult | null }
+  | { kind: "journey-route-result"; routeIds: number[] }
   | { kind: "station-board"; legs: StationBoardLeg[] }
   | { kind: "error"; message: string };
 
@@ -248,6 +250,28 @@ async function journeyById(
   };
 }
 
+/** Every observed station-pair geometry traversed by one journey, in travel order. */
+async function journeyRoute(journeyId: number, simTime: number): Promise<number[]> {
+  if (!con || !manifest) throw new Error("worker used before init");
+  const day = dayKey(simTime);
+  if (!(day in manifest.days)) return [];
+  const id = Math.max(0, Math.min(0xffff, Math.floor(journeyId)));
+  const res = await con.query(`
+    SELECT route_id, flags
+    FROM read_parquet(${sqlString(dayFileUrl(day))})
+    WHERE journey_id = ${id}
+    ORDER BY t_dep`);
+  const routeIds: number[] = [];
+  for (let i = 0; i < res.numRows; i++) {
+    const row = res.get(i)!;
+    const wireRouteId = Number(row.route_id);
+    const flags = Number(row.flags);
+    const routeId = (flags & FLAG_ROUTE_FRACTION) !== 0 ? wireRouteId & 0xffff : wireRouteId;
+    if (routeIds[routeIds.length - 1] !== routeId) routeIds.push(routeId);
+  }
+  return routeIds;
+}
+
 /** Upcoming arrivals/departures for every observed route touching one station. */
 async function stationBoard(
   routeIds: number[],
@@ -313,6 +337,12 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         post({
           kind: "journey-result",
           result: await journeyById(e.data.journeyId, e.data.simTime),
+        });
+        break;
+      case "journey-route":
+        post({
+          kind: "journey-route-result",
+          routeIds: await journeyRoute(e.data.journeyId, e.data.simTime),
         });
         break;
       case "station-board":
