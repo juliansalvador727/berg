@@ -7,6 +7,7 @@ import "@fontsource-variable/noto-sans";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./style.css";
 
+import { SWITZERLAND_BORDER } from "./assets/switzerland-border";
 import { Clock, SPEEDS } from "./clock";
 import {
   BUFFER_SECONDS,
@@ -389,6 +390,19 @@ async function main(): Promise<void> {
     getWidth: 1,
     widthUnits: "pixels",
     widthMinPixels: 0.65,
+    pickable: false,
+  });
+  const countryBorderLayer = new PathLayer<{ path: [number, number][] }>({
+    id: "switzerland-border",
+    data: [{ path: SWITZERLAND_BORDER }],
+    getPath: ({ path }) => path,
+    getColor: [255, 255, 255, 95],
+    getWidth: 1,
+    widthUnits: "pixels",
+    widthMinPixels: 0.65,
+    widthMaxPixels: 1,
+    capRounded: true,
+    jointRounded: true,
     pickable: false,
   });
 
@@ -826,6 +840,7 @@ async function main(): Promise<void> {
     overlay.setProps({
       layers: [
         trackLayer,
+        countryBorderLayer,
         selectedTrackLayer,
         stationLayer,
         trainsLayer(

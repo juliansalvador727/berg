@@ -30,12 +30,11 @@ button { color: inherit; }
 
 #loading { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: #090909; transition: opacity .35s ease; }
 #loading.done { opacity: 0; pointer-events: none; }
-.loading-card { width: min(380px, calc(100vw - 40px)); display: grid; grid-template-columns: 48px 1fr; gap: 14px; align-items: center; }
-.brand-mark { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,0,0,.5); border-radius: 6px; color: #ff6b6b; font-weight: 800; font-size: 22px; background: rgba(255,0,0,.06); }
-.loading-copy { display: flex; flex-direction: column; gap: 3px; }
+.loading-card { width: min(320px, calc(100vw - 40px)); display: flex; flex-direction: column; gap: 12px; }
+.loading-copy { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
 .loading-copy strong { font-size: 15px; letter-spacing: .01em; }
 .loading-copy span { color: var(--muted); font-size: 12px; }
-.progress-track { grid-column: 1 / -1; height: 3px; overflow: hidden; background: rgba(255,255,255,.1); }
+.progress-track { width: 100%; height: 2px; overflow: hidden; background: rgba(255,255,255,.1); }
 .progress-track i { display: block; width: 8%; height: 100%; background: var(--accent); transition: width .35s ease; }
 
 #topbar { position: absolute; z-index: 10; inset: 16px 16px auto; height: 0; pointer-events: none; }
