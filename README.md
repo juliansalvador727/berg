@@ -9,7 +9,7 @@ at the ends of a trip.
 
 ## Status
 
-The full usable Ist-Daten archive has been rebuilt and published. As of 2026-07-20:
+The full usable Ist-Daten archive has been rebuilt and published. As of 2026-07-21:
 
 - 422,103,769 legs across 3,090 UTC day files
 - source coverage from 2018-01 through 2026-06 (manifest range 2017-12-31 through 2026-07-01)
@@ -17,11 +17,11 @@ The full usable Ist-Daten archive has been rebuilt and published. As of 2026-07-
 - schema version 3, with matching local and R2 leg/journey inventories
 - 15 manifest days explicitly marked missing; no partial day is advertised
 
-The pipeline and publication work are complete for the historical backfill. The frontend now has
-the train-observer foundation: automatic 600× playback, command-palette train/date search,
-spectating, service filters, clickable observed station boards, and dark terrain-aware mapping.
-The immediate next work is its interactive smoke test, deployment, GLB fleet assets, semantic
-rail/tunnel tiles, and production-owned basemap/terrain data.
+The pipeline and publication work are complete for the historical backfill. The train observer is
+deployed at <https://berg-rail-observer.pages.dev> with its versioned DuckDB WASM runtime and
+historical data hosted on R2. The immediate next work is the final interactive browser smoke test;
+GLB fleet assets, semantic rail/tunnel tiles, and production-owned basemap/terrain data remain
+post-launch improvements.
 See [`current_state.md`](current_state.md) for the authoritative checklist and known limitations.
 
 ## Layout

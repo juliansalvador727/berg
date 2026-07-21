@@ -1,9 +1,16 @@
-[
-  {
-    "AllowedOrigins": ["https://berg.ch", "http://localhost:5173"],
-    "AllowedMethods": ["GET", "HEAD"],
-    "AllowedHeaders": ["range", "content-type"],
-    "ExposeHeaders": ["content-length", "content-range", "etag"],
-    "MaxAgeSeconds": 3600
-  }
-]
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://berg-rail-observer.pages.dev",
+          "http://localhost:5173"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["range", "content-type"]
+      },
+      "exposeHeaders": ["content-length", "content-range", "etag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

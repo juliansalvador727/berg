@@ -1,8 +1,8 @@
 # web
 
-Vite + TypeScript + MapLibre GL + deck.gl + DuckDB WASM. Built for deployment on Cloudflare
-Pages; production deployment is still a launch task. No framework — add one only if the UI
-grows to need it.
+Vite + TypeScript + MapLibre GL + deck.gl + DuckDB WASM. Deployed on Cloudflare Pages at
+`https://berg-rail-observer.pages.dev`. The oversized DuckDB WASM modules live in R2; the
+version contract is `duckdb-runtime.json`. No framework — add one only if the UI grows to need it.
 
 ## Run
 
@@ -27,7 +27,14 @@ npm run build
 npm run preview -- --host localhost --port 5173
 ```
 
-The repository's `.env.local` points at the published R2 dataset by default.
+Deploy the already-built `dist/` directory using the free Pages domain configured in
+`wrangler.jsonc`:
+
+```sh
+npx wrangler pages deploy --branch main
+```
+
+The checked-in default and the repository's `.env.local` both point at the published R2 dataset.
 
 ## Threading
 

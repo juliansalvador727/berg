@@ -56,11 +56,7 @@ def managed_stale_keys(remote_keys: set[str], local_keys: set[str]) -> list[str]
     later, and a data sync must never infer authority over it merely because it is absent from
     data/publish.
     """
-    return sorted(
-        key
-        for key in remote_keys - local_keys
-        if key.startswith(MANAGED_PREFIXES)
-    )
+    return sorted(key for key in remote_keys - local_keys if key.startswith(MANAGED_PREFIXES))
 
 
 def validate_local_mirror() -> dict[str, int]:

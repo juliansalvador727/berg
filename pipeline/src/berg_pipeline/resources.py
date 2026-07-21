@@ -87,15 +87,28 @@ class R2Resource(dg.ConfigurableResource):
                 time.sleep(delay)
         raise AssertionError("retry loop exhausted without returning or raising")
 
-    def upload(self, local_path: Path, key: str, client=None) -> None:
+    def upload(
+        self,
+        local_path: Path,
+        key: str,
+        client=None,
+        *,
+        content_type: str | None = None,
+        cache_control: str | None = None,
+    ) -> None:
         checksum = self._digest(local_path, "sha256")
         client = client or self.client()
+        extra_args = {"Metadata": {"berg-sha256": checksum}}
+        if content_type:
+            extra_args["ContentType"] = content_type
+        if cache_control:
+            extra_args["CacheControl"] = cache_control
         self._with_transient_retries(
             lambda: client.upload_file(
                 str(local_path),
                 self.bucket,
                 key,
-                ExtraArgs={"Metadata": {"berg-sha256": checksum}},
+                ExtraArgs=extra_args,
             ),
             f"upload {key}",
         )

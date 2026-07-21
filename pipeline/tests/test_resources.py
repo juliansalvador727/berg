@@ -67,6 +67,37 @@ def test_upload_records_sha256_metadata(tmp_path):
     )
 
 
+def test_upload_can_set_web_asset_headers(tmp_path):
+    path = tmp_path / "duckdb.wasm"
+    path.write_bytes(b"wasm")
+
+    class Client:
+        call = None
+
+        def upload_file(self, *args, **kwargs):
+            self.call = (args, kwargs)
+
+    client = Client()
+    _r2().upload(
+        path,
+        "static/duckdb.wasm",
+        client=client,
+        content_type="application/wasm",
+        cache_control="public, max-age=31536000, immutable",
+    )
+
+    assert client.call == (
+        (str(path), "bucket", "static/duckdb.wasm"),
+        {
+            "ExtraArgs": {
+                "Metadata": {"berg-sha256": hashlib.sha256(b"wasm").hexdigest()},
+                "ContentType": "application/wasm",
+                "CacheControl": "public, max-age=31536000, immutable",
+            }
+        },
+    )
+
+
 def test_upload_retries_transient_connection_failure(tmp_path, monkeypatch):
     path = tmp_path / "stations.json"
     path.write_bytes(b"{}")

@@ -10,12 +10,11 @@
  */
 
 import * as duckdb from "@duckdb/duckdb-wasm";
-import duckdb_wasm from "@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url";
 import mvp_worker from "@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url";
-import duckdb_wasm_eh from "@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url";
 import eh_worker from "@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url";
+import duckdbRuntime from "../../duckdb-runtime.json";
 
-import { MANIFEST_URL, dayFileUrl, journeyFileUrl } from "../config";
+import { DATA_BASE_URL, MANIFEST_URL, dayFileUrl, journeyFileUrl } from "../config";
 import {
   FLAG_ROUTE_FRACTION,
   JOURNEY_ID_UNAVAILABLE,
@@ -83,9 +82,16 @@ function decodeLeg(row: Record<string, unknown>): Leg {
 }
 
 async function init(): Promise<Manifest> {
+  const wasmBaseUrl = `${DATA_BASE_URL}/static/duckdb-wasm/${duckdbRuntime.version}`;
   const bundle = await duckdb.selectBundle({
-    mvp: { mainModule: duckdb_wasm, mainWorker: mvp_worker },
-    eh: { mainModule: duckdb_wasm_eh, mainWorker: eh_worker },
+    mvp: {
+      mainModule: `${wasmBaseUrl}/${duckdbRuntime.files.mvp}`,
+      mainWorker: mvp_worker,
+    },
+    eh: {
+      mainModule: `${wasmBaseUrl}/${duckdbRuntime.files.eh}`,
+      mainWorker: eh_worker,
+    },
   });
   const w = new Worker(bundle.mainWorker!, { type: "module" });
   const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), w);

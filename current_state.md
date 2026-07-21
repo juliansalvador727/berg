@@ -1,6 +1,6 @@
 # Current state
 
-Updated 2026-07-20 after the completed historical rebuild, geometry regeneration, and R2 sync.
+Updated 2026-07-21 after the completed historical rebuild, R2 runtime upload, and Pages deployment.
 This file is the authoritative project status and TODO. `docs/data-notes.md` remains the
 authority for measured source-data behavior. The gitignored `plan.md` is a legacy planning
 scratchpad and may contain obsolete estimates.
@@ -38,10 +38,10 @@ UTC. The source service-day coverage is 2018-01 through 2026-06. The 29 missing 
 collapse to 15 fully absent UTC files because neighboring service days can contribute rows
 across UTC midnight.
 
-Public data base:
-`https://pub-40f06e4404c049578963083898f4ab57.r2.dev` (production alias planned as
-`https://data.berg.ch`). Credentials are in the repository-root `.env` and must never be
-committed.
+Public application: `https://berg-rail-observer.pages.dev`.
+
+Public data base: `https://pub-40f06e4404c049578963083898f4ab57.r2.dev`. Credentials are in the
+repository-root `.env` and must never be committed.
 
 ## Validation completed
 
@@ -52,8 +52,11 @@ committed.
   materialized successfully after geometry regeneration.
 - Route-ID, duration, type, and flag invariant queries reported zero violations.
 - Maximum daily journey cardinality is 16,203, safely below the uint16 limit of 65,535.
-- Pipeline test suite: 99 passed. Ruff: clean.
-- R2 CORS permits `https://berg.ch` and `http://localhost:5173`; range requests work. The first
+- Pipeline test suite: 100 passed. Geometry test suite: 10 passed. Ruff: clean.
+- The frontend production build passes and contains no asset over 1.8 MB; the two 34–39 MB
+  DuckDB WASM modules are pinned at version 1.32.0 and served from R2 with immutable caching.
+- R2 CORS permits `https://berg-rail-observer.pages.dev` and `http://localhost:5173`; production
+  range requests return `206 Partial Content`. The first
   local smoke attempt used `http://127.0.0.1:4173`, which correctly failed because origins are
   exact. The app now serves successfully at the allowed localhost origin; the final interactive
   map/control inspection still needs a human pass.
@@ -124,8 +127,9 @@ Do these in order unless product priorities change:
 - [ ] Complete the browser smoke test at `http://localhost:5173`: exercise Ctrl/Cmd+K date and
   train search, spectate an IC/S-Bahn journey, click several stations, toggle every service
   family, cross UTC midnight, and inspect the console and network range requests.
-- [ ] Deploy the current frontend to Cloudflare Pages / `berg.ch`; verify production CORS,
-  `206 Partial Content` requests, cache headers, and a cold load from a clean browser profile.
+- [x] Deploy the frontend to `https://berg-rail-observer.pages.dev`; verify production CORS,
+  `206 Partial Content` requests, and immutable WASM cache headers.
+- [ ] Perform a cold load from a clean desktop and mobile browser profile and inspect the console.
 - [ ] Run `.github/workflows/monthly-ingest.yml` once via manual dispatch for a known month and
   verify its build, upload, manifest-last behavior, and rerun idempotency before trusting cron.
 - [ ] Create or license six low-poly GLB service-family models and render them with route-tangent

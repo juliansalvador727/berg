@@ -14,12 +14,22 @@ r2://berg/
   static/stations.json
   static/train_types.json
   static/routes.report.json
+  static/duckdb-wasm/1.32.0/*.wasm
   tiles/switzerland.pmtiles    planned; not published yet
   manifest.json                date range, file sizes, max_leg_duration, schema version
 ```
 
 `manifest.json` is written **last**, so a half-finished backfill never advertises days that
 aren't there.
+
+The DuckDB WASM modules exceed Cloudflare Pages' per-file size limit. After `npm ci` in `web/`,
+publish the pinned runtime modules directly to R2:
+
+```sh
+set -a; source .env; set +a
+cd pipeline
+uv run python scripts/upload_web_runtime.py
+```
 
 ## CORS — do this before debugging anything else
 
@@ -28,14 +38,14 @@ header, and without `content-range` exposed, it fails in a way that looks like a
 is not.
 
 ```sh
-npx wrangler r2 bucket cors put berg --file infra/cors.json
+npx wrangler r2 bucket cors set berg --file infra/cors.json
 ```
 
 Verify before you trust it:
 
 ```sh
-curl -sI -H "Origin: https://berg.ch" -H "Range: bytes=0-99" \
-  https://data.berg.ch/legs/2024/01/15.parquet
+curl -sI -H "Origin: https://berg-rail-observer.pages.dev" -H "Range: bytes=0-99" \
+  https://pub-40f06e4404c049578963083898f4ab57.r2.dev/legs/2024/01/15.parquet
 # want: 206 Partial Content, access-control-allow-origin, content-range
 ```
 

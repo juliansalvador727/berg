@@ -1,5 +1,7 @@
 /** Where the data lives. Everything is CDN-fetched; there is no server in the serving path. */
-export const DATA_BASE_URL = import.meta.env.VITE_DATA_BASE_URL ?? "https://data.berg.ch";
+export const DATA_BASE_URL =
+  import.meta.env.VITE_DATA_BASE_URL ??
+  "https://pub-40f06e4404c049578963083898f4ab57.r2.dev";
 
 export const MANIFEST_URL = `${DATA_BASE_URL}/manifest.json`;
 export const ROUTES_URL = `${DATA_BASE_URL}/static/routes.bin`;
