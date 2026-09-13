@@ -27,6 +27,23 @@ npm run build
 npm run preview -- --host localhost --port 5173
 ```
 
+## Browser tests
+
+The Playwright suite uses Chromium against the published R2 archive. It covers startup and clock
+movement, pause/resume and speed changes, service and delay filters, historical navigation, train
+search, route spectating, direct train-arrow clicks, station boards, and the station/unspectate
+regression. The map interaction assertions use coordinates reported by an E2E-only hook and still
+perform real pointer clicks on the deck.gl canvas; the hook is absent from normal builds.
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
+Use `npm run test:e2e:ui` for Playwright's interactive runner. R2 CORS permits the suite's exact
+`http://localhost:5173` origin. CI installs Chromium, runs the suite after the production build,
+and retains screenshots and the HTML report on failure, plus a trace from the CI retry.
+
 Deploy the already-built `dist/` directory using the free Pages domain configured in
 `wrangler.jsonc`:
 

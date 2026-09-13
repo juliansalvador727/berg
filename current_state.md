@@ -1,6 +1,6 @@
 # Current state
 
-Updated 2026-07-21 after the completed historical rebuild, R2 runtime upload, and Pages deployment.
+Updated 2026-07-22 after the completed historical rebuild, Pages deployment, and Playwright suite.
 This file is the authoritative project status and TODO. `docs/data-notes.md` remains the
 authority for measured source-data behavior. The gitignored `plan.md` is a legacy planning
 scratchpad and may contain obsolete estimates.
@@ -53,6 +53,9 @@ repository-root `.env` and must never be committed.
 - Route-ID, duration, type, and flag invariant queries reported zero violations.
 - Maximum daily journey cardinality is 16,203, safely below the uint16 limit of 65,535.
 - Pipeline test suite: 100 passed. Geometry test suite: 10 passed. Ruff: clean.
+- Playwright suite: 3 Chromium scenarios passed against the published R2 archive, covering load,
+  playback controls, filters, date/train search, route spectating, direct map clicks, station
+  boards, and unspectating. CI runs it after the production frontend build.
 - The frontend production build passes and contains no asset over 1.8 MB; the two 34–39 MB
   DuckDB WASM modules are pinned at version 1.32.0 and served from R2 with immutable caching.
 - R2 CORS permits `https://berg-rail-observer.pages.dev` and `http://localhost:5173`; production
@@ -129,6 +132,7 @@ Do these in order unless product priorities change:
   family, cross UTC midnight, and inspect the console and network range requests.
 - [x] Deploy the frontend to `https://berg-rail-observer.pages.dev`; verify production CORS,
   `206 Partial Content` requests, and immutable WASM cache headers.
+- [x] Add an automated Chromium smoke suite for the primary observer flows and enforce it in CI.
 - [ ] Perform a cold load from a clean desktop and mobile browser profile and inspect the console.
 - [ ] Run `.github/workflows/monthly-ingest.yml` once via manual dispatch for a known month and
   verify its build, upload, manifest-last behavior, and rerun idempotency before trusting cron.

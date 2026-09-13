@@ -44,6 +44,19 @@ interface Station {
   lat: number;
 }
 
+interface BergE2ETestHook {
+  stationPoints: () => Array<Station & { x: number; y: number }>;
+  trainPoints: () => Array<{ journeyId: number; x: number; y: number }>;
+  selectedJourneyId: () => number | null;
+  selectedRouteIds: () => number[];
+}
+
+declare global {
+  interface Window {
+    __BERG_E2E__?: BergE2ETestHook;
+  }
+}
+
 interface ServiceGroup {
   id: string;
   label: string;
@@ -159,6 +172,7 @@ function ask(worker: Worker, payload: WorkerRequestPayload): Promise<WorkerRespo
 }
 
 async function main(): Promise<void> {
+  const e2eMode = import.meta.env.MODE === "e2e";
   const loading = byId<HTMLDivElement>("loading");
   const loadingLabel = byId<HTMLSpanElement>("loading-label");
   const loadingProgress = byId<HTMLElement>("loading-progress");
@@ -219,40 +233,42 @@ async function main(): Promise<void> {
     style: MAP_STYLE_URL,
     center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude],
     zoom: INITIAL_VIEW.zoom,
-    pitch: 24,
+    pitch: e2eMode ? 0 : 24,
     bearing: 0,
     maxPitch: 70,
     attributionControl: false,
   });
   await map.once("load");
 
-  try {
-    map.addSource("berg-terrain", {
-      type: "raster-dem",
-      tiles: [TERRAIN_TILE_URL],
-      tileSize: 256,
-      maxzoom: 15,
-      encoding: "terrarium",
-      attribution: '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data sources</a>',
-    });
-    const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
-    map.addLayer(
-      {
-        id: "berg-hillshade",
-        type: "hillshade",
-        source: "berg-terrain",
-        paint: {
-          "hillshade-method": "multidirectional",
-          "hillshade-exaggeration": 0.28,
-          "hillshade-shadow-color": "#020509",
-          "hillshade-highlight-color": "#607184",
-          "hillshade-accent-color": "#111b25",
+  if (!e2eMode) {
+    try {
+      map.addSource("berg-terrain", {
+        type: "raster-dem",
+        tiles: [TERRAIN_TILE_URL],
+        tileSize: 256,
+        maxzoom: 15,
+        encoding: "terrarium",
+        attribution: '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data sources</a>',
+      });
+      const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+      map.addLayer(
+        {
+          id: "berg-hillshade",
+          type: "hillshade",
+          source: "berg-terrain",
+          paint: {
+            "hillshade-method": "multidirectional",
+            "hillshade-exaggeration": 0.28,
+            "hillshade-shadow-color": "#020509",
+            "hillshade-highlight-color": "#607184",
+            "hillshade-accent-color": "#111b25",
+          },
         },
-      },
-      firstLabel,
-    );
-  } catch (error) {
-    console.warn("terrain relief unavailable", error);
+        firstLabel,
+      );
+    } catch (error) {
+      console.warn("terrain relief unavailable", error);
+    }
   }
 
   const overlay = new MapboxOverlay({
@@ -459,6 +475,24 @@ async function main(): Promise<void> {
       if (object) void openStation(object);
     },
   });
+
+  let e2ePositionedTrains: PositionedLeg[] = [];
+  if (e2eMode) {
+    window.__BERG_E2E__ = {
+      stationPoints: () =>
+        stations.map((station) => {
+          const point = map.project([station.lon, station.lat]);
+          return { ...station, x: point.x, y: point.y };
+        }),
+      trainPoints: () =>
+        e2ePositionedTrains.map((train) => {
+          const point = map.project(train.pos);
+          return { journeyId: train.leg.journey_id, x: point.x, y: point.y };
+        }),
+      selectedJourneyId: () => selectedJourney?.journeyId ?? null,
+      selectedRouteIds: () => selectedJourneyTracks.map((route) => route.routeId),
+    };
+  }
 
   function stationName(id: number): string {
     return stationById.get(id)?.name ?? `Station ${id}`;
@@ -801,6 +835,11 @@ async function main(): Promise<void> {
   topbar.classList.remove("hidden");
   loading.classList.add("done");
 
+  const scheduleFrame = (callback: FrameRequestCallback) => {
+    if (e2eMode) window.setTimeout(() => requestAnimationFrame(callback), 5_000);
+    else requestAnimationFrame(callback);
+  };
+
   function frame(): void {
     const time = clock.tick();
     if (time > tMax) clock.seek(tMin);
@@ -817,6 +856,7 @@ async function main(): Promise<void> {
       Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6),
     );
     const { items, dropped } = positioned(relevantLegs, time, routes, bearingWindowM);
+    e2ePositionedTrains = items;
     const selected = selectedJourneyId === null
       ? undefined
       : items.find((item) => item.leg.journey_id === selectedJourneyId);
@@ -838,23 +878,22 @@ async function main(): Promise<void> {
       jointRounded: true,
       pickable: false,
     });
+    const trainIcons = trainsLayer(
+      items,
+      time,
+      colors,
+      colorMode,
+      selectedJourneyId,
+      map.getBearing(),
+      map.getZoom(),
+      (item) => void spectatePositionedTrain(item),
+    );
     overlay.setProps({
-      layers: [
-        trackLayer,
-        countryBorderLayer,
-        selectedTrackLayer,
-        stationLayer,
-        trainsLayer(
-          items,
-          time,
-          colors,
-          colorMode,
-          selectedJourneyId,
-          map.getBearing(),
-          map.getZoom(),
-          (item) => void spectatePositionedTrain(item),
-        ),
-      ],
+      // The full national track layer contains 512k vertices. Browser tests validate its
+      // selected route IDs but omit that visual layer so software WebGL can keep up in CI.
+      layers: e2eMode
+        ? [stationLayer, trainIcons]
+        : [trackLayer, countryBorderLayer, selectedTrackLayer, stationLayer, trainIcons],
     });
 
     if (selectedJourney) {
@@ -874,7 +913,7 @@ async function main(): Promise<void> {
     playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
     speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
     countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
-    requestAnimationFrame(frame);
+    scheduleFrame(frame);
   }
   requestAnimationFrame(frame);
 }
