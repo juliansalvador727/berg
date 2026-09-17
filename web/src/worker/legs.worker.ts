@@ -43,9 +43,13 @@ export interface JourneySearchResult {
   firstRouteId: number;
 }
 
-export interface StationBoardLeg extends Leg {
+export interface StationBoardDeparture {
+  journeyId: number;
   tripId: string;
   line: string;
+  time: number;
+  type: number;
+  routeIds: number[];
 }
 
 export type WorkerResponsePayload =
@@ -54,7 +58,7 @@ export type WorkerResponsePayload =
   | { kind: "search-results"; day: string; results: JourneySearchResult[] }
   | { kind: "journey-result"; result: JourneySearchResult | null }
   | { kind: "journey-route-result"; routeIds: number[] }
-  | { kind: "station-board"; legs: StationBoardLeg[] }
+  | { kind: "station-board"; departures: StationBoardDeparture[] }
   | { kind: "error"; message: string };
 
 export type WorkerResponse = WorkerResponsePayload & { requestId: number };
@@ -278,12 +282,12 @@ async function journeyRoute(journeyId: number, simTime: number): Promise<number[
   return routeIds;
 }
 
-/** Upcoming arrivals/departures for every observed route touching one station. */
+/** Recent and upcoming departures, including each train's remaining observed route. */
 async function stationBoard(
   routeIds: number[],
   simTime: number,
   horizon: number,
-): Promise<StationBoardLeg[]> {
+): Promise<StationBoardDeparture[]> {
   if (!con || !manifest || routeIds.length === 0) return [];
   const from = Math.floor(simTime - 15 * 60);
   const to = Math.ceil(simTime + horizon);
@@ -292,24 +296,68 @@ async function stationBoard(
   for (let t = from; t <= to; t += 86400) days.add(dayKey(t));
   days.add(dayKey(to));
 
-  const out: StationBoardLeg[] = [];
+  const out: StationBoardDeparture[] = [];
   for (const day of days) {
     if (!(day in manifest.days)) continue;
-    const res = await con.query(`
+    const candidates = await con.query(`
       SELECT l.route_id, l.journey_id, l.t_dep, l.dur, l.type, l.delay, l.flags,
              coalesce(j.trip_id, '') AS trip_id, coalesce(j.line, '') AS line
       FROM read_parquet(${sqlString(dayFileUrl(day))}) l
       LEFT JOIN read_parquet(${sqlString(journeyFileUrl(day))}) j USING (journey_id)
-      WHERE l.t_dep BETWEEN ${from - 86400} AND ${to}
+      WHERE l.t_dep BETWEEN ${from} AND ${to}
         AND CASE WHEN (l.flags & ${FLAG_ROUTE_FRACTION}) != 0
                  THEN (l.route_id & 65535) ELSE l.route_id END IN (${ids})
       ORDER BY l.t_dep`);
-    for (let i = 0; i < res.numRows; i++) {
-      const row = res.get(i)!;
-      out.push({ ...decodeLeg(row), tripId: String(row.trip_id), line: String(row.line) });
+
+    const departures: Array<{ leg: Leg; tripId: string; line: string }> = [];
+    for (let i = 0; i < candidates.numRows; i++) {
+      const row = candidates.get(i)!;
+      const leg = decodeLeg(row);
+      // Long legs are split into route fractions. Only the first fraction actually departs
+      // from the station represented by this route ID.
+      if (leg.route_start !== 0) continue;
+      departures.push({ leg, tripId: String(row.trip_id), line: String(row.line) });
+    }
+    if (departures.length === 0) continue;
+
+    const journeyIds = [...new Set(departures.map(({ leg }) => leg.journey_id))];
+    const journeyLegRows = await con.query(`
+      SELECT route_id, journey_id, t_dep, dur, type, delay, flags
+      FROM read_parquet(${sqlString(dayFileUrl(day))})
+      WHERE journey_id IN (${journeyIds.join(",")})
+      ORDER BY journey_id, t_dep, route_id`);
+    const legsByJourney = new Map<number, Leg[]>();
+    for (let i = 0; i < journeyLegRows.numRows; i++) {
+      const leg = decodeLeg(journeyLegRows.get(i)!);
+      legsByJourney.set(leg.journey_id, [...(legsByJourney.get(leg.journey_id) ?? []), leg]);
+    }
+
+    for (const departure of departures) {
+      const journeyLegs = legsByJourney.get(departure.leg.journey_id) ?? [departure.leg];
+      const start = journeyLegs.findIndex(
+        (leg) =>
+          leg.t_dep === departure.leg.t_dep &&
+          leg.route_id === departure.leg.route_id &&
+          leg.route_start === departure.leg.route_start,
+      );
+      const remainingLegs = journeyLegs.slice(Math.max(0, start));
+      const remainingRouteIds: number[] = [];
+      for (const leg of remainingLegs) {
+        if (remainingRouteIds[remainingRouteIds.length - 1] !== leg.route_id) {
+          remainingRouteIds.push(leg.route_id);
+        }
+      }
+      out.push({
+        journeyId: departure.leg.journey_id,
+        tripId: departure.tripId,
+        line: departure.line,
+        time: departure.leg.t_dep,
+        type: departure.leg.type,
+        routeIds: remainingRouteIds,
+      });
     }
   }
-  return out;
+  return out.sort((a, b) => a.time - b.time);
 }
 
 /** filesAhead = ceil(speed * BUFFER_SECONDS / 86400) + 1 — 1x buffers nothing, 150x buffers 2-3. */
@@ -354,7 +402,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       case "station-board":
         post({
           kind: "station-board",
-          legs: await stationBoard(e.data.routeIds, e.data.simTime, e.data.horizon),
+          departures: await stationBoard(e.data.routeIds, e.data.simTime, e.data.horizon),
         });
         break;
       case "prefetch":

@@ -96,11 +96,22 @@ kbd { padding: 3px 6px; border-radius: 4px; border: 1px solid var(--line); backg
 .details .sub { color: var(--muted); font-size: 11px; }
 .board { margin-top: 16px; }
 .board h3 { margin: 0 0 7px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
-.board-row { display: grid; grid-template-columns: 44px 42px 1fr auto; gap: 7px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 11px; }
+.board-departure { padding: 8px 0; border-top: 1px solid var(--line); transition: background .15s ease; }
+.board-departure:hover, .board-departure:focus-within { background: rgba(255,255,255,.035); }
+.board-row { display: grid; grid-template-columns: 44px 42px minmax(0, 1fr); gap: 7px; align-items: center; font-size: 11px; }
 .board-row time { font-variant-numeric: tabular-nums; font-weight: 650; }
 .board-row b { color: var(--accent-strong); overflow: hidden; text-overflow: ellipsis; }
 .board-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d0d0d0; }
-.board-row em { color: var(--muted); font-size: 9px; font-style: normal; }
+.board-via, .board-direct { margin: 4px 0 0 93px; color: var(--muted); font-size: 9px; }
+.board-via summary { width: fit-content; cursor: pointer; list-style: none; }
+.board-via summary::-webkit-details-marker { display: none; }
+.board-via summary::after { content: "⌄"; display: inline-block; margin-left: 5px; color: #777; transition: transform .15s ease; }
+.board-via[open] summary::after { transform: rotate(180deg); }
+.board-via summary:hover { color: var(--text); }
+.board-via summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+.board-via ol { margin: 7px 0 2px; padding: 0; list-style: none; }
+.board-via li { position: relative; padding: 2px 0 2px 12px; color: #c5c5c5; line-height: 1.35; }
+.board-via li::before { content: ""; position: absolute; top: 8px; left: 1px; width: 4px; height: 4px; border-radius: 50%; background: #777; }
 .empty { padding: 16px 0 4px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .watch-actions { display: flex; gap: 7px; margin-top: 14px; }
 .primary { padding: 8px 11px; border: 1px solid #d90000; border-radius: 5px; background: #d90000; color: var(--accent-ink); font-size: 10px; font-weight: 700; cursor: pointer; }

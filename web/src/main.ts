@@ -32,7 +32,7 @@ import {
 import { FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
 import type {
   JourneySearchResult,
-  StationBoardLeg,
+  StationBoardDeparture,
   WorkerRequestPayload,
   WorkerResponse,
 } from "./worker/legs.worker";
@@ -45,6 +45,8 @@ interface Station {
 }
 
 interface BergE2ETestHook {
+  highlightedStationRouteIds: () => number[];
+  openStation: (name: string) => boolean;
   stationPoints: () => Array<Station & { x: number; y: number }>;
   trainPoints: () => Array<{ journeyId: number; x: number; y: number }>;
   selectedJourneyId: () => number | null;
@@ -172,7 +174,9 @@ function ask(worker: Worker, payload: WorkerRequestPayload): Promise<WorkerRespo
 }
 
 async function main(): Promise<void> {
-  const e2eMode = import.meta.env.MODE === "e2e";
+  const e2eMode =
+    import.meta.env.MODE === "e2e" ||
+    (import.meta.env.DEV && new URLSearchParams(window.location.search).has("e2e"));
   const loading = byId<HTMLDivElement>("loading");
   const loadingLabel = byId<HTMLSpanElement>("loading-label");
   const loadingProgress = byId<HTMLElement>("loading-progress");
@@ -200,13 +204,15 @@ async function main(): Promise<void> {
 
   setProgress(48, "Preparing the observed rail network…");
   const served = new Set<number>();
-  const stationRouteIds = new Map<number, number[]>();
+  const stationDepartureRouteIds = new Map<number, number[]>();
   for (const [routeIdText, [from, to]] of Object.entries(routePairs)) {
     const routeId = Number(routeIdText);
     served.add(from);
     served.add(to);
-    stationRouteIds.set(from, [...(stationRouteIds.get(from) ?? []), routeId]);
-    stationRouteIds.set(to, [...(stationRouteIds.get(to) ?? []), routeId]);
+    stationDepartureRouteIds.set(from, [
+      ...(stationDepartureRouteIds.get(from) ?? []),
+      routeId,
+    ]);
   }
   const stations = allStations.filter((station) => served.has(station.id));
   const stationById = new Map(stations.map((station) => [station.id, station]));
@@ -312,6 +318,8 @@ async function main(): Promise<void> {
   const filterChips = byId<HTMLDivElement>("filter-chips");
   const legendElement = byId<HTMLDivElement>("legend");
   let colorMode: ColorMode = "type";
+  let visibleStationBoard: { station: Station; departures: StationBoardDeparture[] } | null = null;
+  let stationBoardGeneration = 0;
 
   const setFiltersOpen = (open: boolean) => {
     filters.classList.toggle("hidden", !open);
@@ -344,6 +352,9 @@ async function main(): Promise<void> {
       else enabledGroups.add(group.id);
       button.classList.toggle("on", enabledGroups.has(group.id));
       updateFilterSummary();
+      if (visibleStationBoard) {
+        renderStationBoard(visibleStationBoard.station, visibleStationBoard.departures);
+      }
     };
     filterChips.appendChild(button);
   }
@@ -425,6 +436,7 @@ async function main(): Promise<void> {
 
   let selectedJourney: JourneySearchResult | null = null;
   let selectedJourneyTracks: RoutePath[] = [];
+  let highlightedStationRouteIds: number[] = [];
   let spectateGeneration = 0;
 
   const showDetails = (html: string) => {
@@ -452,7 +464,12 @@ async function main(): Promise<void> {
     if (keepDetails) target.closest(".watch-actions")?.remove();
   });
   // Closing a panel must never leave an invisible camera-follow session behind.
-  byId<HTMLButtonElement>("details-close").onclick = () => stopSpectating();
+  byId<HTMLButtonElement>("details-close").onclick = () => {
+    stationBoardGeneration++;
+    visibleStationBoard = null;
+    highlightedStationRouteIds = [];
+    stopSpectating();
+  };
 
   const stationLayer = new ScatterplotLayer<Station>({
     id: "stations",
@@ -479,6 +496,13 @@ async function main(): Promise<void> {
   let e2ePositionedTrains: PositionedLeg[] = [];
   if (e2eMode) {
     window.__BERG_E2E__ = {
+      highlightedStationRouteIds: () => [...highlightedStationRouteIds],
+      openStation: (name) => {
+        const station = stations.find((candidate) => candidate.name === name);
+        if (!station) return false;
+        void openStation(station);
+        return true;
+      },
       stationPoints: () =>
         stations.map((station) => {
           const point = map.project([station.lon, station.lat]);
@@ -506,22 +530,28 @@ async function main(): Promise<void> {
   }
 
   async function openStation(station: Station): Promise<void> {
+    const generation = ++stationBoardGeneration;
+    visibleStationBoard = null;
+    highlightedStationRouteIds = [];
     showDetails(`
       <div class="eyebrow">Station</div>
       <h2>${escapeHtml(station.name)}</h2>
-      <div class="sub">Loading observed arrivals and departures…</div>
+      <div class="sub">Loading observed departures…</div>
       ${stationSpectateAction()}`);
     map.easeTo({ center: [station.lon, station.lat], zoom: Math.max(map.getZoom(), 11), duration: 650 });
     try {
       const response = await ask(worker, {
         kind: "station-board",
-        routeIds: stationRouteIds.get(station.id) ?? [],
+        routeIds: stationDepartureRouteIds.get(station.id) ?? [],
         simTime: clock.simTime,
         horizon: 3 * 3600,
       });
-      if (response.kind !== "station-board") return;
-      renderStationBoard(station, response.legs);
+      if (generation !== stationBoardGeneration || response.kind !== "station-board") return;
+      visibleStationBoard = { station, departures: response.departures };
+      renderStationBoard(station, response.departures);
     } catch (error) {
+      if (generation !== stationBoardGeneration) return;
+      highlightedStationRouteIds = [];
       showDetails(`
         <div class="eyebrow">Station</div><h2>${escapeHtml(station.name)}</h2>
         <div class="empty">Could not load the board: ${escapeHtml(String(error))}</div>
@@ -529,39 +559,68 @@ async function main(): Promise<void> {
     }
   }
 
-  function renderStationBoard(station: Station, legs: StationBoardLeg[]): void {
-    const rows: { time: number; kind: "arr" | "dep"; other: string; line: string }[] = [];
-    for (const leg of legs) {
-      const pair = routePairs[String(leg.route_id)];
-      if (!pair) continue;
-      if (pair[0] === station.id && leg.t_dep >= clock.simTime - 15 * 60) {
-        rows.push({ time: leg.t_dep, kind: "dep", other: stationName(pair[1]), line: leg.line });
-      }
-      const arrival = leg.t_dep + leg.dur;
-      if (pair[1] === station.id && arrival >= clock.simTime - 15 * 60) {
-        rows.push({ time: arrival, kind: "arr", other: stationName(pair[0]), line: leg.line });
-      }
-    }
-    rows.sort((a, b) => a.time - b.time);
-    const visible = rows.slice(0, 36);
+  function renderStationBoard(station: Station, departures: StationBoardDeparture[]): void {
+    highlightedStationRouteIds = [];
+    const filteredDepartures = departures.filter((departure) => typeEnabled(departure.type));
+    const visible = filteredDepartures.slice(0, 36);
+    const renderedDepartures: StationBoardDeparture[] = [];
     const body = visible.length
       ? visible
-          .map(
-            (row) => `<div class="board-row">
-              <time>${fmtShortTime(row.time)}</time>
-              <b>${escapeHtml(row.line || "Train")}</b>
-              <span>${row.kind === "dep" ? "to" : "from"} ${escapeHtml(row.other)}</span>
-              <em>${row.kind}</em>
-            </div>`,
-          )
+          .map((departure) => {
+            const stops: number[] = [];
+            for (const routeId of departure.routeIds) {
+              const pair = routePairs[String(routeId)];
+              if (!pair || pair[0] === pair[1]) continue;
+              if (stops[stops.length - 1] !== pair[1]) stops.push(pair[1]);
+            }
+            const destination = stops.at(-1);
+            if (destination === undefined) return "";
+            const departureIndex = renderedDepartures.push(departure) - 1;
+            const via = stops.slice(0, -1).map(stationName);
+            const viaSummary = via.length
+              ? `via ${escapeHtml(via[0]!)}${via.length > 1 ? ` +${via.length - 1}` : ""}`
+              : "direct";
+            const disclosure = via.length
+              ? `<details class="board-via">
+                  <summary>${viaSummary}</summary>
+                  <ol>${via.map((stop) => `<li>${escapeHtml(stop)}</li>`).join("")}</ol>
+                </details>`
+              : `<div class="board-direct">${viaSummary}</div>`;
+            return `<div class="board-departure" data-departure-index="${departureIndex}">
+              <div class="board-row">
+                <time>${fmtShortTime(departure.time)}</time>
+                <b>${escapeHtml(departure.line || "Train")}</b>
+                <span>${escapeHtml(stationName(destination))}</span>
+              </div>
+              ${disclosure}
+            </div>`;
+          })
           .join("")
-      : `<div class="empty">No observed movements in the next three simulated hours.</div>`;
+      : `<div class="empty">${departures.length > 0
+          ? "No departures match the selected train services."
+          : "No observed departures in the next three simulated hours."}</div>`;
     showDetails(`
       <div class="eyebrow">Station board · observed data</div>
       <h2>${escapeHtml(station.name)}</h2>
       <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime)}</div>
-      <div class="board"><h3>Arrivals & departures</h3>${body}</div>
+      <div class="board"><h3>Departures</h3>${body}</div>
       ${stationSpectateAction()}`);
+    for (const row of detailsContent.querySelectorAll<HTMLElement>("[data-departure-index]")) {
+      const departure = renderedDepartures[Number(row.dataset.departureIndex)];
+      if (!departure) continue;
+      row.addEventListener("pointerenter", () => {
+        highlightedStationRouteIds = [...departure.routeIds];
+      });
+      row.addEventListener("pointerleave", () => {
+        highlightedStationRouteIds = [];
+      });
+      row.addEventListener("focusin", () => {
+        highlightedStationRouteIds = [...departure.routeIds];
+      });
+      row.addEventListener("focusout", (event) => {
+        if (!row.contains(event.relatedTarget as Node | null)) highlightedStationRouteIds = [];
+      });
+    }
   }
 
   const showSpeedCommands = () => {
@@ -686,6 +745,9 @@ async function main(): Promise<void> {
     generation = ++spectateGeneration,
   ): Promise<void> {
     if (generation !== spectateGeneration) return;
+    stationBoardGeneration++;
+    visibleStationBoard = null;
+    highlightedStationRouteIds = [];
     selectedJourney = result;
     selectedJourneyTracks = [];
     clock.setSpeed(1);
@@ -751,6 +813,9 @@ async function main(): Promise<void> {
 
   async function spectatePositionedTrain(item: PositionedLeg): Promise<void> {
     const generation = ++spectateGeneration;
+    stationBoardGeneration++;
+    visibleStationBoard = null;
+    highlightedStationRouteIds = [];
     selectedJourney = null;
     selectedJourneyTracks = [];
     clock.setSpeed(1);
@@ -861,11 +926,16 @@ async function main(): Promise<void> {
       ? undefined
       : items.find((item) => item.leg.journey_id === selectedJourneyId);
     const selectedTrack = selected ? trackPathById.get(selected.leg.route_id) : undefined;
-    const highlightedTracks = selectedJourneyTracks.length > 0
-      ? selectedJourneyTracks
-      : selectedTrack
-        ? [selectedTrack]
-        : [];
+    const stationBoardTracks = highlightedStationRouteIds
+      .map((routeId) => trackPathById.get(routeId))
+      .filter((route): route is RoutePath => route !== undefined);
+    const highlightedTracks = stationBoardTracks.length > 0
+      ? stationBoardTracks
+      : selectedJourneyTracks.length > 0
+        ? selectedJourneyTracks
+        : selectedTrack
+          ? [selectedTrack]
+          : [];
     const selectedTrackLayer = new PathLayer<RoutePath>({
       id: "selected-train-track",
       data: highlightedTracks,

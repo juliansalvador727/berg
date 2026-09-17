@@ -19,7 +19,8 @@ async function activate(page: Page, selector: string): Promise<void> {
 }
 
 async function openObserver(page: Page): Promise<void> {
-  await page.goto("/");
+  // The query flag also enables the test mode when Playwright reuses a developer's Vite server.
+  await page.goto("/?e2e=1");
   // The topbar is a zero-height positioning wrapper, so assert one of its rendered controls.
   await expect(page.getByRole("button", { name: /Find a train/ })).toBeVisible({
     timeout: 120_000,
@@ -113,6 +114,39 @@ test("filters services, navigates the archive, and spectates a complete route", 
     .evaluate((element: HTMLElement) => element.click());
   await expect(page.locator("#details")).toBeHidden();
   expect(await page.evaluate(() => window.__BERG_E2E__?.selectedJourneyId() ?? null)).toBeNull();
+});
+
+test("shows filtered departures with expandable via stops", async ({ page }) => {
+  await openObserver(page);
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("Mägenwil"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+
+  const departure = page.locator(".board-departure").first();
+  await expect(departure).toBeVisible();
+  await expect(departure.locator(".board-row")).not.toContainText(/\barr\b|\bdep\b/);
+  await departure.hover();
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.highlightedStationRouteIds().length ?? 0))
+    .toBeGreaterThan(1);
+  await page.mouse.move(700, 700);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.highlightedStationRouteIds().length ?? 0))
+    .toBe(0);
+  const via = departure.locator(".board-via");
+  await expect(via).toBeVisible();
+  await via.locator("summary").click();
+  await expect(via).toHaveAttribute("open", "");
+  await expect(via.locator("li").first()).toBeVisible();
+
+  await activate(page, "#filter-button");
+  await page.locator("#filter-chips .chip.on").evaluateAll((chips: HTMLElement[]) => {
+    for (const chip of chips) chip.click();
+  });
+  await expect(page.locator(".board-departure")).toHaveCount(0);
+  await expect(page.locator("#details .empty")).toContainText(
+    "No departures match the selected train services.",
+  );
 });
 
 test("clicks train arrows and preserves unspectate controls on station boards", async ({ page }) => {
