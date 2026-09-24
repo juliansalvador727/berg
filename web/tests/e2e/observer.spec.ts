@@ -11,6 +11,7 @@ interface StationPoint extends ScreenPoint {
 }
 
 interface TrainPoint extends ScreenPoint {
+  dataset: string;
   journeyId: number;
 }
 
@@ -184,4 +185,34 @@ test("clicks train arrows and preserves unspectate controls on station boards", 
   await expect(page.locator("#details .eyebrow")).toContainText("Station");
   await expect(stop).toBeHidden();
   expect(await page.evaluate(() => window.__BERG_E2E__?.selectedJourneyId() ?? null)).toBeNull();
+});
+
+test("flies to Finland, loads its dataset on demand, and keeps Swiss ids separate", async ({ page }) => {
+  await openObserver(page);
+  // Finland is not in the initial Swiss view, so none of its files may have been requested.
+  expect(await page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? [])).toEqual(["ch"]);
+
+  await page.keyboard.press("Control+k");
+  await page.locator("#command-input").fill("Finland");
+  const fly = page.locator("#command-results .command-item", { hasText: "Fly to Finland" });
+  await expect(fly).toBeVisible();
+  await fly.evaluate((element: HTMLElement) => element.click());
+
+  // 2018-01-01 predates Finnish coverage, so the jump lands on its first covered day.
+  await expect(page.locator("#time")).toHaveAttribute("datetime", /^2023-01-01T/);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? []), { timeout: 60_000 })
+    .toContain("fi");
+  await expect
+    .poll(
+      async () => (await trainPoints(page)).filter((train) => train.dataset === "fi").length,
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#hud-date")).toContainText("Helsinki");
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("Helsinki asema"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+  await expect(page.locator(".board-departure").first()).toBeVisible();
+  await expect(page.locator("#details .source")).toContainText("digitraffic");
 });

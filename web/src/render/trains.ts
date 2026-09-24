@@ -45,7 +45,10 @@ export function typeColors(types: string[]): [number, number, number][] {
 export const DELAY_SANE_S = 3 * 3600;
 export const isDelayKnown = (delay: number): boolean => Math.abs(delay) < DELAY_SANE_S;
 
-/** Swiss convention: under 3 minutes counts as on time. The ramp is anchored there, not at 0. */
+/**
+ * Under 3 minutes counts as on time: the Swiss convention and the normalized European one.
+ * Datasets keep their own official threshold in the catalog. The ramp is anchored here, not at 0.
+ */
 export const PUNCTUAL_S = 180;
 
 /**
@@ -91,6 +94,9 @@ export function delayColor(leg: Leg): RGB {
   ];
 }
 
+/** routes.bin is per dataset; a leg's route_id means nothing without its dataset. */
+export type RoutesFor = (dataset: number) => Routes | undefined;
+
 /** Position of a leg at simTime: fraction along the polyline, anchored at both stations. */
 export function legPosition(leg: Leg, simTime: number, routes: Routes): [number, number] | null {
   // dur = 0 is quarantined at ingest, but a divide by zero here is a NaN position and an
@@ -126,9 +132,21 @@ interface LegAtPosition {
   opacity: number;
 }
 
-/** journey_id is unique within a departure-day file, not across the whole archive. */
+/**
+ * journey_id is unique within one dataset's departure-day file, not across the archive or
+ * across countries. Day indexes stay under 100,000 until the year 2243.
+ */
 const journeyKey = (leg: Leg): number =>
-  Math.floor(leg.t_dep / 86_400) * 65_536 + leg.journey_id;
+  (leg.dataset * 100_000 + Math.floor(leg.t_dep / 86_400)) * 65_536 + leg.journey_id;
+
+/** The spectated train: dataset-local, so both halves are needed to recognize it. */
+export interface JourneyRef {
+  dataset: number;
+  journeyId: number;
+}
+
+export const isJourney = (leg: Leg, ref: JourneyRef | null): boolean =>
+  ref !== null && leg.dataset === ref.dataset && leg.journey_id === ref.journeyId;
 
 /**
  * Moving and dwelling trains paired with their position.
@@ -147,7 +165,7 @@ const journeyKey = (leg: Leg): number =>
 export function positioned(
   legs: Leg[],
   simTime: number,
-  routes: Routes,
+  routesFor: RoutesFor,
   bearingWindowM = 0,
 ): { items: PositionedLeg[]; dropped: number } {
   const previous = new Map<number, Leg>();
@@ -208,7 +226,7 @@ export function positioned(
   let dropped = 0;
   for (const state of visible) {
     const { leg } = state;
-    const sample = routes.sampleAt(
+    const sample = routesFor(leg.dataset)?.sampleAt(
       leg.route_id,
       state.fraction,
       leg.route_end - leg.route_start,
@@ -242,9 +260,9 @@ const TRAIN_ICON_MAPPING = {
 export function trainsLayer(
   items: PositionedLeg[],
   simTime: number,
-  colors: RGB[],
+  typeColor: (leg: Leg) => RGB,
   mode: ColorMode = "type",
-  selectedJourneyId: number | null = null,
+  selected: JourneyRef | null = null,
   mapBearing = 0,
   mapZoom = 13,
   onTrainClick?: (item: PositionedLeg) => void,
@@ -258,16 +276,14 @@ export function trainsLayer(
     iconMapping: TRAIN_ICON_MAPPING,
     getIcon: () => "arrow",
     getColor: (d) => {
-      const color =
-        d.leg.journey_id === selectedJourneyId
-          ? [255, 255, 255]
-          : mode === "delay"
-            ? delayColor(d.leg)
-            : (colors[d.leg.type] ?? [200, 200, 200]);
+      const color = isJourney(d.leg, selected)
+        ? [255, 255, 255]
+        : mode === "delay"
+          ? delayColor(d.leg)
+          : typeColor(d.leg);
       return [...color, Math.round(255 * d.opacity)] as [number, number, number, number];
     },
-    getSize: (d) =>
-      d.leg.journey_id === selectedJourneyId ? Math.min(28, arrowSize * 1.55) : arrowSize,
+    getSize: (d) => (isJourney(d.leg, selected) ? Math.min(28, arrowSize * 1.55) : arrowSize),
     // Geographic bearings increase clockwise. IconLayer's billboard shader rotates positive
     // angles counter-clockwise in screen space, so invert the relative map bearing.
     getAngle: (d) => mapBearing - d.bearing,
@@ -283,8 +299,8 @@ export function trainsLayer(
     },
     updateTriggers: {
       getPosition: simTime,
-      getColor: [mode, selectedJourneyId],
-      getSize: [selectedJourneyId, mapZoom],
+      getColor: [mode, selected?.dataset, selected?.journeyId],
+      getSize: [selected?.dataset, selected?.journeyId, mapZoom],
       getAngle: [simTime, mapBearing],
     },
   });

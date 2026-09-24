@@ -18,6 +18,36 @@ perfect: its genuine holes are represented explicitly, quarantined rows remain e
 1,347 routes use a flagged straight-line fallback when the Switzerland OSM extract cannot
 provide a usable rail path.
 
+## European datasets (2026-09-23)
+
+Switzerland is joined by **Finland**, the first country in `europe.md`'s rollout order, as a
+separate dataset under `datasets/fi/` with its own id spaces, manifest and `routes.bin`.
+`catalog.json` at the bucket root lists both; Switzerland is listed with `"path": ""` and not
+one Swiss object was rebuilt, moved or renumbered. Clients without the catalog still read the
+Swiss root manifest.
+
+| Finland | Value |
+|---|---:|
+| Source | Fintraffic / Digitraffic, CC BY 4.0 |
+| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
+| Published legs | 14,374,199 (2.3% scheduled fallback) |
+| Routes / fallbacks | 1,808 / 14 |
+| Published size | 137.8 MB of its 150 MB allocation |
+| Bucket after upload | ~3.91 GB of the 9.0 GB ceiling |
+
+Seven strike days are published thin and flagged as `source_cancelled_days`. Details:
+[`docs/data-notes-fi.md`](docs/data-notes-fi.md). Rebuild: `scripts/fetch_fi.py`,
+`scripts/build_fi.py`, the geometry job with `--fit-bbox`, then `scripts/sync_dataset.py fi`.
+
+The frontend loads the catalog, fetches a country's static layer only when it enters the
+viewport, queries only visible countries' day files, keys everything by dataset, shows the
+clock in the focused country's timezone, labels missing coverage explicitly, and shows each
+dataset's attribution and licence. Typing a country name in Ctrl/Cmd+K flies there and jumps to
+its nearest covered day.
+
+Next European steps, in `europe.md` order: Netherlands, Belgium, then Germany; the station
+crosswalk and cross-border deduplication are not needed until two datasets share a border.
+
 ## Published snapshot
 
 | Item | Current value |

@@ -7,9 +7,9 @@ import duckdb
 import numpy as np
 from shapely import LineString
 
-from berg_geometry.binfmt import FLAG_STRAIGHT_FALLBACK, quantize
+from berg_geometry.binfmt import FLAG_STRAIGHT_FALLBACK, Bbox, quantize
 from berg_geometry.graph import RailGraph, StationGraph
-from berg_geometry.proj import seg_lengths_m, to_meters
+from berg_geometry.proj import CH_BBOX, seg_lengths_m, to_meters
 
 # Douglas-Peucker tolerance. At ~10 m, a polyline is visually identical at max zoom and a
 # fraction of the vertices. Applied in flat meter space so the tolerance means meters.
@@ -72,7 +72,7 @@ def simplify_polyline(lons: np.ndarray, lats: np.ndarray) -> tuple[np.ndarray, n
 
 
 def route_all(
-    graph: RailGraph, pairs: list[Pair]
+    graph: RailGraph, pairs: list[Pair], bbox: Bbox = CH_BBOX
 ) -> tuple[dict[int, tuple[np.ndarray, int]], dict]:
     """One polyline per pair. Unroutable or unsnappable pairs get a straight line and a flag —
     a train cutting a corner beats a missing train.
@@ -125,13 +125,15 @@ def route_all(
             if straight_m > 0:
                 ratios.append(path_m / straight_m)
             lons, lats = simplify_polyline(lons, lats)
-            routes[p.route_id] = (quantize(lons, lats), 0)
+            routes[p.route_id] = (quantize(lons, lats, bbox), 0)
         done += 1
         if done % 200 == 0:
             print(f"  routed {done}/{len(by_src)} sources", flush=True)
 
     for p, _reason in fallback:
-        xy = quantize(np.asarray([p.from_lon, p.to_lon]), np.asarray([p.from_lat, p.to_lat]))
+        xy = quantize(
+            np.asarray([p.from_lon, p.to_lon]), np.asarray([p.from_lat, p.to_lat]), bbox
+        )
         routes[p.route_id] = (xy, FLAG_STRAIGHT_FALLBACK)
 
     r = np.asarray(ratios)

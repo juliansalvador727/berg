@@ -17,7 +17,18 @@ r2://berg/
   static/duckdb-wasm/1.32.0/*.wasm
   tiles/switzerland.pmtiles    planned; not published yet
   manifest.json                date range, file sizes, max_leg_duration, schema version
+  catalog.json                 every dataset: path, timezone, bbox, coverage, licence
+  datasets/<id>/               one European dataset, same layout as the Swiss root:
+    legs/ journeys/ static/ manifest.json
 ```
+
+Switzerland stays at the bucket root with schema v3 unchanged; it is listed in
+`catalog.json` with `"path": ""`. Every other country is a self-contained dataset under
+`datasets/<id>/` with its own route, station, journey and type id spaces. Clients that never
+read the catalog keep working on the Swiss root manifest. `catalog.json` is written after the
+dataset's own manifest, so a dataset is only discoverable once its files are live.
+Publish a dataset with `pipeline/scripts/sync_dataset.py <id>`; it refuses to upload if the
+dataset exceeds its allocation or the projected bucket would exceed 9.0 GB (see `europe.md`).
 
 `manifest.json` is written **last**, so a half-finished backfill never advertises days that
 aren't there.

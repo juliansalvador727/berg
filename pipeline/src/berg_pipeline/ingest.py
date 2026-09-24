@@ -94,6 +94,11 @@ def create_tables(con) -> None:
             is_extra       BOOLEAN,  -- ZUSATZFAHRT_TF: unscheduled/relief run
             is_passthrough BOOLEAN   -- DURCHFAHRT_TF: passes through without stopping
         )""")
+    create_fact_tables(con)
+
+
+def create_fact_tables(con) -> None:
+    """The source-independent half: facts, quarantine, and the append-only wire registries."""
     con.execute("""
         CREATE TABLE IF NOT EXISTS fct_legs (
             service_day DATE     NOT NULL,
@@ -438,6 +443,34 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
         LEFT JOIN _dim t ON t.bpuic = c.to_bpuic
                         AND c.service_day BETWEEN t.valid_from AND t.valid_to""")
 
+    write_tagged_legs(con, first, last)
+
+    stats = dict(
+        con.execute(f"""
+        SELECT verdict, count(*) FROM _tagged GROUP BY verdict
+        UNION ALL SELECT 'legs_written', count(*)
+        FROM fct_legs WHERE service_day BETWEEN DATE '{first}' AND DATE '{last}'""").fetchall()
+    )
+    stats.setdefault("ok", 0)
+    return stats
+
+
+# Verdicts that are an expected geographic clip rather than a data defect: counted in the
+# stats, never quarantined. outside_ch is the Swiss name; European datasets clip to their own
+# configured box.
+CLIP_VERDICTS = ("outside_ch", "outside_bbox")
+
+
+def write_tagged_legs(con, first: date, last: date) -> None:
+    """_tagged candidates for service days [first, last] → quarantine, registries, fct_legs.
+
+    Source-independent: an adapter builds _tagged (service_day, trip_id, category, line,
+    from_bpuic, to_bpuic, measured, delay_s, t_dep, dur, verdict) however its feed requires,
+    and everything from here on — the append-only registries, the uint16 route-id ceiling and
+    the split rule — is the one contract every dataset's wire files share. from_bpuic/to_bpuic
+    hold the dataset's local station id; for Switzerland that is the BPUIC.
+    """
+    clip = ", ".join(f"'{v}'" for v in CLIP_VERDICTS)
     # The old month, its quarantine, and any registry ids introduced by the replacement are
     # one unit. A failed insert must leave the previously good month intact.
     with _transaction(con):
@@ -445,10 +478,10 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
         con.execute("DELETE FROM quarantine_legs WHERE service_day BETWEEN ? AND ?", [first, last])
 
         # outside_ch is an expected clip, not a data defect — count it, don't quarantine it.
-        con.execute("""
+        con.execute(f"""
             INSERT INTO quarantine_legs
             SELECT service_day, trip_id, from_bpuic, to_bpuic, t_dep, dur, verdict
-            FROM _tagged WHERE verdict NOT IN ('ok', 'outside_ch')""")
+            FROM _tagged WHERE verdict NOT IN ('ok', {clip})""")
 
         # Registries append-only, ordered for deterministic ids on a fresh build.
         con.execute("""
@@ -520,15 +553,6 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
                 SELECT CAST(ceil(g.dur / {MAX_LEG_DURATION_S}.0) AS INT) AS n
             ) parts,
             LATERAL generate_series(0, parts.n - 1) s(i)""")
-
-    stats = dict(
-        con.execute(f"""
-        SELECT verdict, count(*) FROM _tagged GROUP BY verdict
-        UNION ALL SELECT 'legs_written', count(*)
-        FROM fct_legs WHERE service_day BETWEEN DATE '{first}' AND DATE '{last}'""").fetchall()
-    )
-    stats.setdefault("ok", 0)
-    return stats
 
 
 def export_day(con, day: date, out_path: Path) -> dict:

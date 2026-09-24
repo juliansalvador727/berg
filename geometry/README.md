@@ -29,6 +29,23 @@ uv run python -m berg_geometry.build \
 The full-history run took 110 seconds: it loaded 402,921 nodes and 409,536 edges, snapped 1,894
 of 2,148 referenced stations, and routed 11,502 pairs. A JSON report lands next to the output.
 
+### Other countries
+
+European datasets get their own `routes.bin`. Pass `--fit-bbox`: the uint16 grid is fitted to
+the stations that dataset serves (a single Europe-wide box would cost most of the precision),
+and the flat projection is re-centred on its latitude. The reader takes the grid from the file
+header, so nothing else changes.
+
+```sh
+curl -sLo ../data/raw/finland-latest.osm.pbf \
+    https://download.geofabrik.de/europe/finland-latest.osm.pbf
+uv run python -m berg_geometry.build --fit-bbox \
+    --pbf ../data/raw/finland-latest.osm.pbf \
+    --db ../data/datasets/fi/berg.duckdb \
+    --dim ../data/datasets/fi/dim_station.parquet \
+    --out ../data/datasets/fi/publish/static/routes.bin
+```
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted
