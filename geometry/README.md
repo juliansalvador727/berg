@@ -48,6 +48,16 @@ uv run python -m berg_geometry.build --fit-bbox \
 
 The Netherlands is the same with `netherlands-latest.osm.pbf` and `datasets/nl`.
 
+Belgium (`datasets/be`) uses a rail-only Overpass export instead of the Geofabrik extract.
+`--pbf` accepts any file pyosmium reads, including `.osm` XML, and the export arrives in
+about two minutes where the full country extract crawls:
+
+```sh
+curl -s -A "berg-geometry/1.0" -o ../data/raw/belgium-rail.osm --data-urlencode \
+    'data=[out:xml][timeout:600];area["ISO3166-1"="BE"][admin_level=2]->.be;way["railway"~"^(rail|narrow_gauge|light_rail)$"](area.be);(._;>;);out body;' \
+    https://overpass-api.de/api/interpreter
+```
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted

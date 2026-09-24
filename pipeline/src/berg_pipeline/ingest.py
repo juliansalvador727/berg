@@ -556,7 +556,13 @@ def write_tagged_legs(con, first: date, last: date) -> None:
             LATERAL generate_series(0, parts.n - 1) s(i)""")
 
 
-def export_day(con, day: date, out_path: Path) -> dict:
+def _zstd_level(level: int | None) -> str:
+    """COPY option for an explicit zstd level. None keeps DuckDB's default (3), which every
+    published Swiss, Finnish and Dutch file was written with."""
+    return f", COMPRESSION_LEVEL {int(level)}" if level is not None else ""
+
+
+def export_day(con, day: date, out_path: Path, compression_level: int | None = None) -> dict:
     """One UTC calendar day of departures → the compact wire Parquet.
 
     Keyed by DEPARTURE day (t_dep's UTC date), not service day: the client fetches day N and,
@@ -610,7 +616,7 @@ def export_day(con, day: date, out_path: Path) -> dict:
                 FROM numbered
                 ORDER BY t_dep, journey_id, route_id, route_start, route_end
             ) TO '{tmp_path.as_posix()}'
-            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192{_zstd_level(compression_level)})""")
         os.replace(tmp_path, out_path)
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -619,7 +625,9 @@ def export_day(con, day: date, out_path: Path) -> dict:
     return {"rows": n, "bytes": size, "bytes_per_leg": round(size / n, 2)}
 
 
-def export_journeys_day(con, day: date, out_path: Path) -> dict:
+def export_journeys_day(
+    con, day: date, out_path: Path, compression_level: int | None = None
+) -> dict:
     """One UTC calendar day of departures → the click-detail sidecar.
 
     Each wire leg carries a daily uint16 journey_id. This sidecar has exactly one row per id,
@@ -666,7 +674,7 @@ def export_journeys_day(con, day: date, out_path: Path) -> dict:
                 FROM journeys
                 ORDER BY journey_id
             ) TO '{tmp_path.as_posix()}'
-            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192)""")
+            (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 8192{_zstd_level(compression_level)})""")
         os.replace(tmp_path, out_path)
     finally:
         tmp_path.unlink(missing_ok=True)

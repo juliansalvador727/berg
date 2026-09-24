@@ -43,6 +43,10 @@ class DatasetConfig:
     # as outside_country. None keeps only the bbox clip. A country's box is a poor border:
     # the Dutch one also holds Antwerp, Aachen and Cologne.
     countries: tuple[str, ...] | None = None
+    # zstd level for day files; None is DuckDB's default. Only the encoder slows down with the
+    # level, and zstd decodes at the same speed, so a dataset over its cap raises it before
+    # anything else gives (europe.md's remedy 3).
+    compression_level: int | None = None
 
     @property
     def root(self) -> Path:
@@ -152,4 +156,44 @@ NETHERLANDS = DatasetConfig(
     ),
 )
 
-DATASETS: dict[str, DatasetConfig] = {d.dataset_id: d for d in (FINLAND, NETHERLANDS)}
+BELGIUM = DatasetConfig(
+    dataset_id="be",
+    country="BE",
+    name="Belgium",
+    timezone="Europe/Brussels",
+    bbox=(2.5, 49.45, 6.45, 51.55),
+    # Planned and actual times to the second from Infrabel's own train detection.
+    time_semantics="observed",
+    timestamp_precision_s=1,
+    scope="national-passenger",
+    provider="Infrabel",
+    license="CC0 1.0",
+    license_url="https://creativecommons.org/publicdomain/zero/1.0/",
+    attribution="Source: Infrabel (opendata.infrabel.be), CC0",
+    source_urls=(
+        "https://opendata.infrabel.be/explore/dataset/stiptheid-gegevens-maandelijksebestanden/",
+        "https://fr.ftp.opendatasoft.com/infrabel/PunctualityHistory/Data_raw_punctuality_{YYYYMM}.csv",
+        "https://opendata.infrabel.be/explore/dataset/operationele-punten-van-het-netwerk/",
+    ),
+    station_namespace="be-ptcar",
+    # Infrabel counts a train on time when it is less than 6 minutes late.
+    punctuality_threshold_s=360,
+    # Measured 2023-2025: 38-44k legs per weekday, ~22k per weekend, and 7.2k on the
+    # 2025-01-13 national rail strike, the thinnest day. The source lists only trains that
+    # ran, so a strike cannot be excused as source-cancelled; the floor sits under it.
+    min_legs_per_day=5_000,
+    coverage_start="2023-01-01",
+    coverage_end="2025-12-31",
+    storage_cap_bytes=350_000_000,
+    countries=("BE",),
+    # Second-precision times on 35k short hops a day: level 19 is 10% smaller than the
+    # default on a measured weekday, and no higher level helps.
+    compression_level=19,
+    notes=(
+        "Actual times come from Infrabel's train detection; only trains that ran are listed.",
+        "Only Infrabel's network is covered: international trains end at their last Belgian stop.",
+        "Cancelled trains and stops are absent from the source, not flagged.",
+    ),
+)
+
+DATASETS: dict[str, DatasetConfig] = {d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM)}

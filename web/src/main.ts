@@ -89,7 +89,12 @@ const SERVICE_GROUPS: ServiceGroup[] = [
   {
     id: "s",
     label: "S-Bahn",
-    codes: { ch: new Set(["S", "SN"]), fi: new Set(["HL", "HLV"]), nl: new Set(["SPR"]) },
+    codes: {
+      ch: new Set(["S", "SN"]),
+      fi: new Set(["HL", "HLV"]),
+      nl: new Set(["SPR"]),
+      be: new Set(["S"]),
+    },
   },
   {
     id: "regional",
@@ -98,6 +103,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       ch: new Set(["R", "RB", "RE", "IRE", "TER", "PE"]),
       fi: new Set(["H", "HDM", "HSM"]),
       nl: new Set(["ST", "SNT"]),
+      be: new Set(["L", "P"]),
     },
   },
   {
@@ -107,6 +113,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       ch: new Set(["IC", "IR"]),
       fi: new Set(["IC", "IC2", "P", "PVV", "PVS"]),
       nl: new Set(["IC", "ICD"]),
+      be: new Set(["IC"]),
     },
   },
   {
@@ -116,12 +123,18 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       ch: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]),
       fi: new Set(["S", "AE"]),
       nl: new Set(["ICE", "THA", "EST", "EC", "ECD", "INT"]),
+      be: new Set(["ICE", "THA", "EST", "TGV", "EC", "INT"]),
     },
   },
   {
     id: "night",
     label: "Night",
-    codes: { ch: new Set(["NJ", "EN", "NZ"]), fi: new Set(["PYO"]), nl: new Set(["NJ", "ES", "NT"]) },
+    codes: {
+      ch: new Set(["NJ", "EN", "NZ"]),
+      fi: new Set(["PYO"]),
+      nl: new Set(["NJ", "ES", "NT"]),
+      be: new Set(["NJ", "EN", "ES"]),
+    },
   },
 ];
 const OTHER_GROUP = "other";

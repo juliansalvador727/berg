@@ -56,15 +56,35 @@ details are in [`docs/data-notes-nl.md`](docs/data-notes-nl.md). To rebuild, run
 `scripts/build_nl.py --fetch`, then the geometry job with `--fit-bbox`, then
 `scripts/sync_dataset.py nl`.
 
+**Belgium** is `datasets/be/`, built from Infrabel's monthly raw punctuality files. Planned
+and actual times are to the second from Infrabel's train detection, so it is `observed` like
+Finland. The source lists only trains that ran and only Infrabel's own network.
+
+| Belgium | Value |
+|---|---:|
+| Source | Infrabel, CC0 |
+| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
+| Published legs | 37,349,416 |
+| Routes / fallbacks | 3,599 / 0 |
+| Leg + journey bytes | 326.7 MB of its 350 MB allocation (zstd level 19) |
+| Bucket after upload | ~4.52 GB of the 9.0 GB ceiling |
+
+The source's columns move twice in 2025, so files are read by column name. S lines are renamed
+at the 2025-12-14 timetable, and two closed halts are missing from today's station list. The
+details are in [`docs/data-notes-be.md`](docs/data-notes-be.md). To rebuild, run
+`scripts/build_be.py --fetch`, then the geometry job with `--fit-bbox` on the Overpass export
+(see `geometry/README.md`), then `scripts/sync_dataset.py be`.
+
 The frontend loads the catalog, fetches a country's static layer only when it enters the
 viewport, queries only visible countries' day files, keys everything by dataset, shows the
 clock in the focused country's timezone, labels missing coverage explicitly, and shows each
 dataset's attribution and licence. Typing a country name in Ctrl/Cmd+K flies there and jumps to
 its nearest covered day.
 
-Next European steps, in `europe.md` order: Belgium, then Germany. Once Belgium shares the
-Dutch border, the station crosswalk and cross-border legs will be needed. The Dutch dataset
-currently clips every leg that has a foreign endpoint.
+Next European step, in `europe.md` order: Germany (Bahn-Vorhersage, 3.10 GB cap). Belgium and
+the Netherlands now share a border, so the station crosswalk and cross-border legs (phase 4)
+are needed. The Dutch dataset clips every leg with a foreign endpoint, and the Belgian source
+stops at its border points (Roosendaal and Maastricht trains end at Essen and Visé).
 
 ## Published snapshot
 

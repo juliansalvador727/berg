@@ -28,12 +28,13 @@ def daterange(first: date, last: date) -> list[date]:
     return [first + timedelta(days=i) for i in range((last - first).days + 1)]
 
 
-def write_stations_json(cfg: DatasetConfig) -> None:
+def write_stations_json(cfg: DatasetConfig, passenger_only: bool = False) -> None:
     """static/stations.json from the dataset's dim_station parquet."""
     import duckdb
 
+    where = "WHERE passenger" if passenger_only else ""
     served = duckdb.sql(
-        f"SELECT bpuic, name, code, lon, lat FROM '{cfg.dim_station_parquet.as_posix()}'"
+        f"SELECT bpuic, name, code, lon, lat FROM '{cfg.dim_station_parquet.as_posix()}' {where}"
     ).fetchall()
     static = cfg.publish_root / "static"
     static.mkdir(parents=True, exist_ok=True)
@@ -65,9 +66,13 @@ def publish_days(con, cfg: DatasetConfig, first: date, last: date, quality: dict
 
     total_bytes = 0
     for day in days:
-        legs = ingest.export_day(con, day, cfg.publish_root / "legs" / f"{day:%Y/%m/%d}.parquet")
+        legs = ingest.export_day(
+            con, day, cfg.publish_root / "legs" / f"{day:%Y/%m/%d}.parquet",
+            compression_level=cfg.compression_level,
+        )
         journeys = ingest.export_journeys_day(
-            con, day, cfg.publish_root / "journeys" / f"{day:%Y/%m/%d}.parquet"
+            con, day, cfg.publish_root / "journeys" / f"{day:%Y/%m/%d}.parquet",
+            compression_level=cfg.compression_level,
         )
         total_bytes += legs["bytes"] + journeys["bytes"]
     print("train types:", ingest.export_train_types(con, static / "train_types.json"))
