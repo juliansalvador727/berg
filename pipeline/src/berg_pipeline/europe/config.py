@@ -39,6 +39,10 @@ class DatasetConfig:
     # europe.md's per-dataset publication cap. sync_dataset refuses an upload above it.
     storage_cap_bytes: int
     notes: tuple[str, ...] = field(default_factory=tuple)
+    # Station countries whose legs are published; a leg with an endpoint elsewhere is clipped
+    # as outside_country. None keeps only the bbox clip. A country's box is a poor border:
+    # the Dutch one also holds Antwerp, Aachen and Cologne.
+    countries: tuple[str, ...] | None = None
 
     @property
     def root(self) -> Path:
@@ -110,4 +114,42 @@ FINLAND = DatasetConfig(
     ),
 )
 
-DATASETS: dict[str, DatasetConfig] = {FINLAND.dataset_id: FINLAND}
+NETHERLANDS = DatasetConfig(
+    dataset_id="nl",
+    country="NL",
+    name="Netherlands",
+    timezone="Europe/Amsterdam",
+    bbox=(3.2, 50.7, 7.3, 53.6),
+    # The archive publishes scheduled times plus the last known delay in whole minutes from
+    # NS's realtime feed — never an absolute actual time, and a zero delay cannot be told
+    # apart from a train that never reported. See docs/data-notes-nl.md.
+    time_semantics="delay_only",
+    timestamp_precision_s=60,
+    scope="national-passenger",
+    provider="Rijden de Treinen",
+    license="CC BY 4.0",
+    license_url="https://creativecommons.org/licenses/by/4.0/",
+    attribution="Source: Rijden de Treinen (rijdendetreinen.nl), CC BY 4.0",
+    source_urls=(
+        "https://www.rijdendetreinen.nl/en/open-data/train-archive",
+        "https://opendata.rijdendetreinen.nl/public/services/services-{YYYY-MM}.csv.gz",
+        "https://opendata.rijdendetreinen.nl/public/stations/stations-2023-09.csv",
+    ),
+    station_namespace="uic",
+    # The wire carries delay in seconds from whole-minute source values; the normalized
+    # 3-minute European threshold is what the UI applies.
+    punctuality_threshold_s=180,
+    # Measured 2023-2025: roughly 3.5k-7k services per service day.
+    min_legs_per_day=5_000,
+    coverage_start="2023-01-01",
+    coverage_end="2025-12-31",
+    storage_cap_bytes=500_000_000,
+    countries=("NL",),
+    notes=(
+        "Times are scheduled plus the last known delay in whole minutes; not observations.",
+        "Only legs between Dutch stations are published; cross-border legs are clipped.",
+        "Bus, metro and tram replacement services are excluded.",
+    ),
+)
+
+DATASETS: dict[str, DatasetConfig] = {d.dataset_id: d for d in (FINLAND, NETHERLANDS)}

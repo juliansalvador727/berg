@@ -46,6 +46,8 @@ uv run python -m berg_geometry.build --fit-bbox \
     --out ../data/datasets/fi/publish/static/routes.bin
 ```
 
+The Netherlands is the same with `netherlands-latest.osm.pbf` and `datasets/nl`.
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted

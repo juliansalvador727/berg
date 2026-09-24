@@ -216,3 +216,32 @@ test("flies to Finland, loads its dataset on demand, and keeps Swiss ids separat
   await expect(page.locator(".board-departure").first()).toBeVisible();
   await expect(page.locator("#details .source")).toContainText("digitraffic");
 });
+
+test("flies to the Netherlands and labels its delay-only times", async ({ page }) => {
+  await openObserver(page);
+  expect(await page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? [])).toEqual(["ch"]);
+
+  await page.keyboard.press("Control+k");
+  await page.locator("#command-input").fill("Netherlands");
+  const fly = page.locator("#command-results .command-item", { hasText: "Fly to Netherlands" });
+  await expect(fly).toBeVisible();
+  await fly.evaluate((element: HTMLElement) => element.click());
+
+  await expect(page.locator("#time")).toHaveAttribute("datetime", /^2023-01-01T/);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? []), { timeout: 60_000 })
+    .toContain("nl");
+  await expect
+    .poll(
+      async () => (await trainPoints(page)).filter((train) => train.dataset === "nl").length,
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#hud-date")).toContainText("Amsterdam");
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("Utrecht Centraal"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+  // Scheduled + last reported delay is weaker evidence than an observation; never call it one.
+  await expect(page.locator("#details .eyebrow")).toContainText("scheduled + reported delay");
+  await expect(page.locator("#details .source")).toContainText("Rijden de Treinen");
+});

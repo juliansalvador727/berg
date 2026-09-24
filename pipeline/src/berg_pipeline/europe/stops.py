@@ -91,6 +91,11 @@ def build_legs(
     """
     create_tables(con)
     lon_min, lat_min, lon_max, lat_max = cfg.bbox
+    if cfg.countries:
+        listed = ", ".join(f"'{c}'" for c in cfg.countries)
+        foreign = f"f.country NOT IN ({listed}) OR t.country NOT IN ({listed})"
+    else:
+        foreign = "false"
     con.execute(
         f"CREATE OR REPLACE TEMP VIEW _dim AS SELECT * FROM '{dim_station_parquet.as_posix()}'"
     )
@@ -106,20 +111,27 @@ def build_legs(
                    CASE WHEN dep_measured AND lead(arr_measured) OVER w
                         THEN lead(act_arr) OVER w ELSE lead(sched_arr) OVER w END AS arr_next,
                    CASE WHEN dep_measured AND sched_dep IS NOT NULL
-                        THEN act_dep - sched_dep END AS delay_s
+                        THEN act_dep - sched_dep END AS delay_s,
+                   -- A hop runs only if its origin has a departure and its destination an
+                   -- arrival. Adapters null the side of a stop the source cancelled, so a
+                   -- train cut short mid-route and resumed later never gets a bridging leg.
+                   (sched_dep IS NOT NULL OR act_dep IS NOT NULL)
+                     AND (lead(sched_arr) OVER w IS NOT NULL
+                          OR lead(act_arr) OVER w IS NOT NULL) AS runs
             FROM stg_stops
             WHERE service_day BETWEEN DATE '{first}' AND DATE '{last}'
             WINDOW w AS (PARTITION BY service_day, trip_id ORDER BY stop_seq)
         )
         SELECT service_day, trip_id, category, line, from_bpuic, to_bpuic, measured, delay_s,
-               dep_used AS t_dep, arr_next - dep_used AS dur
+               dep_used AS t_dep, arr_next - dep_used AS dur, runs
         FROM hop
         WHERE to_bpuic IS NOT NULL""")
 
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE _tagged AS
-        SELECT c.*,
+        SELECT c.* EXCLUDE (runs),
                CASE
+                 WHEN NOT c.runs                             THEN 'not_run'
                  WHEN c.t_dep IS NULL OR c.dur IS NULL       THEN 'missing_time'
                  WHEN c.dur < 0                              THEN 'negative_duration'
                  WHEN c.dur = 0                              THEN 'zero_duration'
@@ -129,6 +141,7 @@ def build_legs(
                    OR f.lat NOT BETWEEN {lat_min} AND {lat_max}
                    OR t.lon NOT BETWEEN {lon_min} AND {lon_max}
                    OR t.lat NOT BETWEEN {lat_min} AND {lat_max} THEN 'outside_bbox'
+                 WHEN {foreign}                              THEN 'outside_country'
                  ELSE 'ok'
                END AS verdict
         FROM _cand c

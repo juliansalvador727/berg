@@ -455,10 +455,11 @@ def build_legs(con, month: str, dim_station_parquet: Path) -> dict:
     return stats
 
 
-# Verdicts that are an expected geographic clip rather than a data defect: counted in the
-# stats, never quarantined. outside_ch is the Swiss name; European datasets clip to their own
-# configured box.
-CLIP_VERDICTS = ("outside_ch", "outside_bbox")
+# Verdicts that are an expected clip rather than a data defect: counted in the stats, never
+# quarantined. outside_ch is the Swiss name; European datasets clip to their own configured
+# box or station countries. not_run is a hop between two live stops that the source says did
+# not run (a departure or arrival cancelled mid-route) — cancellation, not missing data.
+CLIP_VERDICTS = ("outside_ch", "outside_bbox", "outside_country", "not_run")
 
 
 def write_tagged_legs(con, first: date, last: date) -> None:

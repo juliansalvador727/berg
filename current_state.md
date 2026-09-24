@@ -39,14 +39,32 @@ Seven strike days are published thin and flagged as `source_cancelled_days`. Det
 [`docs/data-notes-fi.md`](docs/data-notes-fi.md). Rebuild: `scripts/fetch_fi.py`,
 `scripts/build_fi.py`, the geometry job with `--fit-bbox`, then `scripts/sync_dataset.py fi`.
 
+The **Netherlands** follows as `datasets/nl/`, built from the Rijden de Treinen archive. Its
+times are scheduled plus the last reported delay in whole minutes. They are not observations,
+so the dataset is labelled `delay_only` and the UI shows it as "scheduled + reported delay".
+
+| Netherlands | Value |
+|---|---:|
+| Source | Rijden de Treinen, CC BY 4.0 |
+| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
+| Published legs | 48,709,956 (Dutch station pairs only) |
+| Routes | 2,189 |
+| Leg + journey bytes | 284.4 MB of its 500 MB allocation |
+
+Duplicate service records, diversions and mid-route cancellations each needed a rule. The
+details are in [`docs/data-notes-nl.md`](docs/data-notes-nl.md). To rebuild, run
+`scripts/build_nl.py --fetch`, then the geometry job with `--fit-bbox`, then
+`scripts/sync_dataset.py nl`.
+
 The frontend loads the catalog, fetches a country's static layer only when it enters the
 viewport, queries only visible countries' day files, keys everything by dataset, shows the
 clock in the focused country's timezone, labels missing coverage explicitly, and shows each
 dataset's attribution and licence. Typing a country name in Ctrl/Cmd+K flies there and jumps to
 its nearest covered day.
 
-Next European steps, in `europe.md` order: Netherlands, Belgium, then Germany; the station
-crosswalk and cross-border deduplication are not needed until two datasets share a border.
+Next European steps, in `europe.md` order: Belgium, then Germany. Once Belgium shares the
+Dutch border, the station crosswalk and cross-border legs will be needed. The Dutch dataset
+currently clips every leg that has a foreign endpoint.
 
 ## Published snapshot
 

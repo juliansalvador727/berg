@@ -43,7 +43,7 @@ export interface Manifest {
   source_cancelled_days?: string[];
 }
 
-/** How strong a dataset's times are as evidence. Only `observed` exists today. */
+/** How strong a dataset's times are as evidence. */
 export type TimeSemantics = "observed" | "final_prediction" | "delay_only" | "scheduled";
 
 /**

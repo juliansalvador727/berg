@@ -22,7 +22,7 @@ import {
   type PositionedLeg,
   typeColors,
 } from "./render/trains";
-import { type DatasetInfo, FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
+import { type DatasetInfo, FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest, type TimeSemantics } from "./types";
 import type {
   JourneySearchResult,
   StationBoardDeparture,
@@ -89,7 +89,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
   {
     id: "s",
     label: "S-Bahn",
-    codes: { ch: new Set(["S", "SN"]), fi: new Set(["HL", "HLV"]) },
+    codes: { ch: new Set(["S", "SN"]), fi: new Set(["HL", "HLV"]), nl: new Set(["SPR"]) },
   },
   {
     id: "regional",
@@ -97,21 +97,42 @@ const SERVICE_GROUPS: ServiceGroup[] = [
     codes: {
       ch: new Set(["R", "RB", "RE", "IRE", "TER", "PE"]),
       fi: new Set(["H", "HDM", "HSM"]),
+      nl: new Set(["ST", "SNT"]),
     },
   },
   {
     id: "intercity",
     label: "IC / IR",
-    codes: { ch: new Set(["IC", "IR"]), fi: new Set(["IC", "IC2", "P", "PVV", "PVS"]) },
+    codes: {
+      ch: new Set(["IC", "IR"]),
+      fi: new Set(["IC", "IC2", "P", "PVV", "PVS"]),
+      nl: new Set(["IC", "ICD"]),
+    },
   },
   {
     id: "fast",
     label: "ICE / fast",
-    codes: { ch: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]), fi: new Set(["S", "AE"]) },
+    codes: {
+      ch: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]),
+      fi: new Set(["S", "AE"]),
+      nl: new Set(["ICE", "THA", "EST", "EC", "ECD", "INT"]),
+    },
   },
-  { id: "night", label: "Night", codes: { ch: new Set(["NJ", "EN", "NZ"]), fi: new Set(["PYO"]) } },
+  {
+    id: "night",
+    label: "Night",
+    codes: { ch: new Set(["NJ", "EN", "NZ"]), fi: new Set(["PYO"]), nl: new Set(["NJ", "ES", "NT"]) },
+  },
 ];
 const OTHER_GROUP = "other";
+
+/** How a dataset's times may be described. Never render weaker evidence as "observed". */
+const EVIDENCE_LABEL: Record<TimeSemantics, string> = {
+  observed: "observed",
+  final_prediction: "final-prediction",
+  delay_only: "scheduled + reported delay",
+  scheduled: "scheduled",
+};
 
 const REFETCH_MARGIN_S = 60;
 const DEFAULT_DAY = "2018-01-01";
@@ -624,7 +645,7 @@ async function main(): Promise<void> {
   /** Provenance and evidence semantics for a detail panel. */
   const sourceNote = (dataset: number): string => {
     const info = datasets[dataset]!;
-    return `<div class="source">${escapeHtml(info.name)} · ${escapeHtml(info.time_semantics)} times · ${sourceLink(info)}</div>`;
+    return `<div class="source">${escapeHtml(info.name)} · ${escapeHtml(EVIDENCE_LABEL[info.time_semantics] ?? info.time_semantics)} times · ${sourceLink(info)}</div>`;
   };
   detailsContent.addEventListener("click", (event) => {
     const target = event.target instanceof Element
@@ -692,7 +713,7 @@ async function main(): Promise<void> {
     showDetails(`
       <div class="eyebrow">Station</div>
       <h2>${escapeHtml(station.name)}</h2>
-      <div class="sub">Loading observed departures…</div>
+      <div class="sub">Loading departures…</div>
       ${stationSpectateAction()}`);
     map.easeTo({ center: [station.lon, station.lat], zoom: Math.max(map.getZoom(), 11), duration: 650 });
     try {
@@ -725,6 +746,7 @@ async function main(): Promise<void> {
     const visible = filteredDepartures.slice(0, 36);
     const renderedDepartures: StationBoardDeparture[] = [];
     const covered = utcDay(clock.simTime) in manifest.days;
+    const evidence = EVIDENCE_LABEL[datasets[dataset]!.time_semantics] ?? "observed";
     const body = visible.length
       ? visible
           .map((departure) => {
@@ -760,10 +782,10 @@ async function main(): Promise<void> {
       : `<div class="empty">${departures.length > 0
           ? "No departures match the selected train services."
           : covered
-            ? "No observed departures in the next three simulated hours."
+            ? `No ${escapeHtml(evidence)} departures in the next three simulated hours.`
             : `No ${escapeHtml(datasets[dataset]!.name)} data is published for this date.`}</div>`;
     showDetails(`
-      <div class="eyebrow">Station board · observed data</div>
+      <div class="eyebrow">Station board · ${escapeHtml(evidence)} data</div>
       <h2>${escapeHtml(station.name)}</h2>
       <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime, timeZone)}</div>
       <div class="board"><h3>Departures</h3>${body}</div>
