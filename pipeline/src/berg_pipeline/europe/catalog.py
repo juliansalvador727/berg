@@ -87,9 +87,16 @@ def build_dataset_manifest(cfg: DatasetConfig, extra: dict | None = None) -> dic
     manifest |= dataset_metadata(cfg)
     quality = cfg.root / "quality.json"
     if quality.exists():
+        report = json.loads(quality.read_text())
         manifest["source_cancelled_days"] = [
-            d["day"] for d in json.loads(quality.read_text()).get("source_cancelled_days", [])
+            d["day"] for d in report.get("source_cancelled_days", [])
         ]
+        # UTC hours inside published days that the source itself is missing (a crawl hole):
+        # the client must show them as a gap, never as an hour without trains.
+        if report.get("source_gap_hours"):
+            manifest["source_gap_hours"] = report["source_gap_hours"]
+        if report.get("source_revision"):
+            manifest["source_revision"] = report["source_revision"]
     if extra:
         manifest |= extra
     return manifest
@@ -106,7 +113,9 @@ def _missing(start: str, end: str, days: dict) -> list[str]:
     return out
 
 
-def build_catalog(published: dict[str, dict], existing: dict | None = None) -> dict:
+def build_catalog(
+    published: dict[str, dict], existing: dict | None = None, links: dict | None = None
+) -> dict:
     """published: dataset_id → its manifest, for the dataset(s) this sync just uploaded.
 
     Entries already in the live catalog for other datasets are carried over untouched. A
@@ -124,11 +133,17 @@ def build_catalog(published: dict[str, dict], existing: dict | None = None) -> d
         entry.pop("dataset_id")
         entry["coverage"] = [{"start": manifest["start"], "end": manifest["end"]}]
         datasets[dataset_id] = entry
-    return {
+    out = {
         "catalog_schema_version": CATALOG_SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "datasets": datasets,
     }
+    # The cross-border layer (europe/links.py) is carried over like any dataset entry, and
+    # replaced only by the sync that publishes it. Clients without it draw every dataset alone.
+    links = links or (existing or {}).get("links")
+    if links:
+        out["links"] = links
+    return out
 
 
 def write_json(obj: dict, out: Path) -> None:

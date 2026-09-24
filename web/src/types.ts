@@ -41,6 +41,8 @@ export interface Manifest {
   missing_days: string[]; // archive holes inside [start, end]; the scrub bar must skip these
   // UTC days the source itself records as mostly cancelled (strikes): published, but thin.
   source_cancelled_days?: string[];
+  // UTC hours ("YYYY-MM-DDTHH") inside published days that the source never recorded.
+  source_gap_hours?: string[];
 }
 
 /** How strong a dataset's times are as evidence. */
@@ -70,6 +72,8 @@ export interface CatalogEntry {
 export interface Catalog {
   catalog_schema_version: number;
   datasets: Record<string, CatalogEntry>;
+  /** The cross-border layer (berg_pipeline/europe/links.py): crosswalk, journey links, bridges. */
+  links?: { path: string };
 }
 
 /** A catalog entry resolved by the worker, with its id and position in the dataset list. */

@@ -70,7 +70,14 @@ export interface StationBoardDeparture {
 }
 
 export type WorkerResponsePayload =
-  | { kind: "ready"; datasets: DatasetInfo[]; manifests: Manifest[]; skipped: string[] }
+  | {
+      kind: "ready";
+      datasets: DatasetInfo[];
+      manifests: Manifest[];
+      skipped: string[];
+      /** The cross-border layer's path in the bucket, when the catalog lists one. */
+      links: string | null;
+    }
   | { kind: "window"; from: number; to: number; datasets: number[]; legs: Leg[] }
   | { kind: "search-results"; day: string; results: JourneySearchResult[] }
   | { kind: "journey-result"; result: JourneySearchResult | null }
@@ -108,7 +115,7 @@ function decodeLeg(row: Record<string, unknown>, dataset: number): Leg {
  * The catalog when the bucket has one, otherwise Switzerland alone at the root — exactly what
  * every pre-catalog client read, so the Swiss archive needs no rebuild or move to be listed.
  */
-async function loadCatalog(): Promise<Record<string, CatalogEntry>> {
+async function loadCatalog(): Promise<{ datasets: Record<string, CatalogEntry>; links: string | null }> {
   const swissOnly: Record<string, CatalogEntry> = {
     ch: {
       path: "",
@@ -131,9 +138,9 @@ async function loadCatalog(): Promise<Record<string, CatalogEntry>> {
   try {
     response = await fetch(CATALOG_URL);
   } catch {
-    return swissOnly;
+    return { datasets: swissOnly, links: null };
   }
-  if (response.status === 404 || response.status === 403) return swissOnly;
+  if (response.status === 404 || response.status === 403) return { datasets: swissOnly, links: null };
   if (!response.ok) throw new Error(`catalog: HTTP ${response.status} from ${CATALOG_URL}`);
   const catalog = (await response.json()) as Catalog;
   if (catalog.catalog_schema_version > CATALOG_SCHEMA_VERSION) {
@@ -141,7 +148,7 @@ async function loadCatalog(): Promise<Record<string, CatalogEntry>> {
       `catalog schema ${catalog.catalog_schema_version} is newer than reader schema ${CATALOG_SCHEMA_VERSION}`,
     );
   }
-  return catalog.datasets;
+  return { datasets: catalog.datasets, links: catalog.links?.path ?? null };
 }
 
 async function fetchManifest(entry: CatalogEntry): Promise<Manifest> {
@@ -157,7 +164,12 @@ async function fetchManifest(entry: CatalogEntry): Promise<Manifest> {
   return m;
 }
 
-async function init(): Promise<{ datasets: DatasetInfo[]; manifests: Manifest[]; skipped: string[] }> {
+async function init(): Promise<{
+  datasets: DatasetInfo[];
+  manifests: Manifest[];
+  skipped: string[];
+  links: string | null;
+}> {
   const wasmBaseUrl = `${DATA_BASE_URL}/static/duckdb-wasm/${duckdbRuntime.version}`;
   const bundle = await duckdb.selectBundle({
     mvp: {
@@ -176,7 +188,8 @@ async function init(): Promise<{ datasets: DatasetInfo[]; manifests: Manifest[];
 
   // Switzerland first, so it is always dataset 0 and a Swiss-only session behaves exactly as
   // before. A broken foreign manifest costs that country, never the Swiss archive.
-  const entries = Object.entries(await loadCatalog()).sort(([a], [b]) =>
+  const catalog = await loadCatalog();
+  const entries = Object.entries(catalog.datasets).sort(([a], [b]) =>
     a === "ch" ? -1 : b === "ch" ? 1 : a.localeCompare(b),
   );
   const loaded = await Promise.allSettled(entries.map(([, entry]) => fetchManifest(entry)));
@@ -194,7 +207,7 @@ async function init(): Promise<{ datasets: DatasetInfo[]; manifests: Manifest[];
     datasets.push({ ...entry, id, index: datasets.length });
     manifests.push(result.value);
   });
-  return { datasets, manifests, skipped };
+  return { datasets, manifests, skipped, links: catalog.links };
 }
 
 /** YYYY-MM-DD (UTC) — day files are keyed by DEPARTURE day and t_dep is UTC epoch seconds. */

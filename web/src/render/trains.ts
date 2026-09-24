@@ -15,6 +15,7 @@ import { IconLayer } from "@deck.gl/layers";
 
 import trainArrowUrl from "../assets/train-arrow.svg?url&no-inline";
 import type { Routes } from "../routes";
+import { journeyKeyOf } from "../links";
 import { FLAG_SCHEDULED_FALLBACK, type Leg } from "../types";
 
 type RGB = [number, number, number];
@@ -94,11 +95,14 @@ export function delayColor(leg: Leg): RGB {
   ];
 }
 
+/** What placing a train needs from a routes.bin, so bridge geometry can stand in for one. */
+export type RouteSampler = Pick<Routes, "sampleAt" | "positionAt">;
+
 /** routes.bin is per dataset; a leg's route_id means nothing without its dataset. */
-export type RoutesFor = (dataset: number) => Routes | undefined;
+export type RoutesFor = (dataset: number) => RouteSampler | undefined;
 
 /** Position of a leg at simTime: fraction along the polyline, anchored at both stations. */
-export function legPosition(leg: Leg, simTime: number, routes: Routes): [number, number] | null {
+export function legPosition(leg: Leg, simTime: number, routes: RouteSampler): [number, number] | null {
   // dur = 0 is quarantined at ingest, but a divide by zero here is a NaN position and an
   // invisible train — too quiet a failure to take on trust from this side of the wire.
   const local = leg.dur > 0 ? (simTime - leg.t_dep) / leg.dur : 0;
@@ -137,7 +141,13 @@ interface LegAtPosition {
  * across countries. Day indexes stay under 100,000 until the year 2243.
  */
 const journeyKey = (leg: Leg): number =>
-  (leg.dataset * 100_000 + Math.floor(leg.t_dep / 86_400)) * 65_536 + leg.journey_id;
+  journeyKeyOf(leg.dataset, Math.floor(leg.t_dep / 86_400), leg.journey_id);
+
+/** Journeys that continue in another dataset: no fade at the handover, the next one is there. */
+export interface LinkedEnds {
+  ends: Set<number>;
+  starts: Set<number>;
+}
 
 /** The spectated train: dataset-local, so both halves are needed to recognize it. */
 export interface JourneyRef {
@@ -167,6 +177,7 @@ export function positioned(
   simTime: number,
   routesFor: RoutesFor,
   bearingWindowM = 0,
+  linked: LinkedEnds | null = null,
 ): { items: PositionedLeg[]; dropped: number } {
   const previous = new Map<number, Leg>();
   const upcoming = new Map<number, Leg>();
@@ -201,6 +212,8 @@ export function positioned(
     }
 
     const sinceArrival = simTime - arrival;
+    // Handed over: the continuation is drawn from here on.
+    if (linked?.ends.has(key)) continue;
     if (sinceArrival <= ENDPOINT_GRACE_S) {
       visible.push({
         leg,
@@ -214,10 +227,12 @@ export function positioned(
     if (previous.has(key)) continue;
     const untilDeparture = leg.t_dep - simTime;
     if (untilDeparture <= ENDPOINT_GRACE_S) {
+      // A continuation stands at full strength where the previous country's train stopped;
+      // fading it in would draw the one train as two half-trains.
       visible.push({
         leg,
         fraction: leg.route_start,
-        opacity: Math.max(0, 1 - untilDeparture / ENDPOINT_GRACE_S),
+        opacity: linked?.starts.has(key) ? 1 : Math.max(0, 1 - untilDeparture / ENDPOINT_GRACE_S),
       });
     }
   }

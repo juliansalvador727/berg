@@ -196,4 +196,54 @@ BELGIUM = DatasetConfig(
     ),
 )
 
-DATASETS: dict[str, DatasetConfig] = {d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM)}
+GERMANY = DatasetConfig(
+    dataset_id="de",
+    country="DE",
+    name="Germany",
+    timezone="Europe/Berlin",
+    bbox=(5.8, 47.2, 15.1, 55.1),
+    # DB's Timetables API (IRIS) as crawled every six hours: scheduled times plus the last
+    # changed time the crawler saw for each stop, in whole minutes. The same semantics as the
+    # Bahn-Vorhersage archive europe.md names, which is built from the same API.
+    time_semantics="final_prediction",
+    timestamp_precision_s=60,
+    scope="national-passenger",
+    provider="Deutsche Bahn Timetables API, archived by piebro/deutsche-bahn-data",
+    license="CC BY 4.0",
+    license_url="https://creativecommons.org/licenses/by/4.0/",
+    attribution="Source: Deutsche Bahn (Timetables and StaDa APIs), CC BY 4.0, "
+    "via github.com/piebro/deutsche-bahn-data",
+    source_urls=(
+        "https://github.com/piebro/deutsche-bahn-data",
+        "https://huggingface.co/datasets/piebro/deutsche-bahn-data",
+        "https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables",
+        "https://developers.deutschebahn.com/db-api-marketplace/apis/product/stada",
+    ),
+    station_namespace="de-eva",
+    # DB counts a stop punctual when it is less than 6 minutes late.
+    punctuality_threshold_s=360,
+    # Measured 2025-11..2026-08: 300k-545k staged stops per service day, and a twelve-hour
+    # crawl hole (2026-04-08) still leaves over half a day. A strike the source records as
+    # cancelled is excused by the source-cancelled check, not by this floor.
+    min_legs_per_day=50_000,
+    # The archive covers every IRIS station only from 2025-11-02 (the biggest ~100 before
+    # that), and its monthly files end with 2026-08; the last UTC day needs the first two
+    # local hours of September.
+    coverage_start="2025-11-03",
+    coverage_end="2026-08-30",
+    storage_cap_bytes=3_100_000_000,
+    countries=("DE",),
+    # Measured on 2025-12-09: level 19 saves 9% over the default (5.27 vs 5.80 bytes per leg
+    # with the sidecar), most of it in the journey sidecar.
+    compression_level=19,
+    notes=(
+        "Times are the last scheduled or changed time the crawler saw, in whole minutes; a "
+        "stop with no realtime message reports its scheduled time.",
+        "Hours the crawler missed are listed as source_gap_hours, not rendered as quiet.",
+        "Only legs between German stations are published; replacement buses are excluded.",
+    ),
+)
+
+DATASETS: dict[str, DatasetConfig] = {
+    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY)
+}

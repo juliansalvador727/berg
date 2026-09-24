@@ -275,3 +275,78 @@ test("flies to Belgium and shows observed Infrabel times", async ({ page }) => {
   await expect(page.locator(".board-departure").first()).toBeVisible();
   await expect(page.locator("#details .source")).toContainText("Infrabel");
 });
+
+test("flies to Germany and labels crawled final-prediction times", async ({ page }) => {
+  await openObserver(page);
+
+  await page.keyboard.press("Control+k");
+  await page.locator("#command-input").fill("Germany");
+  const fly = page.locator("#command-results .command-item", { hasText: "Fly to Germany" });
+  await expect(fly).toBeVisible();
+  await fly.evaluate((element: HTMLElement) => element.click());
+
+  // Germany's archive starts later than every other dataset: the nearest covered day.
+  await expect(page.locator("#time")).toHaveAttribute("datetime", /^2025-11-03T/);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? []), { timeout: 60_000 })
+    .toContain("de");
+  await expect
+    .poll(
+      async () => (await trainPoints(page)).filter((train) => train.dataset === "de").length,
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#hud-date")).toContainText("Berlin");
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("Frankfurt (Main) Hbf"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+  await expect(page.locator(".board-departure").first()).toBeVisible();
+  // The last time a crawler saw is a prediction, never an observation.
+  await expect(page.locator("#details .eyebrow")).toContainText("final-prediction");
+  await expect(page.locator("#details .source")).toContainText("Deutsche Bahn");
+});
+
+test("follows a train across the Swiss–German border and draws the border belt once", async ({ page }) => {
+  await openObserver(page);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.crossBorder().loaded ?? false), { timeout: 60_000 })
+    .toBe(true);
+
+  // A German ICE that ends at Freiburg in the German data and continues from Basel Bad Bf in
+  // the Swiss data: the layer bridges the gap neither dataset covers.
+  const day = "2026-03-10";
+  const bridge = await page.evaluate(async (d) => {
+    const links = (await window.__BERG_E2E__?.dayLinks(d)) ?? [];
+    return links.find((link) => link.kind === "bridge" && link.from[0] === "de" && link.to[0] === "ch") ?? null;
+  }, day);
+  expect(bridge).not.toBeNull();
+  const { from, bridge: leg, at } = bridge!;
+
+  expect(await page.evaluate(({ id, d }) => window.__BERG_E2E__!.watchJourney("de", id, d), { id: from[1], d: day })).toBe(
+    true,
+  );
+  await page.evaluate((t) => window.__BERG_E2E__!.seek(t), leg!.t_dep + Math.floor(leg!.dur / 2));
+  await expect
+    .poll(
+      async () =>
+        (await trainPoints(page)).some(
+          (train) => train.dataset === "de" && train.journeyId === from[1] && (train as { bridge?: boolean }).bridge,
+        ),
+      { timeout: 60_000 },
+    )
+    .toBe(true);
+  await expect(page.locator("#details")).toContainText("Continues in Switzerland");
+  await expect(page.locator("#details")).toContainText("interpolated");
+
+  // Crossing the border hands the camera to the Swiss journey.
+  await page.evaluate((t) => window.__BERG_E2E__!.seek(t), at + 30);
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.selectedDataset() ?? null), { timeout: 60_000 })
+    .toBe("ch");
+  await expect(page.locator("#details")).toContainText("Continued from Germany", { timeout: 30_000 });
+
+  // Around Basel both datasets are drawn, and the German copies of Swiss-observed legs are not.
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.crossBorder().hiddenLegs ?? 0), { timeout: 60_000 })
+    .toBeGreaterThan(0);
+});

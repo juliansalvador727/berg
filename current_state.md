@@ -81,9 +81,57 @@ clock in the focused country's timezone, labels missing coverage explicitly, and
 dataset's attribution and licence. Typing a country name in Ctrl/Cmd+K flies there and jumps to
 its nearest covered day.
 
-Next European step, in `europe.md` order: Germany (Bahn-Vorhersage, 3.10 GB cap). Belgium and
-the Netherlands now share a border, so the station crosswalk and cross-border legs (phase 4)
-are needed. The Dutch dataset clips every leg with a foreign endpoint, and the Belgian source
+**Germany** is `datasets/de/`. It is built from DB's Timetables API (IRIS) as crawled every six
+hours by piebro/deutsche-bahn-data, CC BY 4.0. Bahn-Vorhersage, the source `europe.md` names, is
+available only through a Mobilithek account and access request, which is still to be done. This
+archive covers every station only from 2025-11-02, so Germany covers a later window than the
+other countries. Times are the last scheduled or changed time the crawler saw, so the dataset is
+labelled `final_prediction`.
+
+| Germany | Value |
+|---|---:|
+| Source | DB Timetables + StaDa APIs via piebro/deutsche-bahn-data, CC BY 4.0 |
+| Coverage | 2025-11-03 → 2026-08-30, 301 UTC days, 0 missing, 203 crawl-gap hours flagged |
+| Published legs | 124,204,786 |
+| Routes / fallbacks | 19,586 / 67 |
+| Leg + journey bytes | 652.5 MB of its 3.10 GB allocation (zstd level 19) |
+| Bucket after upload | ~5.18 GB of the 9.0 GB ceiling |
+
+The crawler missed some hours: six-hour blocks through July 2026, and single midnight hours in
+April-June. These are published as `source_gap_hours`, and the UI labels them as a source gap
+rather than showing an empty map. The source revision is pinned and checked by SHA-256, because
+the maintainer rewrites history. The details are in
+[`docs/data-notes-de.md`](docs/data-notes-de.md). To rebuild, run `scripts/build_de.py --fetch`,
+then the geometry job on the rail extract of the Geofabrik PBF (see `geometry/README.md`), then
+`scripts/sync_dataset.py de`.
+
+The viewer now treats a neighbouring country as in view only when the current day falls inside
+its coverage, or when it is the country under the map center. Germany's box covers Basel, and
+without this rule the default Swiss view on 2018-01-01 fetched German geometry and showed a "no
+data" notice.
+
+**Cross-border layer** (`links/`, europe.md phase 4). This is a derived layer above the
+datasets, and none of them is edited.
+
+- **Station crosswalk:** 102 groups of the same physical station across datasets, each with its
+  match method, distance and confidence.
+- **Drawing each movement once:** where the Swiss archive and the German dataset both hold a leg
+  in the German border belt (4,138 legs on 2026-03-10), only the copy with stronger time evidence
+  is drawn. Swiss observations win over German final predictions.
+- **Journey links:** 82,513 overlaps, 5,376 handovers and 111,517 bridged crossings over 1,278
+  overlap days. A bridge crosses a gap neither dataset covers, such as ICEs between Freiburg and
+  Basel Bad Bf, Emmerich and Zevenaar, Aachen and Liège, or Rotterdam and Antwerp.
+  - It has interpolated times, is labelled as such, and runs on its own routed geometry (52
+    routes, 0 fallbacks).
+  - Spectating follows a train into the next country.
+  - Bridge station pairs are accepted only on their record over the whole build, because a
+    shared train number repeats daily by coincidence. The rules and the per-pair evidence are in
+    [`docs/cross-border.md`](docs/cross-border.md) and `links/manifest.json`.
+- **Size and rebuild:** 41.9 MB, and the bucket is ~5.22 GB. To rebuild after any dataset
+  changes, run `scripts/build_links.py`, then `scripts/sync_links.py`.
+
+Next European step: backfill Germany 2023-2025 from Bahn-Vorhersage once Mobilithek access is
+granted, then rebuild the link layer. The Dutch dataset clips every leg with a foreign endpoint, and the Belgian source
 stops at its border points (Roosendaal and Maastricht trains end at Essen and Visé).
 
 ## Published snapshot

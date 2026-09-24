@@ -16,12 +16,15 @@ import {
   delayColor,
   isJourney,
   type JourneyRef,
+  type LinkedEnds,
   positioned,
+  type RouteSampler,
   PUNCTUAL_S,
   trainsLayer,
   type PositionedLeg,
   typeColors,
 } from "./render/trains";
+import { BRIDGE_ROUTE_BASE, CrossBorder, dedupe, FLAG_BRIDGE, type Link } from "./links";
 import { type DatasetInfo, FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest, type TimeSemantics } from "./types";
 import type {
   JourneySearchResult,
@@ -65,7 +68,12 @@ interface BergE2ETestHook {
   highlightedStationRouteIds: () => number[];
   openStation: (name: string) => boolean;
   stationPoints: () => Array<Station & { x: number; y: number }>;
-  trainPoints: () => Array<{ dataset: string; journeyId: number; x: number; y: number }>;
+  trainPoints: () => Array<{ dataset: string; journeyId: number; bridge: boolean; x: number; y: number }>;
+  crossBorder: () => { loaded: boolean; hiddenLegs: number; bridgeLegs: number; links: number };
+  watchJourney: (dataset: string, journeyId: number, day: string) => Promise<boolean>;
+  selectedDataset: () => string | null;
+  seek: (epoch: number) => void;
+  dayLinks: (day: string) => Promise<Link[]>;
   loadedDatasets: () => string[];
   selectedJourneyId: () => number | null;
   selectedRouteIds: () => number[];
@@ -94,6 +102,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       fi: new Set(["HL", "HLV"]),
       nl: new Set(["SPR"]),
       be: new Set(["S"]),
+      de: new Set(["S"]),
     },
   },
   {
@@ -104,6 +113,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       fi: new Set(["H", "HDM", "HSM"]),
       nl: new Set(["ST", "SNT"]),
       be: new Set(["L", "P"]),
+      de: new Set(["RB", "RE", "IRE", "MEX", "RS", "FEX", "R", "OS"]),
     },
   },
   {
@@ -114,6 +124,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       fi: new Set(["IC", "IC2", "P", "PVV", "PVS"]),
       nl: new Set(["IC", "ICD"]),
       be: new Set(["IC"]),
+      de: new Set(["IC", "IR", "D", "FLX", "WB"]),
     },
   },
   {
@@ -124,6 +135,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       fi: new Set(["S", "AE"]),
       nl: new Set(["ICE", "THA", "EST", "EC", "ECD", "INT"]),
       be: new Set(["ICE", "THA", "EST", "TGV", "EC", "INT"]),
+      de: new Set(["ICE", "ECE", "EC", "RJ", "RJX", "TGV", "EST"]),
     },
   },
   {
@@ -134,6 +146,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       fi: new Set(["PYO"]),
       nl: new Set(["NJ", "ES", "NT"]),
       be: new Set(["NJ", "EN", "ES"]),
+      de: new Set(["NJ", "EN", "ES"]),
     },
   },
 ];
@@ -207,7 +220,8 @@ const utcDay = (epoch: number): string => new Date(Math.floor(epoch) * 1000).toI
 
 /** The public train number inside a dataset's journey identity. */
 const trainNumber = (tripId: string, datasetId: string): string => {
-  if (datasetId !== "ch") return tripId.split(" ").at(-1) ?? tripId;
+  // "S 42183 #2" is the second ride labelled S 42183 that day; the number is still 42183.
+  if (datasetId !== "ch") return tripId.replace(/ #\d+$/, "").split(" ").at(-1) ?? tripId;
   const parts = tripId.split(":");
   if (tripId.includes(":sjyid:")) return parts[parts.length - 1]?.split("-")[0] ?? tripId;
   return parts.length >= 3 ? parts[parts.length - 2]! : tripId;
@@ -337,6 +351,8 @@ async function main(): Promise<void> {
   const viewLoads = new Map<number, Promise<DatasetView | undefined>>();
   // Bumped whenever a country's static layer arrives, so the map rebuilds its static layers.
   let staticVersion = 0;
+  // Set once the cross-border layer is loaded (below); a view arriving later refetches the window.
+  let crossBorderPending = (): boolean => false;
   const ensureView = (index: number): Promise<DatasetView | undefined> => {
     let load = viewLoads.get(index);
     if (!load) {
@@ -344,6 +360,9 @@ async function main(): Promise<void> {
         (view) => {
           views[index] = view;
           staticVersion++;
+          // The cross-border layer reads each country's route pairs and places bridges on its
+          // journeys, so a window built before this country arrived is rebuilt.
+          if (crossBorderPending()) win = { ...win, to: -1 };
           return view;
         },
         (error: unknown) => {
@@ -424,12 +443,24 @@ async function main(): Promise<void> {
   map.addControl(overlay);
 
   /** Countries whose bounding box overlaps the visible map, in dataset order. */
+  /**
+   * Countries in view that the current day concerns. A neighbour whose archive does not reach
+   * this day (Germany's box covers Basel, but its data starts in 2025) would only fetch its
+   * geometry to draw nothing and put a "no data" notice over the country being watched. It
+   * still counts when it is the country under the map center, so flying there explains the gap.
+   */
   const visibleDatasets = (): number[] => {
     const bounds = map.getBounds();
+    const day = utcDay(clock.simTime);
+    const focus = focusDataset().index;
     return datasets
       .filter(({ bbox: [west, south, east, north] }) =>
         west <= bounds.getEast() && east >= bounds.getWest() && south <= bounds.getNorth() && north >= bounds.getSouth(),
       )
+      .filter(({ index }) => {
+        const { start, end } = manifests[index]!;
+        return index === focus || !start || !end || (day >= start && day <= end);
+      })
       .map((info) => info.index);
   };
   /** The country the clock speaks for: the one under the map center, else Switzerland. */
@@ -698,10 +729,33 @@ async function main(): Promise<void> {
           return {
             dataset: datasets[train.leg.dataset]!.id,
             journeyId: train.leg.journey_id,
+            bridge: (train.leg.flags & FLAG_BRIDGE) !== 0,
             x: point.x,
             y: point.y,
           };
         }),
+      crossBorder: () => ({
+        loaded: crossBorder !== null,
+        hiddenLegs: hiddenLegs.length,
+        bridgeLegs: win.legs.filter((leg) => (leg.flags & FLAG_BRIDGE) !== 0).length,
+        links: windowLinks.length,
+      }),
+      watchJourney: async (datasetId, journeyId, day) => {
+        const dataset = datasets.findIndex((info) => info.id === datasetId);
+        if (dataset < 0) return false;
+        const response = await ask(worker, {
+          kind: "journey",
+          dataset,
+          journeyId,
+          simTime: Date.parse(`${day}T12:00:00Z`) / 1000,
+        });
+        if (response.kind !== "journey-result" || !response.result) return false;
+        await watchJourney(response.result);
+        return true;
+      },
+      selectedDataset: () => (selectedJourney ? datasets[selectedJourney.dataset]!.id : null),
+      seek: (epoch) => seekTo(epoch),
+      dayLinks: async (day) => (await crossBorder?.day(day))?.links ?? [],
       loadedDatasets: () => loadedViews().map((view) => view.info.id),
       selectedJourneyId: () => selectedJourney?.journeyId ?? null,
       selectedRouteIds: () => selectedJourneyTracks.map((route) => route.routeId),
@@ -1078,6 +1132,7 @@ async function main(): Promise<void> {
       <h2>${escapeHtml(result.line || `Train ${number}`)}</h2>
       <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departed ${fmtShortTime(result.start, info.timezone)}</div>
       <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
+      ${crossBorderNote(result)}
       <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>
       ${multiCountry ? sourceNote(result.dataset) : ""}`);
   }
@@ -1139,7 +1194,27 @@ async function main(): Promise<void> {
     }
   });
 
-  const routesFor = (dataset: number): Routes | undefined => views[dataset]?.routes;
+  /** A dataset's routes, with the cross-border layer's bridge geometry above BRIDGE_ROUTE_BASE. */
+  const bridgeAware = new Map<number, { routes: Routes; sampler: RouteSampler }>();
+  const routesFor = (dataset: number): RouteSampler | undefined => {
+    const routes = views[dataset]?.routes;
+    const bridges = crossBorder?.routes;
+    if (!routes || !bridges) return routes;
+    const cached = bridgeAware.get(dataset);
+    if (cached?.routes === routes) return cached.sampler;
+    const sampler: RouteSampler = {
+      sampleAt: (routeId, frac, direction, bearingWindowM) =>
+        routeId >= BRIDGE_ROUTE_BASE
+          ? bridges.sampleAt(routeId - BRIDGE_ROUTE_BASE, frac, direction, bearingWindowM)
+          : routes.sampleAt(routeId, frac, direction, bearingWindowM),
+      positionAt: (routeId, frac) =>
+        routeId >= BRIDGE_ROUTE_BASE
+          ? bridges.positionAt(routeId - BRIDGE_ROUTE_BASE, frac)
+          : routes.positionAt(routeId, frac),
+    };
+    bridgeAware.set(dataset, { routes, sampler });
+    return sampler;
+  };
 
   /**
    * The countries whose facts the window should hold: those in view with static geometry
@@ -1164,6 +1239,109 @@ async function main(): Promise<void> {
   const refetchMargin = () => Math.max(REFETCH_MARGIN_S, clock.speed * 2);
   const windowCovers = (time: number, wanted: number[]): boolean =>
     time >= win.from && time <= win.to - refetchMargin() && wanted.every((index) => win.datasets.includes(index));
+  // The cross-border layer: loaded once when there is more than one country. Until it arrives,
+  // every dataset draws alone, exactly as before.
+  let crossBorder: CrossBorder | null = null;
+  let hiddenLegs: Leg[] = [];
+  let linkedEnds: LinkedEnds | null = null;
+  let windowLinks: Array<{ day: string; link: Link }> = [];
+  let followInFlight = false;
+  if (ready.links && multiCountry) {
+    CrossBorder.load(ready.links, datasets).then(
+      (layer) => {
+        crossBorder = layer;
+        crossBorderPending = () => true;
+        win = { ...win, to: -1 }; // refetch so the current window is deduplicated and bridged
+      },
+      (error: unknown) => console.warn("cross-border layer unavailable", error),
+    );
+  }
+
+  /** One window of legs → drawn once, with bridge legs where a train crosses between datasets. */
+  async function applyCrossBorder(next: typeof win): Promise<typeof win> {
+    const layer = crossBorder;
+    if (!layer) {
+      hiddenLegs = [];
+      linkedEnds = null;
+      windowLinks = [];
+      return next;
+    }
+    const dayKeys = new Set<string>([utcDay(next.to)]);
+    for (let t = next.from; t <= next.to; t += 86_400) dayKeys.add(utcDay(t));
+    const days = (await Promise.all([...dayKeys].map((day) => layer.day(day)))).filter(
+      (day): day is NonNullable<typeof day> => day !== null,
+    );
+    // Duplicates need two datasets on the map; bridges and links need only the first journey's
+    // (a train leaving Germany is followed before Switzerland is in view).
+    const { kept, hidden } = next.datasets.length < 2 ? { kept: next.legs, hidden: [] } : dedupe(
+      next.legs,
+      (leg) => {
+        const pair = views[leg.dataset]?.routePairs[String(leg.route_id)];
+        if (!pair) return undefined;
+        const a = layer.stationGroup(leg.dataset, pair[0]);
+        const b = layer.stationGroup(leg.dataset, pair[1]);
+        return a === undefined || b === undefined ? undefined : [a, b];
+      },
+      (dataset) => layer.rank(dataset),
+      layer.manifest.dedup_window_s,
+    );
+    const inWindow = (dataset: number) => next.datasets.includes(dataset) && views[dataset] !== undefined;
+    const bridges = layer.bridgeLegs(days, next.from, next.to, inWindow);
+    hiddenLegs = hidden;
+    linkedEnds = layer.linkedEnds(days, (a, b) => inWindow(a) && inWindow(b));
+    windowLinks = days.flatMap(({ day, links }) => links.map((link) => ({ day, link })));
+    const legs = bridges.length > 0 ? [...kept, ...bridges].sort((a, b) => a.t_dep - b.t_dep) : kept;
+    return { ...next, legs };
+  }
+
+  /** The link continuing (or continued by) a journey on its own departure day. */
+  const linkFor = (
+    journey: JourneySearchResult,
+    side: "from" | "to",
+  ): { day: string; link: Link } | undefined => {
+    const id = datasets[journey.dataset]!.id;
+    const day = utcDay(journey.start);
+    return windowLinks.find(
+      (entry) => entry.day === day && entry.link[side][0] === id && entry.link[side][1] === journey.journeyId,
+    );
+  };
+
+  /** Spectating crosses the border: the camera moves on to the next country's journey. */
+  async function followLink({ day, link }: { day: string; link: Link }): Promise<void> {
+    const dataset = datasets.findIndex((info) => info.id === link.to[0]);
+    if (dataset < 0) return;
+    const generation = spectateGeneration;
+    const response = await ask(worker, {
+      kind: "journey",
+      dataset,
+      journeyId: link.to[1],
+      simTime: Date.parse(`${day}T12:00:00Z`) / 1000,
+    });
+    if (generation !== spectateGeneration) return;
+    if (response.kind === "journey-result" && response.result) {
+      await watchJourney(response.result, false);
+    } else {
+      selectedJourney = null;
+      selectedJourneyTracks = [];
+    }
+  }
+
+  /** "Continues in Switzerland as …" / "Continued from Germany …" for a spectated journey. */
+  const crossBorderNote = (journey: JourneySearchResult): string => {
+    const lines: string[] = [];
+    const onward = linkFor(journey, "from");
+    const incoming = linkFor(journey, "to");
+    const name = (id: string) => datasets.find((info) => info.id === id)?.name ?? id;
+    if (incoming) {
+      lines.push(`Continued from ${name(incoming.link.from[0])} (${incoming.link.from_trip})`);
+    }
+    if (onward) {
+      const bridged = onward.link.kind === "bridge" ? " · the border section is interpolated between the two sources" : "";
+      lines.push(`Continues in ${name(onward.link.to[0])} as ${onward.link.to_trip}${bridged}`);
+    }
+    return lines.map((line) => `<div class="sub cross-border">${escapeHtml(line)}</div>`).join("");
+  };
+
   async function refill(time: number): Promise<void> {
     // If another window is being fetched, wait for it and then decide whether it covered this
     // seek. Spectating must not silently lose its load because ordinary playback was fetching.
@@ -1179,7 +1357,7 @@ async function main(): Promise<void> {
           lookahead: lookahead(),
           datasets: wanted,
         });
-        if (response.kind === "window") win = response;
+        if (response.kind === "window") win = await applyCrossBorder(response);
       } catch (error) {
         console.error("window fetch failed", error);
       }
@@ -1200,6 +1378,10 @@ async function main(): Promise<void> {
       const info = datasets[index]!;
       if (manifest.source_cancelled_days?.includes(day)) {
         return `Most ${info.name} trains were cancelled on ${day} · recorded by the source`;
+      }
+      const hour = new Date(Math.floor(time) * 1000).toISOString().slice(0, 13);
+      if (manifest.source_gap_hours?.includes(hour)) {
+        return `No ${info.name} data for ${hour.slice(11)}:00–${hour.slice(11)}:59 UTC on ${day} · source gap`;
       }
       if (day in manifest.days) continue;
       return manifest.start && manifest.end && day >= manifest.start && day <= manifest.end
@@ -1234,16 +1416,18 @@ async function main(): Promise<void> {
     const relevantLegs = win.legs.filter(
       (leg) => typeEnabled(leg.dataset, leg.type) || isJourney(leg, selected),
     );
+    // A leg drawn by a stronger dataset is hidden, except on the train being spectated.
+    if (selected) for (const leg of hiddenLegs) if (isJourney(leg, selected)) relevantLegs.push(leg);
     // Average the route tangent across roughly six screen pixels. At national zoom this removes
     // noisy vertex-to-vertex heading changes; close up it converges to the precise local track.
     const bearingWindowM = Math.max(
       30,
       Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6),
     );
-    const { items, dropped } = positioned(relevantLegs, time, routesFor, bearingWindowM);
+    const { items, dropped } = positioned(relevantLegs, time, routesFor, bearingWindowM, linkedEnds);
     e2ePositionedTrains = items;
     const selectedItem = selected === null ? undefined : items.find((item) => isJourney(item.leg, selected));
-    const selectedTrack = selectedItem
+    const selectedTrack = selectedItem && selectedItem.leg.route_id < BRIDGE_ROUTE_BASE
       ? trackPathById.get(trackKey(selectedItem.leg.dataset, selectedItem.leg.route_id))
       : undefined;
     const stationBoardTracks = highlightedStationRoutes
@@ -1292,7 +1476,15 @@ async function main(): Promise<void> {
       // Keep the camera locked to the interpolated position. Repeated easeTo calls restart an
       // animation and visibly hitch at 8×; a direct per-frame center update stays continuous.
       if (selectedItem) map.setCenter(selectedItem.pos);
-      if (time > selectedJourney.end + 60) {
+      const onward = linkFor(selectedJourney, "from");
+      if (onward && time >= onward.link.at) {
+        if (!followInFlight) {
+          followInFlight = true;
+          void followLink(onward).finally(() => {
+            followInFlight = false;
+          });
+        }
+      } else if (time > Math.max(selectedJourney.end, onward?.link.at ?? 0) + 60) {
         selectedJourney = null;
         selectedJourneyTracks = [];
       }

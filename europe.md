@@ -86,6 +86,13 @@ the storage budget.
 | Belgium | 2023-2025 | Official monthly files back to at least 2014 | Planned and actual arrivals/departures in seconds | Infrabel source: <https://opendata.infrabel.be/explore/dataset/stiptheid-gegevens-maandelijksebestanden/export/?flg=en-gb> |
 | Germany | 2023-2025, subject to storage gate | September 2021 onward | Final prediction/actual per train event; minute source precision | Bahn-Vorhersage ODbL, Mobilithek access: <https://bahnvorhersage.de/open-data/parsed-train-delays/> |
 
+Germany status (2026-09-24): Bahn-Vorhersage's archive is only distributed through a
+Mobilithek account with a per-offer access request, which is still pending. The published
+`de` dataset instead uses piebro/deutsche-bahn-data (CC BY 4.0), which crawls the same DB
+Timetables API. It is therefore also `final_prediction`, keyed by the same EVA numbers, and
+covers 2025-11-03 → 2026-08-30, which is outside the common window. Bahn-Vorhersage can later
+backfill 2023-2025 into the same dataset. See `docs/data-notes-de.md`.
+
 Rollout order is Finland, Netherlands, Belgium, then Germany. The first three are comparatively
 small and validate the multi-dataset architecture before the German storage commitment.
 
@@ -470,6 +477,9 @@ Exit criterion: five-country common playback works and total projected R2 usage 
 9.0 GB.
 
 ### Phase 4: European product polish
+
+Status (2026-09-24): crosswalk, duplicate handling and cross-border journey links with bridge
+legs are built as the `links/` layer. See `docs/cross-border.md`.
 
 - Deduplicate overlapping cross-border legs.
 - Link high-confidence cross-border journeys.

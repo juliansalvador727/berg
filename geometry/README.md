@@ -58,6 +58,38 @@ curl -s -A "berg-geometry/1.0" -o ../data/raw/belgium-rail.osm --data-urlencode 
     https://overpass-api.de/api/interpreter
 ```
 
+Germany (`datasets/de`) is too large for one Overpass query: every public instance times out
+(HTTP 504, "server is probably too busy") on the whole country. Fetch eight tiles of about
+2° × 4.7° from `overpass.kumi.systems` (each ~40-110 MB, ~4-5 min), then merge them. Tiles
+share the ways that cross their seams, and the merge writes each node and way once:
+
+```sh
+for la in "47.2,49.2" "49.2,51.2" "51.2,53.2" "53.2,55.1"; do
+  for lo in "5.8,10.5" "10.5,15.1"; do
+    s=${la%,*}; n=${la#*,}; w=${lo%,*}; e=${lo#*,}
+    curl -s -A "berg-geometry/1.0" -o ../data/raw/germany-rail-$s-$w.osm --data-urlencode \
+      "data=[out:xml][timeout:900];way[\"railway\"~\"^(rail|narrow_gauge|light_rail)\$\"]($s,$w,$n,$e);(._;>;);out body;" \
+      https://overpass.kumi.systems/api/interpreter
+  done
+done
+uv run python -m berg_geometry.merge_osm ../data/raw/germany-rail.osm.pbf ../data/raw/germany-rail-*.osm
+```
+
+Retry a tile whose file does not end in `</osm>`: a 504 comes back as a 695-byte HTML page.
+
+In practice the Munich tile never came back, so the published `de` geometry was built from the
+Geofabrik extract, cut to its rail network first. Loading the 4.8 GB extract directly would
+index every node location in memory, and 8 GB is not enough for that:
+
+```sh
+uv run python -m berg_geometry.merge_osm --extract \
+    ../data/raw/germany-rail.osm.pbf ../data/raw/germany-latest.osm.pbf   # 37 s, 20 MB
+uv run python -m berg_geometry.build --fit-bbox \
+    --pbf ../data/raw/germany-rail.osm.pbf \
+    --db ../data/datasets/de/berg.duckdb --dim ../data/datasets/de/dim_station.parquet \
+    --out ../data/datasets/de/publish/static/routes.bin                  # ~20 min
+```
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted
