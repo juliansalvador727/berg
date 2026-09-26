@@ -14,6 +14,7 @@ import duckdb
 import pytest
 
 from berg_pipeline.europe import links
+from berg_pipeline.europe.config import DATASETS
 
 DAY = date(2026, 3, 10)
 
@@ -194,3 +195,10 @@ def test_build_writes_the_layer(world, tmp_path, monkeypatch):
     pairs = duckdb.connect(str(tmp_path / "links" / "geometry" / "bridges.duckdb"),
                            read_only=True).execute("SELECT * FROM station_pairs").fetchall()
     assert sorted(pairs) == [(1, 5_008_000_107, 1_008_500_010), (2, 5_008_000_107, 1_008_500_090)]
+
+
+def test_every_dataset_has_a_geometry_id_prefix():
+    # A missing prefix only surfaces when the bridge geometry is written, after the whole
+    # link build has run.
+    assert set(DATASETS) | {"ch"} <= set(links.GEOMETRY_ID_PREFIX)
+    assert len(set(links.GEOMETRY_ID_PREFIX.values())) == len(links.GEOMETRY_ID_PREFIX)

@@ -20,7 +20,7 @@ class DatasetConfig:
     # Clip box for legs, lon/lat WGS84. routes.bin derives its own tighter quantization grid
     # from the stations actually served, so this only has to contain the network.
     bbox: tuple[float, float, float, float]
-    time_semantics: str  # observed | final_prediction | delay_only | scheduled
+    time_semantics: str  # observed | final_prediction | delay_only | delay_interpolated | scheduled
     timestamp_precision_s: int
     scope: str
     provider: str
@@ -110,8 +110,10 @@ FINLAND = DatasetConfig(
     # Measured 2023-01..02: 10.2k-14.6k published legs per UTC day, the low end on holidays.
     min_legs_per_day=2_000,
     coverage_start="2023-01-01",
+    # Extension to 2026-08-30 is pending: Digitraffic's rail API was down on 2026-09-25. The
+    # 200 MB cap already reserves room for it.
     coverage_end="2025-12-31",
-    storage_cap_bytes=150_000_000,
+    storage_cap_bytes=200_000_000,
     notes=(
         "Actual times come from track-circuit observations; live estimates are never used.",
         "Only commercial stops are published; timing points a train passes are dropped.",
@@ -146,7 +148,7 @@ NETHERLANDS = DatasetConfig(
     # Measured 2023-2025: roughly 3.5k-7k services per service day.
     min_legs_per_day=5_000,
     coverage_start="2023-01-01",
-    coverage_end="2025-12-31",
+    coverage_end="2026-08-30",
     storage_cap_bytes=500_000_000,
     countries=("NL",),
     notes=(
@@ -183,8 +185,8 @@ BELGIUM = DatasetConfig(
     # ran, so a strike cannot be excused as source-cancelled; the floor sits under it.
     min_legs_per_day=5_000,
     coverage_start="2023-01-01",
-    coverage_end="2025-12-31",
-    storage_cap_bytes=350_000_000,
+    coverage_end="2026-08-30",
+    storage_cap_bytes=450_000_000,
     countries=("BE",),
     # Second-precision times on 35k short hops a day: level 19 is 10% smaller than the
     # default on a measured weekday, and no higher level helps.
@@ -231,7 +233,7 @@ GERMANY = DatasetConfig(
     # local hours of September.
     coverage_start="2025-11-03",
     coverage_end="2026-08-30",
-    storage_cap_bytes=3_100_000_000,
+    storage_cap_bytes=2_750_000_000,
     countries=("DE",),
     # Measured on 2025-12-09: level 19 saves 9% over the default (5.27 vs 5.80 bytes per leg
     # with the sidecar), most of it in the journey sidecar.
@@ -244,6 +246,52 @@ GERMANY = DatasetConfig(
     ),
 )
 
+AUSTRIA = DatasetConfig(
+    dataset_id="at",
+    country="AT",
+    name="Austria",
+    timezone="Europe/Vienna",
+    bbox=(9.4, 46.3, 17.2, 49.1),
+    # ÖBB-Infrastruktur publishes each train run's planned and actual time at the first and
+    # last operating point it recorded, to the second: the delay is observed twice per run.
+    # Stops come from ÖBB-Personenverkehr's timetable, and the delay between the two
+    # observations is interpolated. See docs/data-notes-at.md.
+    time_semantics="delay_interpolated",
+    timestamp_precision_s=60,
+    scope="national-passenger",
+    provider="ÖBB-Infrastruktur AG (train runs), ÖBB-Personenverkehr AG (timetable)",
+    license="CC BY 3.0 AT (train runs), CC BY 4.0 (timetable)",
+    license_url="https://creativecommons.org/licenses/by/3.0/at/",
+    attribution="Datenquelle: ÖBB-Infrastruktur AG (CC BY 3.0 AT); timetable: ÖBB-Personenverkehr "
+    "AG (CC BY 4.0)",
+    source_urls=(
+        "https://data.oebb.at/de/datensaetze~datenbereitstellung_delegierte_verordnung_eu_2024-490~",
+        "https://static.web.oebb.at/open-data/infra/delVO_mmtis/mmtis_zugfahrten.zip",
+        "https://static.web.oebb.at/open-data/soll-fahrplan-gtfs/GTFS_Fahrplan_2026.zip",
+    ),
+    station_namespace="at-ifopt",
+    # ÖBB counts a train punctual up to 5 minutes 29 seconds late.
+    punctuality_threshold_s=330,
+    # Measured 2025-12-15..2026-09-05: 48k-67k published legs per UTC day, the low end on
+    # summer holidays (2026-08-15, Assumption Day).
+    min_legs_per_day=5_000,
+    # The train-run archive starts 2025-11-17, but the published timetable starts with the
+    # 2025-12-14 timetable change; before it no stop sequence is available. The first UTC day
+    # also needs the previous service day's last hour.
+    coverage_start="2025-12-15",
+    coverage_end="2026-09-05",
+    # Measured: 130.9 MB for 265 days (8.2 B/leg incl. sidecar).
+    storage_cap_bytes=200_000_000,
+    countries=("AT",),
+    compression_level=19,
+    notes=(
+        "Delays are observed at the first and last operating point ÖBB recorded for each "
+        "train and interpolated between them; stop times come from the timetable.",
+        "Only timetabled passenger trains that ÖBB recorded running are published.",
+        "Only legs between Austrian stations are published; cross-border legs are clipped.",
+    ),
+)
+
 DATASETS: dict[str, DatasetConfig] = {
-    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY)
+    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY, AUSTRIA)
 }

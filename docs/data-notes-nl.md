@@ -73,26 +73,32 @@ Kaldenkirchen and Roosendaal → Antwerpen are clipped. They belong to cross-bor
 journey linking (europe.md phase 4). Clipped: 2.13M `outside_country` plus 1.17M
 `outside_bbox` legs.
 
-Unmatched stations (6,530 legs) are **all foreign**: Baden-Baden, Osnabrück Altstadt,
-Düsseldorf-Bilk, Prague, Berlin, Dresden, and so on. The one Dutch code among them is the SSN
-steam depot (RTNG, heritage). These legs would have been clipped anyway, so no Dutch passenger
-station is missing from the 2023-09 list.
+Unmatched stations (41,660 legs) are **nearly all foreign**: Baden-Baden, Osnabrück Altstadt,
+Düsseldorf-Bilk, Prague, Berlin, Dresden, and so on. They jump from about 100 legs a month to
+about 4,500 at the 2025-12-14 timetable, when new through services start running to Osnabrück
+Altstadt, Düsseldorf-Bilk, Berlin and Kassel. The Dutch codes among them are the SSN steam depot
+(RTNG, heritage) and one stop at Haren Transferium (HRNT, 2026-03-31). The foreign legs would
+have been clipped anyway, so no regular Dutch passenger station is missing from the 2023-09
+list, which is still the newest the archive publishes.
 
-## Build (2026-09-23)
+## Build (2026-09-23, extended 2026-09-25)
 
 | Item | Value |
 |---|---:|
-| UTC days published | 1,096 (2023-01-01 → 2025-12-31, 0 missing) |
-| Published legs | 48,709,956 |
-| Journeys | 5,912,289 |
-| Legs per day | 15,329 … 52,597 (holidays are the low end) |
-| Registered routes | 2,189 |
-| Cancelled services dropped | 147,477 |
-| Quarantine | 5,737 negative_duration, 5,269 zero_duration, 6,530 unmatched_station, 3 absurd_duration |
-| Leg + journey bytes | 284.4 MB (5.84 B/leg incl. sidecar) |
+| UTC days published | 1,338 (2023-01-01 → 2026-08-30, 0 missing) |
+| Published legs | 59,901,681 |
+| Journeys | 7,270,842 |
+| Legs per day | 15,329 … 52,779 (holidays are the low end) |
+| Registered routes | 2,294 |
+| Cancelled services dropped | 181,468 (incl. the two edge service days) |
+| Quarantine | 6,388 negative_duration, 5,867 zero_duration, 41,660 unmatched_station, 4 absurd_duration |
+| Leg + journey bytes | 349.4 MB (5.83 B/leg incl. sidecar) |
 | Allocation | 500 MB |
 
-Legs by type: SPR 25.1M, ST 11.6M, IC 10.6M, SNT 0.86M, ICD 0.42M, and international and
+The 2026-09-25 extension re-ran the whole build over the existing database. The append-only
+registries kept every route and type id, and all 2023-2025 day files came out byte-identical.
+
+Legs by type (2023-2025): SPR 25.1M, ST 11.6M, IC 10.6M, SNT 0.86M, ICD 0.42M, and international and
 special trains below 50k each.
 
 The Dutch payload costs fewer bytes per leg than Finland (9.5) because minute-precision

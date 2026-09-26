@@ -58,6 +58,27 @@ curl -s -A "berg-geometry/1.0" -o ../data/raw/belgium-rail.osm --data-urlencode 
     https://overpass-api.de/api/interpreter
 ```
 
+Austria (`datasets/at`) uses the same kind of Overpass export, merged with the rail ways OSM
+tags as under construction. In 2026 that tag covers the Wien S-Bahn Stammstrecke and
+Feldkirch – Buchs, which carried trains throughout the window. Without them 6 stations cannot
+be snapped and 26 routes fall back to straight lines:
+
+```sh
+curl -s -A "berg-geometry/1.0" -o ../data/raw/austria-rail.osm --data-urlencode \
+    'data=[out:xml][timeout:600];area["ISO3166-1"="AT"][admin_level=2]->.a;way["railway"~"^(rail|narrow_gauge|light_rail)$"](area.a);(._;>;);out body;' \
+    https://overpass-api.de/api/interpreter
+curl -s -A "berg-geometry/1.0" -o ../data/raw/austria-rail-construction.osm --data-urlencode \
+    'data=[out:xml][timeout:300];area["ISO3166-1"="AT"][admin_level=2]->.a;way["railway"="construction"]["construction"~"^(rail|light_rail)$"](area.a);(._;>;);out body;' \
+    https://overpass-api.de/api/interpreter
+sed -i 's|<tag k="railway" v="construction"/>|<tag k="railway" v="rail"/>|' \
+    ../data/raw/austria-rail-construction.osm
+uv run python -m berg_geometry.merge_osm ../data/raw/austria-rail.osm.pbf \
+    ../data/raw/austria-rail.osm ../data/raw/austria-rail-construction.osm
+uv run python -m berg_geometry.build --fit-bbox --pbf ../data/raw/austria-rail.osm.pbf \
+    --db ../data/datasets/at/berg.duckdb --dim ../data/datasets/at/dim_station.parquet \
+    --out ../data/datasets/at/publish/static/routes.bin                  # ~35 s
+```
+
 Germany (`datasets/de`) is too large for one Overpass query: every public instance times out
 (HTTP 504, "server is probably too busy") on the whole country. Fetch eight tiles of about
 2° × 4.7° from `overpass.kumi.systems` (each ~40-110 MB, ~4-5 min), then merge them. Tiles

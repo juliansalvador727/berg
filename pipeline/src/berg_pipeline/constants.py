@@ -75,7 +75,7 @@ STATUS_ENUM_SWITCH = "2018-05-07"
 
 # v2 launched MID-MONTH, on 2025-07-13. The v2 ZIP for 2025-07 therefore holds only days
 # 13-31, while the v1 ZIP for the same month holds all 31 — and both series are published in
-# parallel (v1 is not retired; verified through 2026-06). Switching series on "v2 exists yet"
+# parallel through 2026-06; from 2026-07 only v2 is published. Switching series on "v2 exists yet"
 # silently drops 12 real days and still reports the month a success.
 #
 # So switch at v2's first COMPLETE month and take v1 for the seam. Probed against every v2-era

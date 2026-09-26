@@ -75,12 +75,15 @@ BRIDGE_CONSISTENT_SHARE = 0.6  # most crossings take about the pair's median tim
 BRIDGE_DUR_TOLERANCE = 0.3  # "about": within 30% (at least 5 min) of the median
 
 # Europe.md: "apply a documented source-priority rule to the rendered duplicate".
-EVIDENCE_RANK = {"observed": 0, "final_prediction": 1, "delay_only": 2, "scheduled": 3}
+EVIDENCE_RANK = {
+    "observed": 0, "final_prediction": 1, "delay_only": 2, "delay_interpolated": 3, "scheduled": 4,
+}
 DEDUP_RULE = (
     "A leg is drawn once. When two datasets hold a leg between the same crosswalked stations "
     "departing within 180 s, the dataset with stronger time evidence (observed, then "
-    "final_prediction, then delay_only, then scheduled; ties to the catalog's first dataset) "
-    "is drawn and the other is hidden. The hidden leg stays in its dataset, and the train's own "
+    "final_prediction, then delay_only, then delay_interpolated, then scheduled; ties to the "
+    "catalog's first dataset) is drawn and the other is hidden. The hidden leg stays in its "
+    "dataset, and the train's own "
     "journey keeps it when spectated."
 )
 DEDUP_WINDOW_S = 180
@@ -91,7 +94,7 @@ UIC_COUNTRY = {85: "CH", 80: "DE", 81: "AT", 83: "IT", 87: "FR", 84: "NL", 88: "
 NL_COUNTRY = {"D": "DE", "B": "BE", "F": "FR", "A": "AT", "I": "IT", "S": "SE", "CH": "CH",
               "NL": "NL", "GB": "GB", "DK": "DK", "PL": "PL", "CZ": "CZ", "L": "LU"}
 # Geometry job station ids must be unique across datasets.
-GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5}
+GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5, "at": 6}
 
 FLAG_ROUTE_FRACTION = 1 << 2
 
@@ -655,6 +658,8 @@ def write_bridge_inputs(out_root: Path, bridge_pairs: dict[tuple, int],
     import duckdb
 
     def gid(ds: str, sid: int) -> int:
+        if not 0 <= sid < 1_000_000_000:
+            raise ValueError(f"{ds} station {sid} does not fit under its geometry id prefix")
         return GEOMETRY_ID_PREFIX[ds] * 1_000_000_000 + sid
 
     work = out_root / "geometry"  # beside publish/, never uploaded

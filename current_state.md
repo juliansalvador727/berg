@@ -46,10 +46,10 @@ so the dataset is labelled `delay_only` and the UI shows it as "scheduled + repo
 | Netherlands | Value |
 |---|---:|
 | Source | Rijden de Treinen, CC BY 4.0 |
-| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
-| Published legs | 48,709,956 (Dutch station pairs only) |
-| Routes | 2,189 |
-| Leg + journey bytes | 284.4 MB of its 500 MB allocation |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 59,901,681 (Dutch station pairs only) |
+| Routes / fallbacks | 2,294 / 0 |
+| Leg + journey bytes | 349.4 MB of its 500 MB allocation |
 
 Duplicate service records, diversions and mid-route cancellations each needed a rule. The
 details are in [`docs/data-notes-nl.md`](docs/data-notes-nl.md). To rebuild, run
@@ -63,11 +63,10 @@ Finland. The source lists only trains that ran and only Infrabel's own network.
 | Belgium | Value |
 |---|---:|
 | Source | Infrabel, CC0 |
-| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
-| Published legs | 37,349,416 |
-| Routes / fallbacks | 3,599 / 0 |
-| Leg + journey bytes | 326.7 MB of its 350 MB allocation (zstd level 19) |
-| Bucket after upload | ~4.52 GB of the 9.0 GB ceiling |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 46,017,097 |
+| Routes / fallbacks | 3,859 / 0 |
+| Leg + journey bytes | 401.0 MB of its 450 MB allocation (zstd level 19) |
 
 The source's columns move twice in 2025, so files are read by column name. S lines are renamed
 at the 2025-12-14 timetable, and two closed halts are missing from today's station list. The
@@ -94,7 +93,7 @@ labelled `final_prediction`.
 | Coverage | 2025-11-03 → 2026-08-30, 301 UTC days, 0 missing, 203 crawl-gap hours flagged |
 | Published legs | 124,204,786 |
 | Routes / fallbacks | 19,586 / 67 |
-| Leg + journey bytes | 652.5 MB of its 3.10 GB allocation (zstd level 19) |
+| Leg + journey bytes | 652.5 MB of its 2.95 GB allocation (zstd level 19) |
 | Bucket after upload | ~5.18 GB of the 9.0 GB ceiling |
 
 The crawler missed some hours: six-hour blocks through July 2026, and single midnight hours in
@@ -127,30 +126,74 @@ datasets, and none of them is edited.
   - Bridge station pairs are accepted only on their record over the whole build, because a
     shared train number repeats daily by coincidence. The rules and the per-pair evidence are in
     [`docs/cross-border.md`](docs/cross-border.md) and `links/manifest.json`.
-- **Size and rebuild:** 41.9 MB, and the bucket is ~5.22 GB. To rebuild after any dataset
+- **Rebuilt 2026-09-25** over the extended window: 101,190 overlaps, 6,434 handovers and
+  177,904 bridged crossings over 1,338 days, 65 bridge routes, 0 fallbacks.
+- **Size and rebuild:** the bucket is ~5.46 GB (15,824 objects) after the 2026-09-25 extension. To rebuild after any dataset
   changes, run `scripts/build_links.py`, then `scripts/sync_links.py`.
 
-Next European step: backfill Germany 2023-2025 from Bahn-Vorhersage once Mobilithek access is
-granted, then rebuild the link layer. The Dutch dataset clips every leg with a foreign endpoint, and the Belgian source
-stops at its border points (Roosendaal and Maastricht trains end at Essen and Visé).
+The viewer now opens on the first UTC day every dataset has published, currently
+**2025-11-03**, when Germany's archive starts. It is computed from the manifests, so it moves
+if coverage changes. The Swiss 2018-01-01 default applies only when the datasets share no day.
+
+**Austria** is `datasets/at`, integrated 2026-09-25. ÖBB-Infrastruktur's train-run file (EU
+Delegated Regulation 2024/490 data, CC BY 3.0 AT) gives each run's planned and actual time at
+the first and last operating point ÖBB recorded. These are yards, junctions and track groups,
+not passenger termini. ÖBB-Personenverkehr's GTFS timetable (CC BY 4.0) gives the stops. Runs
+and trips are joined by train number and day. Each stop's delay is interpolated between the
+two observations, so the dataset is labelled `delay_interpolated`, shown as "scheduled +
+interpolated delay".
+
+| Austria | Value |
+|---|---:|
+| Sources | ÖBB-Infrastruktur train runs + ÖBB-Personenverkehr GTFS |
+| Coverage | 2025-12-15 → 2026-09-05, 265 UTC days, 0 missing |
+| Published legs | 15,983,394 (Austrian station pairs only) |
+| Routes / fallbacks | 2,875 / 0 |
+| Leg + journey bytes | 130.9 MB of its 200 MB allocation (zstd level 19) |
+
+- The timetable starts at the 2025-12-14 change, so Austria starts 2025-12-15 and the viewer's
+  shared default day moved from 2025-11-03 to 2025-12-15.
+- The GTFS was published once and never updated, so the share of runs paired with a trip falls
+  from about 91% in winter to about 79% in August.
+- OSM tags the Wien S-Bahn Stammstrecke and Feldkirch – Buchs as under construction, so the
+  geometry input adds those ways.
+- The details are in [`docs/data-notes-at.md`](docs/data-notes-at.md).
+- To rebuild, run `scripts/build_at.py --fetch`, then the geometry job on
+  `austria-rail.osm.pbf` (see `geometry/README.md`), then `scripts/sync_dataset.py at`.
+
+**Forward extension (2026-09-25).** A German backfill before 2025-11 is not an option, so the
+shared window grows forward instead. The Netherlands and Belgium now run to 2026-08-30, and
+Switzerland gained 2026-07 and 2026-08 (see the snapshot below). Both European rebuilds re-ran
+over their existing databases: the append-only registries kept every id, and every 2023-2025
+day file came out byte-identical, so only the 242 new days per country were uploaded. Finland
+and Belgium's caps rose to 0.20 and 0.45 GB, taken from Germany's unused allocation (europe.md).
+
+Four datasets now share 2025-11-03 → 2026-08-30, and with Austria, five share 2025-12-15 →
+2026-08-30. **Finland is still pending**: Digitraffic's
+rail API was down all evening on 2026-09-25 (timeouts, then HTTP 503; its status page listed
+the rail endpoints as down). Its config stays at 2025-12-31 until the extension lands. To do it,
+set `coverage_end="2026-08-30"` in `europe/config.py`, run `scripts/fetch_fi.py 2026-01-02
+2026-08-31`, then `scripts/build_fi.py`, the geometry job with `--fit-bbox`, and
+`scripts/sync_dataset.py fi`.
 
 ## Published snapshot
 
 | Item | Current value |
 |---|---:|
 | Manifest schema | 3 |
-| UTC day entries | 3,090 |
-| Manifest range | 2017-12-31 through 2026-07-01 |
+| UTC day entries | 3,152 |
+| Manifest range | 2017-12-31 through 2026-09-01 |
 | Explicit missing UTC days | 15 |
-| Published legs | 422,103,769 |
-| Local leg files | 3,090 |
-| Local journey files | 3,090 |
-| Registered routes | 11,502 |
-| Geometry records | 11,502 |
+| Published legs | 431,289,031 |
+| Local leg files | 3,152 |
+| Local journey files | 3,152 |
+| Registered routes | 11,580 |
+| Geometry records | 11,580 |
 | Local publish mirror | about 3.7 GB plus manifest |
 
-The apparent 2017-12-31/2026-07-01 edges come from converting Europe/Zurich service times to
-UTC. The source service-day coverage is 2018-01 through 2026-06. The 29 missing source days
+The apparent 2017-12-31/2026-09-01 edges come from converting Europe/Zurich service times to
+UTC. The source service-day coverage is 2018-01 through 2026-08 (2026-07 and 2026-08 were
+added on 2026-09-25 from the v2 archive, the only series published from 2026-07). The 29 missing source days
 collapse to 15 fully absent UTC files because neighboring service days can contribute rows
 across UTC midnight.
 

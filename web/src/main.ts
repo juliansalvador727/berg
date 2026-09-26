@@ -103,6 +103,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       nl: new Set(["SPR"]),
       be: new Set(["S"]),
       de: new Set(["S"]),
+      at: new Set(["S"]),
     },
   },
   {
@@ -114,6 +115,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       nl: new Set(["ST", "SNT"]),
       be: new Set(["L", "P"]),
       de: new Set(["RB", "RE", "IRE", "MEX", "RS", "FEX", "R", "OS"]),
+      at: new Set(["R", "REX", "CJX", "CAT", "OS", "RB"]),
     },
   },
   {
@@ -125,6 +127,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       nl: new Set(["IC", "ICD"]),
       be: new Set(["IC"]),
       de: new Set(["IC", "IR", "D", "FLX", "WB"]),
+      at: new Set(["IC", "IR", "D"]),
     },
   },
   {
@@ -136,6 +139,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       nl: new Set(["ICE", "THA", "EST", "EC", "ECD", "INT"]),
       be: new Set(["ICE", "THA", "EST", "TGV", "EC", "INT"]),
       de: new Set(["ICE", "ECE", "EC", "RJ", "RJX", "TGV", "EST"]),
+      at: new Set(["ICE", "EC", "RJ", "RJX"]),
     },
   },
   {
@@ -147,6 +151,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       nl: new Set(["NJ", "ES", "NT"]),
       be: new Set(["NJ", "EN", "ES"]),
       de: new Set(["NJ", "EN", "ES"]),
+      at: new Set(["NJ", "EN"]),
     },
   },
 ];
@@ -157,6 +162,7 @@ const EVIDENCE_LABEL: Record<TimeSemantics, string> = {
   observed: "observed",
   final_prediction: "final-prediction",
   delay_only: "scheduled + reported delay",
+  delay_interpolated: "scheduled + interpolated delay",
   scheduled: "scheduled",
 };
 
@@ -475,9 +481,14 @@ async function main(): Promise<void> {
   const swissDays = Object.keys(manifests[0]!.days).sort();
   const allDays = [...new Set(manifests.flatMap((manifest) => Object.keys(manifest.days)))].sort();
   const substantialDays = swissDays.filter((day) => manifests[0]!.days[day]!.legs >= 10_000);
-  const initialDay = DEFAULT_DAY in manifests[0]!.days
+  // Start on the first day every dataset has published, so the whole map is populated from the
+  // first frame. With a single dataset, or none in common, keep the Swiss default.
+  const sharedDays = multiCountry
+    ? swissDays.filter((day) => manifests.every((manifest) => day in manifest.days))
+    : [];
+  const initialDay = sharedDays[0] ?? (DEFAULT_DAY in manifests[0]!.days
     ? DEFAULT_DAY
-    : (substantialDays[substantialDays.length - 1] ?? swissDays[swissDays.length - 1]!);
+    : (substantialDays[substantialDays.length - 1] ?? swissDays[swissDays.length - 1]!));
   const tMin = Date.parse(`${allDays[0]}T00:00:00Z`) / 1000;
   const tMax = Date.parse(`${allDays[allDays.length - 1]}T23:59:59Z`) / 1000;
   const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);

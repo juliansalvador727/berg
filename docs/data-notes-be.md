@@ -102,21 +102,26 @@ kept as the line:
    Both lie within 30 m of an OSM rail node. OSM's "Station de Baulers" way sits 1.3 km from
    any track and is not the halt. After the supplement, no stop is unmatched.
 
-## Build (2026-09-24)
+## Build (2026-09-24, extended 2026-09-25)
 
 | Item | Value |
 |---|---:|
-| UTC days published | 1,096 (2023-01-01 → 2025-12-31, 0 missing) |
-| Published legs | 37,349,416 |
-| Journeys | 3,442,434 |
-| Legs per day | 7,166 … 44,025 |
-| Registered routes | 3,599 (0 straight-line fallbacks, 662/662 stations snapped) |
-| Quarantine | 6,622 negative_duration, 50 zero_duration |
-| Clipped as not_run | 174 |
-| Leg + journey bytes | 326.7 MB (8.75 B/leg incl. sidecar) |
-| Allocation | 350 MB |
+| UTC days published | 1,338 (2023-01-01 → 2026-08-30, 0 missing) |
+| Published legs | 46,017,097 |
+| Journeys | 4,222,195 |
+| Legs per day | 7,166 … 44,226 |
+| Registered routes | 3,859 (0 straight-line fallbacks, 666/666 stations snapped) |
+| Quarantine | 8,082 negative_duration, 63 zero_duration, 2 absurd_duration |
+| Clipped as not_run | 235 |
+| Leg + journey bytes | 401.0 MB (8.71 B/leg incl. sidecar) |
+| Allocation | 450 MB (was 350 MB for 2023-2025) |
 
-Legs by type: S 15.8M, IC 12.3M, L 6.8M, P 1.75M and EXTRA 0.63M. International types have
+The 2026-09-25 extension re-ran the whole build over the existing database. The 2026 files keep
+the 2025-09 column layout, and every 2026 stop matched a ptcar. The append-only registries kept
+every route and type id, and all 2023-2025 day files came out byte-identical. The 260 new
+station pairs route with no fallback.
+
+Legs by type (2023-2025): S 15.8M, IC 12.3M, L 6.8M, P 1.75M and EXTRA 0.63M. International types have
 under 31k legs each, because most make one Belgian stop before the border: TGV contributes
 only 327.
 

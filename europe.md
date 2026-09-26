@@ -116,11 +116,19 @@ has been measured and documented.
 | Belgium current | Belgian Mobility/SNCB GTFS-RT | Continue beyond official monthly history where useful |
 | Sweden current | Trafiklab and Trafikverket | Per-operator quality and coverage flags |
 | Great Britain current | Darwin/TRUST | Only after access, license, and event-volume validation |
-| Austria | ÖBB/NAP research adapter | Do not depend on undocumented HAFAS interfaces for the public archive |
+| Austria | Integrated 2026-09-25 as `datasets/at` (see below) | Official ÖBB open data only; no HAFAS |
 
 France documentation: <https://ressources.data.sncf.com/explore/dataset/horaires-sncf/>.
 Norway documentation: <https://developer.entur.org/pages-real-time-intro/>.
 Denmark documentation: <https://labs.rejseplanen.dk/hc/en-us/articles/24750139021341-Oversigt-over-udstillede-data>.
+
+Austria status (2026-09-25): published as `datasets/at` from two official ÖBB sources, the
+train-run file ÖBB-Infrastruktur publishes under EU Delegated Regulation 2024/490 (planned and
+actual times at each run's first and last operating point) and ÖBB-Personenverkehr's GTFS
+timetable. Its `time_semantics` is `delay_interpolated`. See `docs/data-notes-at.md`. The same
+regulation obliges every member state to publish historic rail delay and cancellation data on
+the comprehensive TEN-T network from 2025-12-01, so the other national access points are the
+next places to look for data covering the shared window.
 
 Italy, Spain, Poland, Czechia, and additional countries remain discovery tasks. Static/scheduled
 coverage may be added before historical actuals, but it must be presented as a separate layer.
@@ -236,7 +244,8 @@ Each country manifest extends the existing fields with dataset-level metadata:
 - license, attribution text, and redistribution notes;
 - coverage intervals and known missing days;
 - national, regional, or operator scope;
-- `time_semantics`: `observed`, `final_prediction`, `delay_only`, or `scheduled`;
+- `time_semantics`: `observed`, `final_prediction`, `delay_only`, `delay_interpolated`, or
+  `scheduled`;
 - timestamp precision;
 - source and display timezones;
 - source punctuality threshold;
@@ -317,13 +326,20 @@ overlay may fill border gaps, but must not require renumbering local route IDs.
 | Allocation | Hard planning cap |
 | --- | ---: |
 | Existing Switzerland | 3.70 GB |
-| Germany, 2023-2025 | 3.10 GB |
-| Netherlands, 2023-2025 | 0.50 GB |
-| Belgium, 2023-2025 | 0.35 GB |
-| Finland, 2023-2025 | 0.15 GB |
+| Germany | 2.75 GB |
+| Netherlands, 2023 → 2026-08 | 0.50 GB |
+| Belgium, 2023 → 2026-08 | 0.45 GB |
+| Finland, 2023 → 2026-08 (extension pending) | 0.20 GB |
+| Austria, 2025-12-15 → 2026-09-05 | 0.20 GB |
 | Catalog, stations, route pairs, train types, and geometry | 0.30 GB |
 | Safety reserve | 0.90 GB |
 | **Total** | **9.00 GB** |
+
+The Netherlands and Belgium were extended to 2026-08-30 on 2026-09-25 to reach the end of
+Germany's window, and Switzerland gained 2026-07 and 2026-08. Finland's extension is pending:
+Digitraffic's rail API was down that day. Finland and Belgium took their extra 0.15 GB from
+Germany's allocation, which its published 0.66 GB leaves unused. Austria's 0.20 GB came from
+the same place on 2026-09-25.
 
 These are publication gates, not promises that the source will fit. Measure at least one weekday,
 one weekend day, and one disruption-heavy month before approving a country backfill.
@@ -471,7 +487,7 @@ visible and total R2 usage within their allocations.
 - Filter final passenger events and commercial stops.
 - Validate completeness against published source gaps.
 - Measure 2023-2025 before uploading any full year.
-- Publish progressively, stopping at the 3.10 GB German cap.
+- Publish progressively, stopping at the German cap (2.75 GB since 2026-09-25).
 
 Exit criterion: five-country common playback works and total projected R2 usage remains at most
 9.0 GB.

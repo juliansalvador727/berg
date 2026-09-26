@@ -53,7 +53,7 @@ Every group records its members, method, largest distance and confidence, plus
 The client groups the legs in its window by crosswalked station pair and route fraction. Two
 legs are the same movement when they come from different datasets and depart within 180 s of
 each other. Only the copy from the dataset with the stronger time evidence is drawn:
-`observed`, then `final_prediction`, then `delay_only`, then `scheduled`, with ties going to
+`observed`, then `final_prediction`, then `delay_only`, then `delay_interpolated`, then `scheduled`, with ties going to
 the catalog's earlier dataset. In the Basel belt the Swiss observation is therefore drawn and
 the German final prediction is hidden. The hidden leg stays in its dataset: station boards
 still list it, and it is drawn when its own journey is spectated.

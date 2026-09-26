@@ -46,7 +46,12 @@ export interface Manifest {
 }
 
 /** How strong a dataset's times are as evidence. */
-export type TimeSemantics = "observed" | "final_prediction" | "delay_only" | "scheduled";
+export type TimeSemantics =
+  | "observed"
+  | "final_prediction"
+  | "delay_only"
+  | "delay_interpolated"
+  | "scheduled";
 
 /**
  * One entry of catalog.json (berg_pipeline/europe/catalog.py is the authority). `path` is

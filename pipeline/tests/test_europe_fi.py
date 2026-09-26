@@ -220,7 +220,7 @@ def test_manifest_advertises_gaps_as_missing_coverage(tmp_path, monkeypatch):
                      0::UTINYINT AS flags)
         TO '{day_file.as_posix()}' (FORMAT PARQUET)""")
     manifest = catalog.build_dataset_manifest(FINLAND)
-    assert manifest["start"] == "2023-01-01" and manifest["end"] == "2025-12-31"
+    assert manifest["start"] == "2023-01-01" and manifest["end"] == FINLAND.coverage_end
     assert "2023-01-01" in manifest["missing_days"]
     assert "2023-01-02" not in manifest["missing_days"]
     assert manifest["time_semantics"] == "observed"

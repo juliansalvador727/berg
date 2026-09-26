@@ -54,10 +54,12 @@ One member per service day, `YYYY-MM-DD_IstDaten.csv`, ~630 MB raw / ~50 MB zipp
 That single ZIP is **166 MB for twenty-four months**, against 397 MB for January 2018 alone. The
 filename says it: *unvollständig*, incomplete. **Real coverage starts 2018-01.**
 
-### v1 is not retired
+### v1 stops after 2026-06
 
-Both v1 and v2 are published in parallel, through 2026-06 at least. There is no forced migration
-yet — but v2 is the one to build on.
+Both v1 and v2 were published in parallel through 2026-06. From 2026-07 only v2 exists: on
+2026-09-25, `ist-daten-2026-07.zip` and `ist-daten-2026-08.zip` returned 404 while the v2 files
+returned 200. The pipeline already takes v2 from `V2_FIRST_FULL_MONTH` (2025-08), so nothing
+changed for it.
 
 ### Member paths inside the ZIPs drift too — never construct one
 
