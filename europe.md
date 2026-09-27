@@ -329,15 +329,15 @@ overlay may fill border gaps, but must not require renumbering local route IDs.
 | Germany | 2.75 GB |
 | Netherlands, 2023 → 2026-08 | 0.50 GB |
 | Belgium, 2023 → 2026-08 | 0.45 GB |
-| Finland, 2023 → 2026-08 (extension pending) | 0.20 GB |
+| Finland, 2023 → 2026-08 | 0.20 GB |
 | Austria, 2025-12-15 → 2026-09-05 | 0.20 GB |
 | Catalog, stations, route pairs, train types, and geometry | 0.30 GB |
 | Safety reserve | 0.90 GB |
 | **Total** | **9.00 GB** |
 
 The Netherlands and Belgium were extended to 2026-08-30 on 2026-09-25 to reach the end of
-Germany's window, and Switzerland gained 2026-07 and 2026-08. Finland's extension is pending:
-Digitraffic's rail API was down that day. Finland and Belgium took their extra 0.15 GB from
+Germany's window, and Switzerland gained 2026-07 and 2026-08. Finland followed on 2026-09-27,
+after an outage of Digitraffic's rail API delayed it. Finland and Belgium took their extra 0.15 GB from
 Germany's allocation, which its published 0.66 GB leaves unused. Austria's 0.20 GB came from
 the same place on 2026-09-25.
 

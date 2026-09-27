@@ -110,9 +110,7 @@ FINLAND = DatasetConfig(
     # Measured 2023-01..02: 10.2k-14.6k published legs per UTC day, the low end on holidays.
     min_legs_per_day=2_000,
     coverage_start="2023-01-01",
-    # Extension to 2026-08-30 is pending: Digitraffic's rail API was down on 2026-09-25. The
-    # 200 MB cap already reserves room for it.
-    coverage_end="2025-12-31",
+    coverage_end="2026-08-30",
     storage_cap_bytes=200_000_000,
     notes=(
         "Actual times come from track-circuit observations; live estimates are never used.",

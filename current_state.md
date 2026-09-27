@@ -29,11 +29,11 @@ Swiss root manifest.
 | Finland | Value |
 |---|---:|
 | Source | Fintraffic / Digitraffic, CC BY 4.0 |
-| Coverage | 2023-01-01 → 2025-12-31, 1,096 UTC days, 0 missing |
-| Published legs | 14,374,199 (2.3% scheduled fallback) |
-| Routes / fallbacks | 1,808 / 14 |
-| Published size | 137.8 MB of its 150 MB allocation |
-| Bucket after upload | ~3.91 GB of the 9.0 GB ceiling |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 17,489,126 (2.3% scheduled fallback) |
+| Routes / fallbacks | 1,986 / 16 |
+| Published size | 167.8 MB of its 200 MB allocation |
+| Bucket after upload | ~5.63 GB of the 9.0 GB ceiling (2026-09-27) |
 
 Seven strike days are published thin and flagged as `source_cancelled_days`. Details:
 [`docs/data-notes-fi.md`](docs/data-notes-fi.md). Rebuild: `scripts/fetch_fi.py`,
@@ -168,13 +168,12 @@ over their existing databases: the append-only registries kept every id, and eve
 day file came out byte-identical, so only the 242 new days per country were uploaded. Finland
 and Belgium's caps rose to 0.20 and 0.45 GB, taken from Germany's unused allocation (europe.md).
 
-Four datasets now share 2025-11-03 → 2026-08-30, and with Austria, five share 2025-12-15 →
-2026-08-30. **Finland is still pending**: Digitraffic's
-rail API was down all evening on 2026-09-25 (timeouts, then HTTP 503; its status page listed
-the rail endpoints as down). Its config stays at 2025-12-31 until the extension lands. To do it,
-set `coverage_end="2026-08-30"` in `europe/config.py`, run `scripts/fetch_fi.py 2026-01-02
-2026-08-31`, then `scripts/build_fi.py`, the geometry job with `--fit-bbox`, and
-`scripts/sync_dataset.py fi`.
+Finland followed on 2026-09-27, once Digitraffic's rail API was back after its 2026-09-25
+outage. Its 2023-2025 day files also came out byte-identical, so only the 242 new days and the
+static files were uploaded. All five datasets besides Austria now share 2025-11-03 → 2026-08-30,
+and all six share 2025-12-15 → 2026-08-30. Finland's 2026 summer is thin by design: Helsinki
+commuter service is cut back in the source timetable from 2026-05-30 to 2026-08-09
+(`docs/data-notes-fi.md`).
 
 ## Published snapshot
 
@@ -312,6 +311,26 @@ Do these in order unless product priorities change:
 - [ ] Decide whether aggregates are a product requirement; `aggregates_json` is still an
   intentional `NotImplementedError` stub.
 - [ ] Audit `missing_time` and decide the zero-duration policy described above.
+- [ ] Low priority: label journeys with their real endpoints. Search results
+  (`web/src/main.ts:1063`) and the spectating header (`web/src/main.ts:1096`) build
+  "from → to" from `firstRouteId`, the first leg only. WB 963 Stuttgart–Rosenheim therefore
+  reads "Stuttgart Hbf → Ulm Hbf", and IC 187 Stuttgart–Singen reads "Stuttgart Hbf → Böblingen".
+  Have `journeyById`/`searchJourneys` in
+  `web/src/worker/legs.worker.ts` also return the route of the latest-arriving leg, and label
+  first leg's origin → last leg's destination. The clicked-train panel (`main.ts:1162`) may keep
+  showing the current leg, but should say so.
+- [ ] Low priority: link late trains whose shared-station time is only scheduled. `_judge` in
+  `europe/links.py` needs both journeys at the shared station within `SHARED_STATION_S`
+  (10 min). The Swiss archive has no actual time at Singen (the Singen→Schaffhausen leg is a
+  scheduled fallback, flag 1), so an IC 187 that reaches Singen more than 10 min late never
+  links to its Swiss section: 2025-11-12, 22 min late, arrives 13:48 against a Swiss 13:32.
+  When either call is a scheduled fallback, compare against the other side's scheduled time
+  as well. Rebuild and sync links afterwards.
+- [ ] Low priority: add non-ÖBB operators to Austria. The Zugfahrten runs include WESTbahn, but the
+  ÖBB-PV GTFS lists only ÖBB, Montafonerbahn and CAT, so WB runs never pair and are dropped.
+  WB 963 (Stuttgart–Wien) ends at Rosenheim/Freilassing, the last German station, with no
+  Austrian journey to link to. Take stops from the national all-operator timetable (or
+  WESTbahn's own GTFS), rebuild `at`, then rebuild and sync links.
 
 The detailed UI, GLB, rail-tile, terrain, search, and station-board contracts are in
 [`docs/product-roadmap.md`](docs/product-roadmap.md).
