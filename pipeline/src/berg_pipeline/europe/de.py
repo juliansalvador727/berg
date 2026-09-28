@@ -43,25 +43,65 @@ REVISION = "2a161c0b9957cd58297f841c818bb8cbbdaf2798"
 FILE_URL = f"https://huggingface.co/datasets/{REPO}/resolve/{REVISION}/{{path}}"
 TREE_URL = f"https://huggingface.co/api/datasets/{REPO}/tree/{REVISION}/{{path}}"
 
-REQUIRED_COLUMNS = frozenset({
-    "eva", "train_number", "line_number", "train_type", "id",
-    "arrival_planned_time", "arrival_change_time", "departure_planned_time",
-    "departure_change_time", "arrival_is_canceled", "departure_is_canceled",
-    "is_additional_stop",
-})
+REQUIRED_COLUMNS = frozenset(
+    {
+        "eva",
+        "train_number",
+        "line_number",
+        "train_type",
+        "id",
+        "arrival_planned_time",
+        "arrival_change_time",
+        "departure_planned_time",
+        "departure_change_time",
+        "arrival_is_canceled",
+        "departure_is_canceled",
+        "is_additional_stop",
+    }
+)
 
 # IRIS's train category is a product (ICE, RE, S) for DB and many others, and an operator
 # code (ag, erx, VIA, HLB) for the rest. Products are kept as they are.
 PRODUCTS = (
-    "ICE", "IC", "EC", "ECE", "RJ", "RJX", "TGV", "EST", "FLX", "WB", "NJ", "EN", "ES", "D",
-    "IR", "IRE", "RE", "RB", "S", "MEX", "RS", "FEX",
+    "ICE",
+    "IC",
+    "EC",
+    "ECE",
+    "RJ",
+    "RJX",
+    "TGV",
+    "EST",
+    "FLX",
+    "WB",
+    "NJ",
+    "EN",
+    "ES",
+    "D",
+    "IR",
+    "IRE",
+    "RE",
+    "RB",
+    "S",
+    "MEX",
+    "RS",
+    "FEX",
     # Regional products of the Austrian and Czech trains that reach German stations.
-    "R", "OS",
+    "R",
+    "OS",
 )
 # An operator code takes its product from the line number's prefix ("RB23", "S5"); any
 # other line under an operator code is a regional train.
-LINE_PRODUCTS = {"S": "S", "RE": "RE", "RB": "RB", "IRE": "IRE", "MEX": "MEX", "RS": "RS",
-                 "FEX": "FEX", "HBX": "RE", "REX": "RE"}
+LINE_PRODUCTS = {
+    "S": "S",
+    "RE": "RE",
+    "RB": "RB",
+    "IRE": "IRE",
+    "MEX": "MEX",
+    "RS": "RS",
+    "FEX": "FEX",
+    "HBX": "RE",
+    "REX": "RE",
+}
 # Road replacement, matched case-insensitively on the train type or the line's prefix.
 ROAD_TYPES = ("BUS", "SEV", "BSV", "BEV", "BBUS", "BS", "TAXI", "EV")
 ROAD_LINES = ("SEV", "EV", "EVS", "SV", "EVRT", "BUS")
@@ -109,8 +149,9 @@ def _download(path: str, out: Path, sha256: str | None = None) -> None:
     for attempt in range(1, 7):
         try:
             digest = hashlib.sha256()
-            with httpx.stream("GET", FILE_URL.format(path=path), timeout=300,
-                              follow_redirects=True) as response:
+            with httpx.stream(
+                "GET", FILE_URL.format(path=path), timeout=300, follow_redirects=True
+            ) as response:
                 response.raise_for_status()
                 with open(tmp, "wb") as fh:
                     for chunk in response.iter_bytes(1 << 20):
@@ -171,8 +212,9 @@ def fetch_stations(month: str, force: bool = False) -> Path:
     year, mon = month.split("-")
     first_day = 3 if month == "2025-11" else 1  # full-station crawling starts 2025-11-02
     for day in range(first_day, first_day + 5):
-        files = sorted(_tree(f"raw_data/year={year}/month={int(mon)}/day={day}"),
-                       key=lambda f: f["size"])
+        files = sorted(
+            _tree(f"raw_data/year={year}/month={int(mon)}/day={day}"), key=lambda f: f["size"]
+        )
         for entry in files:
             tmp = GERMANY.raw_dir / f".stada-{month}.parquet"
             _download(entry["path"], tmp, entry.get("lfs", {}).get("oid"))
@@ -185,9 +227,12 @@ def fetch_stations(month: str, force: bool = False) -> Path:
                 tmp.unlink()
             stations = _parse_stada(responses)
             if len(responses) == 7 and stations:
-                out.write_text(json.dumps(
-                    {"source": entry["path"], "revision": REVISION, "stations": stations},
-                    ensure_ascii=False))
+                out.write_text(
+                    json.dumps(
+                        {"source": entry["path"], "revision": REVISION, "stations": stations},
+                        ensure_ascii=False,
+                    )
+                )
                 return out
     raise RuntimeError(f"{month}: no complete StaDa snapshot in the first raw days")
 
@@ -202,9 +247,15 @@ def _parse_stada(responses: list[tuple[str, str]]) -> list[dict]:
                 coords = (eva.get("geographicCoordinates") or {}).get("coordinates")
                 if not coords:
                     continue
-                out.append({"eva": int(eva["number"]), "name": station["name"],
-                            "code": ril[0].get("rilIdentifier"),
-                            "lon": coords[0], "lat": coords[1]})
+                out.append(
+                    {
+                        "eva": int(eva["number"]),
+                        "name": station["name"],
+                        "code": ril[0].get("rilIdentifier"),
+                        "lon": coords[0],
+                        "lat": coords[1],
+                    }
+                )
     return out
 
 
@@ -223,8 +274,10 @@ def write_dim_station(snapshots: list[Path], out: Path) -> dict:
             by_eva[row["eva"]] = row
     out.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
-    con.execute("CREATE TABLE s (bpuic BIGINT, name VARCHAR, code VARCHAR, lon DOUBLE, "
-                "lat DOUBLE, passenger BOOLEAN, country VARCHAR)")
+    con.execute(
+        "CREATE TABLE s (bpuic BIGINT, name VARCHAR, code VARCHAR, lon DOUBLE, "
+        "lat DOUBLE, passenger BOOLEAN, country VARCHAR)"
+    )
     con.executemany(
         "INSERT INTO s VALUES (?, ?, ?, ?, ?, true, 'DE')",
         [[r["eva"], r["name"], r["code"], r["lon"], r["lat"]] for r in by_eva.values()],
@@ -239,20 +292,21 @@ def write_dim_station(snapshots: list[Path], out: Path) -> dict:
 def _utc(expr: str) -> str:
     """Naive Berlin local timestamp → epoch seconds UTC. The window has no autumn change,
     and nothing is scheduled in the missing spring hour."""
-    return (f"CAST(epoch(timezone('{GERMANY.timezone}', CAST({expr} AS TIMESTAMP))) "
-            "AS BIGINT)")
+    return f"CAST(epoch(timezone('{GERMANY.timezone}', CAST({expr} AS TIMESTAMP))) AS BIGINT)"
 
 
 def _category_sql(train_type: str, line: str) -> str:
     products = ", ".join(f"'{p}'" for p in PRODUCTS)
     prefix = f"upper(regexp_extract({line}, '^([A-Za-z]+)', 1))"
     cases = " ".join(f"WHEN '{k}' THEN '{v}'" for k, v in LINE_PRODUCTS.items())
-    return (f"CASE WHEN upper({train_type}) IN ({products}) THEN upper({train_type}) "
-            f"WHEN upper({train_type}) = 'REX' THEN 'RE' "
-            f"WHEN {prefix} IN ({', '.join(repr(k) for k in LINE_PRODUCTS)}) "
-            f"THEN CASE {prefix} {cases} END "
-            f"WHEN nullif(trim({line}), '') IS NOT NULL THEN 'RB' "
-            f"ELSE coalesce(nullif(upper(trim({train_type})), ''), 'TRAIN') END")
+    return (
+        f"CASE WHEN upper({train_type}) IN ({products}) THEN upper({train_type}) "
+        f"WHEN upper({train_type}) = 'REX' THEN 'RE' "
+        f"WHEN {prefix} IN ({', '.join(repr(k) for k in LINE_PRODUCTS)}) "
+        f"THEN CASE {prefix} {cases} END "
+        f"WHEN nullif(trim({line}), '') IS NOT NULL THEN 'RB' "
+        f"ELSE coalesce(nullif(upper(trim({train_type})), ''), 'TRAIN') END"
+    )
 
 
 def _files_for(first: date, last: date) -> list[Path]:
@@ -289,10 +343,10 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                CAST(p.pos AS INTEGER)                         AS pos,
                CAST(eva AS BIGINT)                            AS eva,
                train_type, train_number, line_number,
-               {_utc('arrival_planned_time')}                 AS s_arr,
-               {_utc('arrival_change_time')}                  AS c_arr,
-               {_utc('departure_planned_time')}               AS s_dep,
-               {_utc('departure_change_time')}                AS c_dep,
+               {_utc("arrival_planned_time")}                 AS s_arr,
+               {_utc("arrival_change_time")}                  AS c_arr,
+               {_utc("departure_planned_time")}               AS s_dep,
+               {_utc("departure_change_time")}                AS c_dep,
                coalesce(arrival_is_canceled, false)           AS arr_cancelled,
                coalesce(departure_is_canceled, false)         AS dep_cancelled,
                coalesce(is_additional_stop, false)            AS additional,
@@ -354,7 +408,7 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                        any_value(train_type) AS train_type,
                        any_value(train_number) AS number,
                        arg_min(line_number, pos) AS line,
-                       {_category_sql('any_value(train_type)', 'arg_min(line_number, pos)')}
+                       {_category_sql("any_value(train_type)", "arg_min(line_number, pos)")}
                            AS category,
                        min(coalesce(s_dep, s_arr)) AS t0
                 FROM live GROUP BY ride

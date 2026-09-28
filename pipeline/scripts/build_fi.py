@@ -46,9 +46,11 @@ def main(first: date, last: date, skip_stage: bool) -> int:
             staged = fi.stage_days(con, build.daterange(m_first, m_last))
             legs = stops.build_legs(con, CFG, m_first, m_last, CFG.dim_station_parquet)
             quality[key] = {"stage": staged, "legs": legs}
-            print(f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
-                  f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} }",
-                  flush=True)
+            print(
+                f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
+                f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} }",
+                flush=True,
+            )
 
     build.publish_days(con, CFG, first, last, quality)
     print(f"done in {time.monotonic() - t0:.0f}s")
@@ -57,7 +59,9 @@ def main(first: date, last: date, skip_stage: bool) -> int:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start))
+    p.add_argument(
+        "--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start)
+    )
     p.add_argument("--last", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_end))
     p.add_argument("--skip-stage", action="store_true", help="export from the existing database")
     a = p.parse_args()

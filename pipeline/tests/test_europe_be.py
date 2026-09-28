@@ -33,16 +33,44 @@ def d(day: date) -> str:
     return day.strftime("%d%b%Y").upper()
 
 
-def row(number, relation, ptcar, code, arr=None, dep=None, act_arr=None, act_dep=None,
-        arr_day=DAY, dep_day=DAY, service_day=DAY):
+def row(
+    number,
+    relation,
+    ptcar,
+    code,
+    arr=None,
+    dep=None,
+    act_arr=None,
+    act_dep=None,
+    arr_day=DAY,
+    dep_day=DAY,
+    service_day=DAY,
+):
     """arr/dep are 'H:MM:SS' planned times; act_* default to planned."""
     act_arr = act_arr or arr
     act_dep = act_dep or dep
     return [
-        d(service_day), number, relation, "SNCB/NMBS", ptcar, code or "", "50A",
-        act_arr or "", act_dep or "", arr or "", dep or "", "", "", "1", relation, "X", "50A",
-        d(arr_day) if arr else "", d(dep_day) if dep else "",
-        d(arr_day) if arr else "", d(dep_day) if dep else "",
+        d(service_day),
+        number,
+        relation,
+        "SNCB/NMBS",
+        ptcar,
+        code or "",
+        "50A",
+        act_arr or "",
+        act_dep or "",
+        arr or "",
+        dep or "",
+        "",
+        "",
+        "1",
+        relation,
+        "X",
+        "50A",
+        d(arr_day) if arr else "",
+        d(dep_day) if dep else "",
+        d(arr_day) if arr else "",
+        d(dep_day) if dep else "",
     ]
 
 
@@ -51,8 +79,16 @@ ROWS = [
     # the source lists with a stop code, terminates at Brussels.
     row("1509", "IC 03", 100, None, dep="9:53:00", act_dep="9:53:30"),
     row("1509", "IC 03", 101, "D", arr="10:01:00", dep="10:01:00"),
-    row("1509", "IC 03", 102, "=", arr="10:20:00", dep="10:23:00",
-        act_arr="10:21:10", act_dep="10:24:00"),
+    row(
+        "1509",
+        "IC 03",
+        102,
+        "=",
+        arr="10:20:00",
+        dep="10:23:00",
+        act_arr="10:21:10",
+        act_dep="10:24:00",
+    ),
     row("1509", "IC 03", 103, "=", arr="10:25:00", dep="10:25:00"),
     row("1509", "IC 03", 104, None, arr="10:55:00", act_arr="10:58:00"),
     # L 5571 departs 23:50 and arrives after midnight: the arrival carries tomorrow's date.
@@ -74,10 +110,12 @@ ROWS = [
     # Two stops planned for the same minute: the actual times give the order (102 before
     # 101, against the ptcar ids).
     row("6600", "L 50", 100, None, dep="7:00:00"),
-    row("6600", "L 50", 101, "=", arr="7:05:00", dep="7:05:00",
-        act_arr="7:05:50", act_dep="7:05:50"),
-    row("6600", "L 50", 102, "=", arr="7:05:00", dep="7:05:00",
-        act_arr="7:05:10", act_dep="7:05:10"),
+    row(
+        "6600", "L 50", 101, "=", arr="7:05:00", dep="7:05:00", act_arr="7:05:50", act_dep="7:05:50"
+    ),
+    row(
+        "6600", "L 50", 102, "=", arr="7:05:00", dep="7:05:00", act_arr="7:05:10", act_dep="7:05:10"
+    ),
     row("6600", "L 50", 104, None, arr="7:30:00"),
     # A train the source gives no relation.
     row("22221", "", 100, None, dep="17:00:00"),
@@ -98,17 +136,51 @@ def be_root(tmp_path: Path, monkeypatch) -> Path:
         csv.writer(fh, lineterminator="\n").writerows(ROWS)
     with open(be.stations_path(), "w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.writer(fh, delimiter=";", lineterminator="\n")
-        writer.writerow([
-            "geo_point_2d", "geo_shape", "ptcarid", "taftapcode", "symbolicname",
-            "shortnamefrench", "shortnamedutch", "longnamefrench", "longnamedutch",
-            "commercialshortnamefrench", "commercialshortnamedutch",
-            "commercialmiddlenamefrench", "commercialmiddlenamedutch",
-            "commerciallongnamefrench", "commerciallongnamedutch",
-            "classification", "class_en", "class_fr",
-        ])
+        writer.writerow(
+            [
+                "geo_point_2d",
+                "geo_shape",
+                "ptcarid",
+                "taftapcode",
+                "symbolicname",
+                "shortnamefrench",
+                "shortnamedutch",
+                "longnamefrench",
+                "longnamedutch",
+                "commercialshortnamefrench",
+                "commercialshortnamedutch",
+                "commercialmiddlenamefrench",
+                "commercialmiddlenamedutch",
+                "commerciallongnamefrench",
+                "commerciallongnamedutch",
+                "classification",
+                "class_en",
+                "class_fr",
+            ]
+        )
         for pid, fr, nl, cls, lat, lon in PTCARS:
-            writer.writerow([f"{lat}, {lon}", "{}", pid, f"BE{pid:05d}", f"F{pid}",
-                             fr, nl, fr, nl, fr, nl, fr, nl, fr, nl, cls, cls, cls])
+            writer.writerow(
+                [
+                    f"{lat}, {lon}",
+                    "{}",
+                    pid,
+                    f"BE{pid:05d}",
+                    f"F{pid}",
+                    fr,
+                    nl,
+                    fr,
+                    nl,
+                    fr,
+                    nl,
+                    fr,
+                    nl,
+                    fr,
+                    nl,
+                    cls,
+                    cls,
+                    cls,
+                ]
+            )
     return tmp_path
 
 
@@ -122,14 +194,17 @@ def built(be_root):
 
 
 def epoch(hh, mm, ss=0, day=DAY) -> int:
-    return int(datetime(day.year, day.month, day.day, hh, mm, ss, tzinfo=timezone.utc)
-               .timestamp()) - 3600
+    return (
+        int(datetime(day.year, day.month, day.day, hh, mm, ss, tzinfo=timezone.utc).timestamp())
+        - 3600
+    )
 
 
 def legs_of(con, trip):
     return con.execute(
         "SELECT from_bpuic, to_bpuic, t_dep, dur, delay, flags FROM fct_legs "
-        "WHERE trip_id = ? ORDER BY t_dep", [trip]
+        "WHERE trip_id = ? ORDER BY t_dep",
+        [trip],
     ).fetchall()
 
 
@@ -158,7 +233,8 @@ def test_lettered_local_relations_are_suburban(be_root):
     assert [leg[:2] for leg in legs_of(con, "S 3700")] == [(102, 104)]
     assert [leg[:2] for leg in legs_of(con, "S 3701")] == [(102, 104)]
     assert con.execute(
-        "SELECT line FROM stg_stops WHERE trip_id = 'S 3700' LIMIT 1").fetchone() == ("L B1-1",)
+        "SELECT line FROM stg_stops WHERE trip_id = 'S 3700' LIMIT 1"
+    ).fetchone() == ("L B1-1",)
 
 
 def test_stops_planned_for_the_same_minute_follow_actual_order(be_root):
@@ -189,11 +265,15 @@ def test_months_with_reordered_columns_are_read_by_name(be_root):
     would silently shift every field."""
     nxt = date(2024, 4, 1)
     layout = ["DATDEP", "CIRC_TYP", "TRAIN_NO", "RELATION", "TRAIN_SERV", "OP1_COD"] + [
-        c for c in be.HEADER.split(",")
-        if c not in ("DATDEP", "CIRC_TYP", "TRAIN_NO", "RELATION", "TRAIN_SERV")]
+        c
+        for c in be.HEADER.split(",")
+        if c not in ("DATDEP", "CIRC_TYP", "TRAIN_NO", "RELATION", "TRAIN_SERV")
+    ]
     old = be.HEADER.split(",")
-    rows = [row("1601", "IC 01", 100, None, dep="8:00:00", service_day=nxt, dep_day=nxt),
-            row("1601", "IC 01", 102, None, arr="8:30:00", service_day=nxt, arr_day=nxt)]
+    rows = [
+        row("1601", "IC 01", 100, None, dep="8:00:00", service_day=nxt, dep_day=nxt),
+        row("1601", "IC 01", 102, None, arr="8:30:00", service_day=nxt, arr_day=nxt),
+    ]
     with open(be.raw_path("2024-04"), "w", newline="") as fh:
         fh.write(",".join(layout) + "\n")
         writer = csv.writer(fh, lineterminator="\n")

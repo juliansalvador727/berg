@@ -202,18 +202,14 @@ def stage_days(con, days: list[date]) -> dict:
         # What the source itself says about each day. A day where nearly every train is
         # cancelled (a national strike) is thin because the railway stopped, not because the
         # ingest collapsed — and this is the evidence that tells the two apart.
-        con.execute(
-            "DELETE FROM source_days WHERE service_day BETWEEN ? AND ?", [first, last]
-        )
+        con.execute("DELETE FROM source_days WHERE service_day BETWEEN ? AND ?", [first, last])
         con.execute(f"""
             INSERT INTO source_days
             SELECT departureDate, count(*), count(*) FILTER (coalesce(cancelled, false))
             FROM _fi_trains
             WHERE trainCategory IN ({cats}) AND departureDate BETWEEN DATE '{first}' AND DATE '{last}'
             GROUP BY departureDate""")
-        con.execute(
-            "DELETE FROM stg_stops WHERE service_day BETWEEN ? AND ?", [first, last]
-        )
+        con.execute("DELETE FROM stg_stops WHERE service_day BETWEEN ? AND ?", [first, last])
         con.execute(f"""
             INSERT INTO stg_stops
             WITH live AS (
@@ -228,7 +224,7 @@ def stage_days(con, days: list[date]) -> dict:
                        any_value(commuterLineID)                           AS commuter_line,
                        any_value(operatorShortCode)                        AS operator,
                        any_value(version)                                  AS version,
-                       any_value({_local_station_sql('countryCode', 'stationUICCode')})
+                       any_value({_local_station_sql("countryCode", "stationUICCode")})
                                                                            AS station_id,
                        bool_or(coalesce(trainStopping, false)
                                AND coalesce(commercialStop, false))        AS commercial,
@@ -248,10 +244,10 @@ def stage_days(con, days: list[date]) -> dict:
                             train_type || ' ' || trainNumber)   AS line,
                    station_id,
                    stop_seq,
-                   {_utc('s_arr')}                              AS sched_arr,
-                   {_utc('s_dep')}                              AS sched_dep,
-                   {_utc('a_arr')}                              AS act_arr,
-                   {_utc('a_dep')}                              AS act_dep,
+                   {_utc("s_arr")}                              AS sched_arr,
+                   {_utc("s_dep")}                              AS sched_dep,
+                   {_utc("a_arr")}                              AS act_arr,
+                   {_utc("a_dep")}                              AS act_dep,
                    a_arr IS NOT NULL                            AS arr_measured,
                    a_dep IS NOT NULL                            AS dep_measured,
                    version                                      AS source_revision
@@ -291,9 +287,15 @@ def write_dim_station(stations: list[dict], out: Path) -> dict:
     import duckdb
 
     rows = [
-        (local_station_id(s["countryCode"], s["stationUICCode"]), s["stationName"], s["stationShortCode"],
-         float(s["longitude"]), float(s["latitude"]), bool(s["passengerTraffic"]),
-         s["countryCode"])
+        (
+            local_station_id(s["countryCode"], s["stationUICCode"]),
+            s["stationName"],
+            s["stationShortCode"],
+            float(s["longitude"]),
+            float(s["latitude"]),
+            bool(s["passengerTraffic"]),
+            s["countryCode"],
+        )
         for s in stations
     ]
     ids = [r[0] for r in rows]

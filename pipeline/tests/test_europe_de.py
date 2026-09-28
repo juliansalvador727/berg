@@ -30,24 +30,60 @@ STATIONS = [
     (8000349, "Darmstadt Hbf", "FD", 49.8725, 8.6293),
 ]
 COLUMNS = (
-    "station_name", "eva", "train_number", "line_number", "train_type", "id",
-    "arrival_planned_time", "arrival_change_time", "departure_planned_time",
-    "departure_change_time", "arrival_is_canceled", "departure_is_canceled",
+    "station_name",
+    "eva",
+    "train_number",
+    "line_number",
+    "train_type",
+    "id",
+    "arrival_planned_time",
+    "arrival_change_time",
+    "departure_planned_time",
+    "departure_change_time",
+    "arrival_is_canceled",
+    "departure_is_canceled",
     "is_additional_stop",
 )
 
 
-def stop(ride, pos, eva, tt, number, line=None, arr=None, dep=None, c_arr=None, c_dep=None,
-         cancelled=False, additional=False, day=DAY):
+def stop(
+    ride,
+    pos,
+    eva,
+    tt,
+    number,
+    line=None,
+    arr=None,
+    dep=None,
+    c_arr=None,
+    c_dep=None,
+    cancelled=False,
+    additional=False,
+    day=DAY,
+):
     """arr/dep are 'HH:MM' planned local times on `day` (or 'YYYY-MM-DD HH:MM');
     change times default to planned, as the archive fills them."""
+
     def ts(v):
         if v is None:
             return None
         return v if len(v) > 5 else f"{day} {v}"
-    return (f"s{eva}", f"{eva:08d}", number, line, tt, f"{ride}-{pos}",
-            ts(arr), ts(c_arr or arr), ts(dep), ts(c_dep or dep),
-            cancelled and arr is not None, cancelled and dep is not None, additional)
+
+    return (
+        f"s{eva}",
+        f"{eva:08d}",
+        number,
+        line,
+        tt,
+        f"{ride}-{pos}",
+        ts(arr),
+        ts(c_arr or arr),
+        ts(dep),
+        ts(c_dep or dep),
+        cancelled and arr is not None,
+        cancelled and dep is not None,
+        additional,
+    )
 
 
 ICE = "-3851151041923621842-2512091836"
@@ -86,15 +122,21 @@ JAN_ROWS = [stop(NYE, 2, 8000349, "RE", "4001", line="RE60", arr="2026-01-01 00:
 
 def write_month(path: Path, rows: list) -> None:
     con = duckdb.connect()
-    con.execute("CREATE TABLE t (station_name VARCHAR, eva VARCHAR, train_number VARCHAR, "
-                "line_number VARCHAR, train_type VARCHAR, id VARCHAR, "
-                "arrival_planned_time VARCHAR, arrival_change_time VARCHAR, "
-                "departure_planned_time VARCHAR, departure_change_time VARCHAR, "
-                "arrival_is_canceled BOOLEAN, departure_is_canceled BOOLEAN, "
-                "is_additional_stop BOOLEAN)")
+    con.execute(
+        "CREATE TABLE t (station_name VARCHAR, eva VARCHAR, train_number VARCHAR, "
+        "line_number VARCHAR, train_type VARCHAR, id VARCHAR, "
+        "arrival_planned_time VARCHAR, arrival_change_time VARCHAR, "
+        "departure_planned_time VARCHAR, departure_change_time VARCHAR, "
+        "arrival_is_canceled BOOLEAN, departure_is_canceled BOOLEAN, "
+        "is_additional_stop BOOLEAN)"
+    )
     con.executemany(f"INSERT INTO t VALUES ({', '.join('?' * len(COLUMNS))})", rows)
-    times = ("arrival_planned_time", "arrival_change_time", "departure_planned_time",
-             "departure_change_time")
+    times = (
+        "arrival_planned_time",
+        "arrival_change_time",
+        "departure_planned_time",
+        "departure_change_time",
+    )
     select = ", ".join(f"CAST({c} AS TIMESTAMP_NS) AS {c}" if c in times else c for c in COLUMNS)
     path.parent.mkdir(parents=True, exist_ok=True)
     con.execute(f"COPY (SELECT {select} FROM t) TO '{path.as_posix()}' (FORMAT PARQUET)")
@@ -105,8 +147,9 @@ def de_root(tmp_path: Path, monkeypatch) -> Path:
     monkeypatch.setattr(paths, "DATA_ROOT", tmp_path)
     write_month(de.raw_path("2025-12"), ROWS + DEC_ROWS)
     write_month(de.raw_path("2026-01"), JAN_ROWS)
-    stations = [{"eva": e, "name": n, "code": c, "lon": lo, "lat": la}
-                for e, n, c, la, lo in STATIONS]
+    stations = [
+        {"eva": e, "name": n, "code": c, "lon": lo, "lat": la} for e, n, c, la, lo in STATIONS
+    ]
     # An older snapshot with a stale name: the latest one wins.
     old = [dict(stations[0], name="Hamburg-Altona (alt)")]
     de.stations_path("2025-11").write_text(json.dumps({"stations": old}))
@@ -125,14 +168,16 @@ def built(first=DAY, last=DAY):
 
 
 def epoch(hh, mm, day=DAY) -> int:
-    return int(datetime(day.year, day.month, day.day, hh, mm, tzinfo=timezone.utc)
-               .timestamp()) - 3600
+    return (
+        int(datetime(day.year, day.month, day.day, hh, mm, tzinfo=timezone.utc).timestamp()) - 3600
+    )
 
 
 def legs_of(con, trip):
     return con.execute(
         "SELECT from_bpuic, to_bpuic, t_dep, dur, delay, flags FROM fct_legs "
-        "WHERE trip_id = ? ORDER BY t_dep", [trip]
+        "WHERE trip_id = ? ORDER BY t_dep",
+        [trip],
     ).fetchall()
 
 
@@ -153,8 +198,9 @@ def test_road_replacement_is_excluded(de_root):
     con, staged, _ = built()
     assert staged["rides_road"] == 2
     assert legs_of(con, "RB 80002") == []
-    assert con.execute("SELECT count(*) FROM stg_stops WHERE train_number IN "
-                       "('80001', '80002')").fetchone() == (0,)
+    assert con.execute(
+        "SELECT count(*) FROM stg_stops WHERE train_number IN ('80001', '80002')"
+    ).fetchone() == (0,)
 
 
 def test_reused_numbers_get_their_own_journey(de_root):
@@ -167,8 +213,9 @@ def test_operator_codes_take_the_lines_product(de_root):
     con, _, _ = built()
     assert [leg[:2] for leg in legs_of(con, "RB 84001")] == [(8000105, 8000349)]
     assert [leg[:2] for leg in legs_of(con, "ERX 83001")] == [(8000105, 8000349)]
-    assert con.execute("SELECT DISTINCT operator, line FROM stg_stops "
-                       "WHERE trip_id = 'RB 84001'").fetchall() == [("ag", "RB33")]
+    assert con.execute(
+        "SELECT DISTINCT operator, line FROM stg_stops WHERE trip_id = 'RB 84001'"
+    ).fetchall() == [("ag", "RB33")]
 
 
 def test_a_ride_crossing_into_the_next_months_file(de_root):
@@ -179,8 +226,9 @@ def test_a_ride_crossing_into_the_next_months_file(de_root):
 
 def test_latest_station_snapshot_wins(de_root):
     built()
-    names = dict(duckdb.sql(
-        f"SELECT bpuic, name FROM '{GERMANY.dim_station_parquet.as_posix()}'").fetchall())
+    names = dict(
+        duckdb.sql(f"SELECT bpuic, name FROM '{GERMANY.dim_station_parquet.as_posix()}'").fetchall()
+    )
     assert names[8002553] == "Hamburg-Altona"
     assert len(names) == len(STATIONS)
 
@@ -189,8 +237,10 @@ def test_manifest_carries_semantics_and_gap_hours(de_root):
     con, _, _ = built()
     legs_dir = GERMANY.publish_root / "legs"
     assert ingest.export_day(con, DAY, legs_dir / f"{DAY:%Y/%m/%d}.parquet")["rows"] > 0
-    catalog.write_json({"source_gap_hours": ["2025-12-09T03"],
-                        "source_revision": "rev"}, GERMANY.root / "quality.json")
+    catalog.write_json(
+        {"source_gap_hours": ["2025-12-09T03"], "source_revision": "rev"},
+        GERMANY.root / "quality.json",
+    )
     manifest = catalog.build_dataset_manifest(GERMANY)
     assert manifest["time_semantics"] == "final_prediction"
     assert manifest["license"] == "CC BY 4.0"

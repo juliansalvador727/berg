@@ -57,10 +57,13 @@ def main(first: date, last: date, fetch: bool, skip_stage: bool, restage: bool) 
             con.execute("CHECKPOINT")
             quality[key] = {"stage": staged, "legs": legs}
             catalog.write_json(quality, progress)
-            print(f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
-                  f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} } "
-                  f"road={staged['rides_road']} malformed={staged['rides_malformed']} "
-                  f"added={staged['stops_additional_dropped']}", flush=True)
+            print(
+                f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
+                f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} } "
+                f"road={staged['rides_road']} malformed={staged['rides_malformed']} "
+                f"added={staged['stops_additional_dropped']}",
+                flush=True,
+            )
 
     report = build.publish_days(con, CFG, first, last, quality)
     gaps = de.gap_hours(first, last)
@@ -74,7 +77,9 @@ def main(first: date, last: date, fetch: bool, skip_stage: bool, restage: bool) 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start))
+    p.add_argument(
+        "--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start)
+    )
     p.add_argument("--last", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_end))
     p.add_argument("--fetch", action="store_true", help="download missing raw months first")
     p.add_argument("--skip-stage", action="store_true", help="export from the existing database")

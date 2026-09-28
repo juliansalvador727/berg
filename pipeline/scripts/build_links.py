@@ -39,18 +39,40 @@ def geometry_python(*args: str) -> None:
 def build_geometry(root) -> dict:
     swiss = RAIL_INPUTS["ch"]
     if not swiss.exists():
-        geometry_python("-m", "berg_geometry.merge_osm", "--extract", str(swiss),
-                        str(RAW / "switzerland-latest.osm.pbf"))
+        geometry_python(
+            "-m",
+            "berg_geometry.merge_osm",
+            "--extract",
+            str(swiss),
+            str(RAW / "switzerland-latest.osm.pbf"),
+        )
     manifest = json.loads((root / "publish" / "manifest.json").read_text())
-    countries = sorted({ds for pair in manifest["bridge_pairs"] if pair["accepted"]
-                        for ds in (pair["from"][0], pair["to"][0])})
+    countries = sorted(
+        {
+            ds
+            for pair in manifest["bridge_pairs"]
+            if pair["accepted"]
+            for ds in (pair["from"][0], pair["to"][0])
+        }
+    )
     merged = root / "geometry" / "rail.osm.pbf"
-    geometry_python("-m", "berg_geometry.merge_osm", str(merged),
-                    *[str(RAIL_INPUTS[c]) for c in countries])
+    geometry_python(
+        "-m", "berg_geometry.merge_osm", str(merged), *[str(RAIL_INPUTS[c]) for c in countries]
+    )
     out = root / "publish" / "static" / "routes.bin"
-    geometry_python("-m", "berg_geometry.build", "--fit-bbox", "--pbf", str(merged),
-                    "--db", str(root / "geometry" / "bridges.duckdb"),
-                    "--dim", str(root / "geometry" / "dim.parquet"), "--out", str(out))
+    geometry_python(
+        "-m",
+        "berg_geometry.build",
+        "--fit-bbox",
+        "--pbf",
+        str(merged),
+        "--db",
+        str(root / "geometry" / "bridges.duckdb"),
+        "--dim",
+        str(root / "geometry" / "dim.parquet"),
+        "--out",
+        str(out),
+    )
     return json.loads(out.with_suffix(".report.json").read_text())
 
 

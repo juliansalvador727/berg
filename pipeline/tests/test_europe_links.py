@@ -39,16 +39,28 @@ DE_STATIONS = [
 def write_source(root: Path, stations, pairs: dict[int, tuple[int, int]], legs, journeys):
     static = root / "static"
     static.mkdir(parents=True)
-    (static / "stations.json").write_text(json.dumps(
-        [{"id": i, "name": n, "code": None, "lon": lo, "lat": la} for i, n, lo, la in stations]))
-    (static / "route_pairs.json").write_text(json.dumps({str(k): list(v) for k, v in pairs.items()}))
+    (static / "stations.json").write_text(
+        json.dumps(
+            [{"id": i, "name": n, "code": None, "lon": lo, "lat": la} for i, n, lo, la in stations]
+        )
+    )
+    (static / "route_pairs.json").write_text(
+        json.dumps({str(k): list(v) for k, v in pairs.items()})
+    )
     (root / "manifest.json").write_text(json.dumps({"days": {DAY.isoformat(): {}}}))
     con = duckdb.connect()
     for kind, rows, ddl in (
-        ("legs", legs, "route_id UINTEGER, journey_id USMALLINT, t_dep UINTEGER, dur USMALLINT, "
-                       "type UTINYINT, delay SMALLINT, flags UTINYINT"),
-        ("journeys", journeys, "journey_id USMALLINT, trip_id VARCHAR, service_day DATE, "
-                               "line VARCHAR"),
+        (
+            "legs",
+            legs,
+            "route_id UINTEGER, journey_id USMALLINT, t_dep UINTEGER, dur USMALLINT, "
+            "type UTINYINT, delay SMALLINT, flags UTINYINT",
+        ),
+        (
+            "journeys",
+            journeys,
+            "journey_id USMALLINT, trip_id VARCHAR, service_day DATE, line VARCHAR",
+        ),
     ):
         out = root / kind / f"{DAY:%Y/%m/%d}.parquet"
         out.parent.mkdir(parents=True)
@@ -59,15 +71,25 @@ def write_source(root: Path, stations, pairs: dict[int, tuple[int, int]], legs, 
 
 @pytest.fixture
 def world(tmp_path: Path, monkeypatch) -> dict[str, links.Source]:
-    ch = links.Source("ch", "CH", "observed", tmp_path / "ch", tmp_path / "ch.parquet",
-                      (5.9, 45.8, 10.5, 47.9))
-    de = links.Source("de", "DE", "final_prediction", tmp_path / "de", tmp_path / "de.parquet",
-                      (5.8, 47.2, 15.1, 55.1))
+    ch = links.Source(
+        "ch", "CH", "observed", tmp_path / "ch", tmp_path / "ch.parquet", (5.9, 45.8, 10.5, 47.9)
+    )
+    de = links.Source(
+        "de",
+        "DE",
+        "final_prediction",
+        tmp_path / "de",
+        tmp_path / "de.parquet",
+        (5.8, 47.2, 15.1, 55.1),
+    )
     for src, stations in ((ch, CH_STATIONS), (de, DE_STATIONS)):
-        duckdb.sql(f"COPY (SELECT * FROM (VALUES {', '.join(f'({s[0]})' for s in stations)}) "
-                   f"v(bpuic)) TO '{src.dim.as_posix()}' (FORMAT PARQUET)")
+        duckdb.sql(
+            f"COPY (SELECT * FROM (VALUES {', '.join(f'({s[0]})' for s in stations)}) "
+            f"v(bpuic)) TO '{src.dim.as_posix()}' (FORMAT PARQUET)"
+        )
     write_source(
-        ch.publish_root, CH_STATIONS,
+        ch.publish_root,
+        CH_STATIONS,
         {1: (8500090, 8500010), 2: (8014442, 8500090), 3: (8500010, 8500090)},
         legs=[
             # ICE 275 from Basel Bad Bf, 35 minutes after Germany's last stop at Freiburg.
@@ -77,11 +99,15 @@ def world(tmp_path: Path, monkeypatch) -> dict[str, links.Source]:
             # S 999 at Basel SBB: its number matches a German train that ends at Freiburg.
             (3, 2, t(11, 0), 240, 5, 0, 0),
         ],
-        journeys=[(0, "85:11:275:001", DAY, None), (1, "80:800693:17001:000", DAY, "RB"),
-                  (2, "ch:1:sjyid:100001:999-001", DAY, "S1")],
+        journeys=[
+            (0, "85:11:275:001", DAY, None),
+            (1, "80:800693:17001:000", DAY, "RB"),
+            (2, "ch:1:sjyid:100001:999-001", DAY, "S1"),
+        ],
     )
     write_source(
-        de.publish_root, DE_STATIONS,
+        de.publish_root,
+        DE_STATIONS,
         {1: (8000290, 8000107), 2: (8000108, 8006000), 3: (8000290, 8000107)},
         legs=[
             (1, 0, t(9, 30), 1800, 1, 60, 0),  # ICE 275 Offenburg → Freiburg, arr 10:00
@@ -111,8 +137,12 @@ def test_links_bridge_the_gap_and_hand_over_at_a_shared_station(world):
     stations = served(world)
     canon = links.canonical_map(links.build_crosswalk(stations))
     con = duckdb.connect()
-    found = {(lk["train"], lk["kind"]): lk for lk in links.one_per_end(
-        links.link_day(con, world["ch"], world["de"], DAY, stations, canon))}
+    found = {
+        (lk["train"], lk["kind"]): lk
+        for lk in links.one_per_end(
+            links.link_day(con, world["ch"], world["de"], DAY, stations, canon)
+        )
+    }
 
     ice = found[("275", "bridge")]
     assert ice["from"] == ["de", 0] and ice["to"] == ["ch", 0]
@@ -132,10 +162,16 @@ def test_a_bridge_never_spans_what_the_other_dataset_sees(world):
     in the Swiss journey, so it is never bridged onward to Basel SBB."""
     stations = served(world)
     canon = links.canonical_map(links.build_crosswalk(stations))
-    first = (1, "RB 17001", [{"station": 8006000, "t": t(10, 48), "side": "arr",
-                              "type": 2, "delay": 0}])
-    second = (2, "S 17001", [{"station": 8500010, "t": t(11, 5), "side": "dep",
-                              "type": 5, "delay": 0}])
+    first = (
+        1,
+        "RB 17001",
+        [{"station": 8006000, "t": t(10, 48), "side": "arr", "type": 2, "delay": 0}],
+    )
+    second = (
+        2,
+        "S 17001",
+        [{"station": 8500010, "t": t(11, 5), "side": "dep", "type": 5, "delay": 0}],
+    )
     seen_by = {}
     for (ds, _), g in canon.items():
         seen_by.setdefault(g, set()).add(ds)
@@ -143,8 +179,14 @@ def test_a_bridge_never_spans_what_the_other_dataset_sees(world):
 
 
 def bridge_link(frm, to, number, dur, day):
-    return {"kind": "bridge", "from": [frm[0], 0], "to": [to[0], 0], "train": number,
-            "at": 0, "bridge": {"from_station": frm[1], "to_station": to[1], "dur": dur}}
+    return {
+        "kind": "bridge",
+        "from": [frm[0], 0],
+        "to": [to[0], 0],
+        "train": number,
+        "at": 0,
+        "bridge": {"from_station": frm[1], "to_station": to[1], "dur": dur},
+    }
 
 
 def test_bridge_pairs_are_judged_over_the_whole_build():
@@ -158,8 +200,10 @@ def test_bridge_pairs_are_judged_over_the_whole_build():
         + [bridge_link(*fake, "3626", 4200, d)]
         for d in days
     }
-    edges = {k: 1_000.0 for k in [("de", 8000107, "ch"), ("ch", 8500090, "de"),
-                                   ("be", 1, "nl"), ("nl", 2, "be")]}
+    edges = {
+        k: 1_000.0
+        for k in [("de", 8000107, "ch"), ("ch", 8500090, "de"), ("be", 1, "nl"), ("nl", 2, "be")]
+    }
     verdicts = links.judge_bridge_pairs(per_day, edges)
     assert verdicts[("de", 8000107, "ch", 8500090)]["accepted"]
     assert verdicts[("ch", 8500090, "de", 8000107)]["both_ways"]
@@ -173,17 +217,19 @@ def test_bridge_pairs_are_judged_over_the_whole_build():
 def test_one_continuation_per_journey_across_all_datasets():
     """Aachen–Heerlen–Liège: the German journey continues into the Dutch one, not also straight
     into the Belgian one across the Dutch section."""
-    to_nl = {"kind": "bridge", "from": ["de", 5], "to": ["nl", 7], "at": 2,
-             "bridge": {"dur": 300}}
-    to_be = {"kind": "bridge", "from": ["de", 5], "to": ["be", 9], "at": 3,
-             "bridge": {"dur": 2700}}
+    to_nl = {"kind": "bridge", "from": ["de", 5], "to": ["nl", 7], "at": 2, "bridge": {"dur": 300}}
+    to_be = {"kind": "bridge", "from": ["de", 5], "to": ["be", 9], "at": 3, "bridge": {"dur": 2700}}
     assert links.one_per_end([to_be, to_nl]) == [to_nl]
 
 
 def test_build_writes_the_layer(world, tmp_path, monkeypatch):
     monkeypatch.setattr(links, "sources", lambda: world)
-    for name, value in (("BRIDGE_MIN_DAYS", 1), ("BRIDGE_MIN_NUMBERS", 1),
-                        ("BRIDGE_MIN_NUMBERS_ONE_WAY", 1), ("BRIDGE_MIN_PER_DAY", 1)):
+    for name, value in (
+        ("BRIDGE_MIN_DAYS", 1),
+        ("BRIDGE_MIN_NUMBERS", 1),
+        ("BRIDGE_MIN_NUMBERS_ONE_WAY", 1),
+        ("BRIDGE_MIN_PER_DAY", 1),
+    ):
         monkeypatch.setattr(links, name, value)
     manifest = links.build(tmp_path / "links", log=lambda *a: None)
     publish = tmp_path / "links" / "publish"
@@ -192,8 +238,11 @@ def test_build_writes_the_layer(world, tmp_path, monkeypatch):
     assert manifest["bridge_routes"] == 2  # Freiburg → Basel Bad Bf, Freiburg → Basel SBB
     assert manifest["pairs"] == [["ch", "de"]]
     assert json.loads((publish / "crosswalk.json").read_text())["groups"]
-    pairs = duckdb.connect(str(tmp_path / "links" / "geometry" / "bridges.duckdb"),
-                           read_only=True).execute("SELECT * FROM station_pairs").fetchall()
+    pairs = (
+        duckdb.connect(str(tmp_path / "links" / "geometry" / "bridges.duckdb"), read_only=True)
+        .execute("SELECT * FROM station_pairs")
+        .fetchall()
+    )
     assert sorted(pairs) == [(1, 5_008_000_107, 1_008_500_010), (2, 5_008_000_107, 1_008_500_090)]
 
 

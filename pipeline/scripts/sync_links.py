@@ -25,10 +25,15 @@ def main(dry_run: bool) -> int:
     if manifest["bridge_routes"] and not (root / "static" / "routes.bin").exists():
         print("preflight: bridges exist but static/routes.bin is missing", file=sys.stderr)
         return 1
-    files = [p for p in root.rglob("*") if p.is_file() and p.name != "manifest.json"
-             and not p.name.endswith(".report.json")]
-    items = sorted(((p, links.LINKS_KEY_PREFIX + p.relative_to(root).as_posix()) for p in files),
-                   key=lambda it: (not it[1].startswith("links/days/"), it[1]))
+    files = [
+        p
+        for p in root.rglob("*")
+        if p.is_file() and p.name != "manifest.json" and not p.name.endswith(".report.json")
+    ]
+    items = sorted(
+        ((p, links.LINKS_KEY_PREFIX + p.relative_to(root).as_posix()) for p in files),
+        key=lambda it: (not it[1].startswith("links/days/"), it[1]),
+    )
     local_bytes = sum(p.stat().st_size for p, _ in items) + manifest_path.stat().st_size
     print(f"payload: {len(items)} files + manifest, {local_bytes / 1e6:.1f} MB")
 
@@ -43,33 +48,62 @@ def main(dry_run: bool) -> int:
     projected = remote_total - remote_links + local_bytes
     print(f"inventory: bucket {remote_total / 1e9:.3f} GB now, {projected / 1e9:.3f} GB projected")
     if projected > R2_BUDGET_BYTES:
-        print(f"budget gate: {projected / 1e9:.3f} GB exceeds {R2_BUDGET_BYTES / 1e9:.1f} GB",
-              file=sys.stderr)
+        print(
+            f"budget gate: {projected / 1e9:.3f} GB exceeds {R2_BUDGET_BYTES / 1e9:.1f} GB",
+            file=sys.stderr,
+        )
         return 1
-    pending = [(p, k) for p, k in items
-               if k not in remote or not r2.object_matches(p, k, remote[k], client=client)]
-    stale = [k for k in remote if k.startswith(links.LINKS_KEY_PREFIX)
-             and k not in {key for _, key in items} and k != links.LINKS_KEY_PREFIX + "manifest.json"]
-    print(f"plan: {len(pending)} uploads, {len(items) - len(pending)} current, "
-          f"{len(stale)} stale day files to delete after the manifest")
+    pending = [
+        (p, k)
+        for p, k in items
+        if k not in remote or not r2.object_matches(p, k, remote[k], client=client)
+    ]
+    stale = [
+        k
+        for k in remote
+        if k.startswith(links.LINKS_KEY_PREFIX)
+        and k not in {key for _, key in items}
+        and k != links.LINKS_KEY_PREFIX + "manifest.json"
+    ]
+    print(
+        f"plan: {len(pending)} uploads, {len(items) - len(pending)} current, "
+        f"{len(stale)} stale day files to delete after the manifest"
+    )
     if dry_run:
         return 0
 
     for n, (p, key) in enumerate(pending, 1):
         # Unlike a dataset's immutable day files, the whole layer is rebuilt whenever a dataset
         # changes, so these may change under the same key: an hour, not forever.
-        r2.upload(p, key, client=client, cache_control="public, max-age=3600",
-                  content_type="application/json" if p.suffix == ".json" else None)
+        r2.upload(
+            p,
+            key,
+            client=client,
+            cache_control="public, max-age=3600",
+            content_type="application/json" if p.suffix == ".json" else None,
+        )
         if n % 200 == 0:
             print(f"  {n}/{len(pending)} uploaded", flush=True)
-    r2.upload(manifest_path, links.LINKS_KEY_PREFIX + "manifest.json", client=client,
-              content_type="application/json", cache_control="public, max-age=300")
+    r2.upload(
+        manifest_path,
+        links.LINKS_KEY_PREFIX + "manifest.json",
+        client=client,
+        content_type="application/json",
+        cache_control="public, max-age=300",
+    )
     live = r2.get_json(catalog.CATALOG_KEY, client=client)
-    cat = catalog.build_catalog({}, existing=live, links={"path": links.LINKS_KEY_PREFIX.rstrip("/")})
+    cat = catalog.build_catalog(
+        {}, existing=live, links={"path": links.LINKS_KEY_PREFIX.rstrip("/")}
+    )
     cat_path = links.LINKS_ROOT / catalog.CATALOG_KEY
     catalog.write_json(cat, cat_path)
-    r2.upload(cat_path, catalog.CATALOG_KEY, client=client, content_type="application/json",
-              cache_control="public, max-age=300")
+    r2.upload(
+        cat_path,
+        catalog.CATALOG_KEY,
+        client=client,
+        content_type="application/json",
+        cache_control="public, max-age=300",
+    )
     for key in stale:
         r2.delete(key, client=client)
     print(f"done: {len(pending)} uploaded + manifest + catalog, {len(stale)} stale deleted")

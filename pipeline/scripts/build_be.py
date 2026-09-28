@@ -46,9 +46,12 @@ def main(first: date, last: date, fetch_workers: int | None, skip_stage: bool) -
             staged = be.stage_days(con, build.daterange(m_first, m_last), CFG.dim_station_parquet)
             legs = stops.build_legs(con, CFG, m_first, m_last, CFG.dim_station_parquet)
             quality[key] = {"stage": staged, "legs": legs}
-            print(f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
-                  f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} } "
-                  f"malformed={staged['trains_malformed']}", flush=True)
+            print(
+                f"{key}: {staged['stops_staged']:,} stops → {legs['legs_written']:,} legs "
+                f"{ {k: v for k, v in legs.items() if k not in ('ok', 'legs_written')} } "
+                f"malformed={staged['trains_malformed']}",
+                flush=True,
+            )
 
     # The ptcar list also holds junctions, sidings and workshops no passenger can use.
     build.write_stations_json(CFG, passenger_only=True)
@@ -59,10 +62,19 @@ def main(first: date, last: date, fetch_workers: int | None, skip_stage: bool) -
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start))
+    p.add_argument(
+        "--first", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_start)
+    )
     p.add_argument("--last", type=date.fromisoformat, default=date.fromisoformat(CFG.coverage_end))
-    p.add_argument("--fetch", type=int, nargs="?", const=16, default=None, metavar="WORKERS",
-                   help="download missing raw months first, WORKERS in parallel (default 16)")
+    p.add_argument(
+        "--fetch",
+        type=int,
+        nargs="?",
+        const=16,
+        default=None,
+        metavar="WORKERS",
+        help="download missing raw months first, WORKERS in parallel (default 16)",
+    )
     p.add_argument("--skip-stage", action="store_true", help="export from the existing database")
     a = p.parse_args()
     sys.exit(main(a.first, a.last, a.fetch, a.skip_stage))

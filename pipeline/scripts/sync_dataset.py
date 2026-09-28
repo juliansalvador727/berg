@@ -55,7 +55,8 @@ def payload(cfg: DatasetConfig) -> list[tuple[Path, str]]:
     """(local path, key) in deployment order: static, journeys, legs. Manifest excluded."""
     order = {"static": 0, "journeys": 1, "legs": 2}
     files = [
-        p for p in cfg.publish_root.rglob("*")
+        p
+        for p in cfg.publish_root.rglob("*")
         if p.is_file() and p.name != "manifest.json" and not p.name.startswith(".")
     ]
     items = [(p, cfg.key_prefix + p.relative_to(cfg.publish_root).as_posix()) for p in files]
@@ -124,11 +125,14 @@ def main(dataset_id: str, dry_run: bool) -> int:
     print("inventory:", json.dumps(inventory))
 
     pending = [
-        (p, k) for p, k in items
+        (p, k)
+        for p, k in items
         if k not in remote or not r2.object_matches(p, k, remote[k], client=client)
     ]
-    print(f"plan: {len(pending)} uploads, {len(items) - len(pending)} current, + manifest, "
-          f"+ {catalog.CATALOG_KEY}")
+    print(
+        f"plan: {len(pending)} uploads, {len(items) - len(pending)} current, + manifest, "
+        f"+ {catalog.CATALOG_KEY}"
+    )
     if dry_run:
         return 0
 
@@ -136,16 +140,25 @@ def main(dataset_id: str, dry_run: bool) -> int:
         r2.upload(p, key, client=client)
         if n % 100 == 0:
             print(f"  {n}/{len(pending)} uploaded", flush=True)
-    r2.upload(manifest_path, cfg.key_prefix + "manifest.json", client=client,
-              content_type="application/json")
+    r2.upload(
+        manifest_path,
+        cfg.key_prefix + "manifest.json",
+        client=client,
+        content_type="application/json",
+    )
 
     # Last commit point: the dataset becomes discoverable only now that its manifest is live.
     live = r2.get_json(catalog.CATALOG_KEY, client=client)
     cat = catalog.build_catalog({dataset_id: manifest}, existing=live)
     cat_path = cfg.root / catalog.CATALOG_KEY
     catalog.write_json(cat, cat_path)
-    r2.upload(cat_path, catalog.CATALOG_KEY, client=client, content_type="application/json",
-              cache_control="public, max-age=300")
+    r2.upload(
+        cat_path,
+        catalog.CATALOG_KEY,
+        client=client,
+        content_type="application/json",
+        cache_control="public, max-age=300",
+    )
     catalog.write_json(inventory, cfg.root / "inventory.json")
     print(f"done: {len(pending)} uploaded + manifest + catalog ({sorted(cat['datasets'])})")
     return 0

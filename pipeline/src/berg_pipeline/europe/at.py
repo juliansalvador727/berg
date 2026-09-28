@@ -60,8 +60,20 @@ MIN_OVERLAP_S = -15 * 60
 
 # trip_short_name prefix → dataset-local category code (the UI's service groups).
 CATEGORIES = {
-    "S": "S", "R": "R", "REX": "REX", "CJX": "CJX", "IR": "IR", "IC": "IC", "D": "D",
-    "EC": "EC", "RJ": "RJ", "RJX": "RJX", "ICE": "ICE", "NJ": "NJ", "EN": "EN", "CAT": "CAT",
+    "S": "S",
+    "R": "R",
+    "REX": "REX",
+    "CJX": "CJX",
+    "IR": "IR",
+    "IC": "IC",
+    "D": "D",
+    "EC": "EC",
+    "RJ": "RJ",
+    "RJX": "RJX",
+    "ICE": "ICE",
+    "NJ": "NJ",
+    "EN": "EN",
+    "CAT": "CAT",
 }
 
 
@@ -199,9 +211,11 @@ def _ts(expr: str) -> str:
 
 def _gtfs_secs(expr: str) -> str:
     """GTFS 'HH:MM:SS' (hours may exceed 23) → seconds after the service day's noon - 12 h."""
-    return (f"(CAST(split_part({expr}, ':', 1) AS INTEGER) * 3600 "
-            f"+ CAST(split_part({expr}, ':', 2) AS INTEGER) * 60 "
-            f"+ CAST(split_part({expr}, ':', 3) AS INTEGER))")
+    return (
+        f"(CAST(split_part({expr}, ':', 1) AS INTEGER) * 3600 "
+        f"+ CAST(split_part({expr}, ':', 2) AS INTEGER) * 60 "
+        f"+ CAST(split_part({expr}, ':', 3) AS INTEGER))"
+    )
 
 
 def _category_sql(expr: str) -> str:
@@ -225,18 +239,24 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
     g = [d.as_posix() for d in gtfs_dirs]
 
     def gtfs(name: str) -> str:
-        return "read_csv([" + ", ".join(f"'{d}/{name}.txt'" for d in g) + "], all_varchar=true, header=true)"
+        return (
+            "read_csv(["
+            + ", ".join(f"'{d}/{name}.txt'" for d in g)
+            + "], all_varchar=true, header=true)"
+        )
 
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE _at_runs AS
         SELECT DISTINCT zugnummer AS num, CAST(betriebstag AS DATE) AS service_day,
-               {_ts('abfahrtzeit_soll')} AS t_a, {_ts('abfahrtzeit_ist')} AS a_a,
-               {_ts('ankunftzeit_soll')} AS t_b, {_ts('ankunftzeit_ist')} AS a_b
+               {_ts("abfahrtzeit_soll")} AS t_a, {_ts("abfahrtzeit_ist")} AS a_a,
+               {_ts("ankunftzeit_soll")} AS t_b, {_ts("ankunftzeit_ist")} AS a_b
         FROM read_csv('{runs_glob}', all_varchar=true, header=true)
         WHERE CAST(betriebstag AS DATE) BETWEEN DATE '{first}' AND DATE '{last}'""")
-    con.execute("CREATE OR REPLACE TEMP TABLE _at_runs AS "
-                "SELECT row_number() OVER (ORDER BY service_day, num, t_a, t_b, a_a, a_b) AS rid, * "
-                "FROM _at_runs")
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _at_runs AS "
+        "SELECT row_number() OVER (ORDER BY service_day, num, t_a, t_b, a_a, a_b) AS rid, * "
+        "FROM _at_runs"
+    )
 
     # Trips active per service day, from calendar and calendar_dates.
     con.execute(f"""
@@ -245,9 +265,9 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
             SELECT CAST(d AS DATE) AS d
             FROM generate_series(DATE '{first}', DATE '{last}', INTERVAL 1 DAY) g(d)
         ),
-        cal AS (SELECT * FROM {gtfs('calendar')}),
+        cal AS (SELECT * FROM {gtfs("calendar")}),
         cd AS (SELECT service_id, CAST(strptime(date, '%Y%m%d') AS DATE) AS d, exception_type
-               FROM {gtfs('calendar_dates')}),
+               FROM {gtfs("calendar_dates")}),
         base AS (
             SELECT c.service_id, days.d FROM cal c JOIN days
               ON days.d BETWEEN CAST(strptime(c.start_date, '%Y%m%d') AS DATE)
@@ -264,9 +284,9 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
     # Local noon - 12 h of each service day, the GTFS time origin, as an epoch.
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE _at_trips AS
-        WITH trips AS (SELECT * FROM {gtfs('trips')}),
-             routes AS (SELECT * FROM {gtfs('routes')}),
-             agency AS (SELECT * FROM {gtfs('agency')})
+        WITH trips AS (SELECT * FROM {gtfs("trips")}),
+             routes AS (SELECT * FROM {gtfs("routes")}),
+             agency AS (SELECT * FROM {gtfs("agency")})
         SELECT t.trip_id, a.d AS service_day,
                regexp_extract(t.trip_short_name, '(\\d+)$', 1) AS num,
                nullif(regexp_extract(t.trip_short_name, '^([A-Za-z]+)', 1), '') AS prefix,
@@ -280,9 +300,9 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE _at_st AS
         SELECT trip_id, CAST(stop_sequence AS INTEGER) AS seq, stop_id,
-               {_gtfs_secs('arrival_time')} AS arr_s, {_gtfs_secs('departure_time')} AS dep_s,
+               {_gtfs_secs("arrival_time")} AS arr_s, {_gtfs_secs("departure_time")} AS dep_s,
                coalesce(pickup_type, '0') = '1' AND coalesce(drop_off_type, '0') = '1' AS passing
-        FROM {gtfs('stop_times')}""")
+        FROM {gtfs("stop_times")}""")
     con.execute("""
         CREATE OR REPLACE TEMP TABLE _at_span AS
         WITH span AS (SELECT trip_id, min(dep_s) AS lo, max(arr_s) AS hi FROM _at_st GROUP BY 1)
@@ -347,15 +367,15 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
             ),
             delayed AS (
                 SELECT *,
-                       {_delay_sql('s_arr')} AS dl_arr,
-                       {_delay_sql('s_dep')} AS dl_dep
+                       {_delay_sql("s_arr")} AS dl_arr,
+                       {_delay_sql("s_dep")} AS dl_dep
                 FROM st
             )
             SELECT x.service_day,
                    CASE WHEN x.k = 1 THEN x.label ELSE x.label || ' #' || x.k END AS trip_id,
                    x.operator,
                    x.num                                          AS train_number,
-                   {_category_sql('x.prefix')}                    AS category,
+                   {_category_sql("x.prefix")}                    AS category,
                    x.label                                        AS line,
                    coalesce(d.bpuic, -1)                          AS station_id,
                    x.pos                                          AS stop_seq,
@@ -371,14 +391,15 @@ def stage_days(con, days: list[date], dim_station_parquet: Path, gtfs_dirs: list
                    NULL                                           AS source_revision
             FROM delayed x
             LEFT JOIN '{dim_station_parquet.as_posix()}' d
-              ON d.ifopt = {_ifopt_sql('x.stop_id')}""")
+              ON d.ifopt = {_ifopt_sql("x.stop_id")}""")
 
     runs, paired, trips = con.execute("""
         SELECT (SELECT count(*) FROM _at_runs), (SELECT count(*) FROM _at_pairs),
                (SELECT count(*) FROM _at_trips)""").fetchone()
     n_staged, n_unmatched, n_trips = con.execute(
         "SELECT count(*), count(*) FILTER (station_id < 0), count(DISTINCT (service_day, trip_id)) "
-        "FROM stg_stops WHERE service_day BETWEEN ? AND ?", [first, last]
+        "FROM stg_stops WHERE service_day BETWEEN ? AND ?",
+        [first, last],
     ).fetchone()
     return {
         "runs": runs,

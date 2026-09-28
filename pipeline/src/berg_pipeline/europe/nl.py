@@ -275,7 +275,7 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                 SELECT sid, any_value(service_day) AS service_day,
                        arg_min(train_number, stop_rid) AS number,
                        any_value(company) AS company,
-                       {_category_sql('any_value(service_type)')} AS category
+                       {_category_sql("any_value(service_type)")} AS category
                 FROM live GROUP BY sid
             ),
             labelled AS (
@@ -314,7 +314,8 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                (SELECT count(*) FROM _nl_rows WHERE arr_cancelled OR dep_cancelled)""").fetchone()
     n_staged, n_unmatched = con.execute(
         "SELECT count(*), count(*) FILTER (station_id < 0) FROM stg_stops "
-        "WHERE service_day BETWEEN ? AND ?", [first, last]
+        "WHERE service_day BETWEEN ? AND ?",
+        [first, last],
     ).fetchone()
     return {
         "services_train": stats[0],

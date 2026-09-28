@@ -44,46 +44,97 @@ def service(number, stops_, kind="Intercity", cancelled=False, sid=None, numbers
     sid = sid if sid is not None else next(_sid)
     rows = []
     for i, (code, arr, dep, ad, dd, acx, dcx) in enumerate(stops_):
-        rows.append([
-            sid, DAY.isoformat(), kind, "NS", (numbers or {}).get(i, number),
-            str(cancelled).lower(), "false", 0, next(_rid), code, code,
-            arr or "", ad if arr else "", str(acx).lower() if arr else "",
-            dep or "", dd if dep else "", str(dcx).lower() if dep else "",
-            "false", "", "",
-        ])
+        rows.append(
+            [
+                sid,
+                DAY.isoformat(),
+                kind,
+                "NS",
+                (numbers or {}).get(i, number),
+                str(cancelled).lower(),
+                "false",
+                0,
+                next(_rid),
+                code,
+                code,
+                arr or "",
+                ad if arr else "",
+                str(acx).lower() if arr else "",
+                dep or "",
+                dd if dep else "",
+                str(dcx).lower() if dep else "",
+                "false",
+                "",
+                "",
+            ]
+        )
     return rows
 
 
 SERVICES = [
     # IC 800 ASD → UT → HT with delays: act = scheduled + delay minutes.
-    service(800, [stop("ASD", dep=t(10, 0), dep_delay=2),
-                  stop("UT", arr=t(10, 27), dep=t(10, 30), arr_delay=3, dep_delay=3),
-                  stop("HT", arr=t(10, 58), arr_delay=1)]),
+    service(
+        800,
+        [
+            stop("ASD", dep=t(10, 0), dep_delay=2),
+            stop("UT", arr=t(10, 27), dep=t(10, 30), arr_delay=3, dep_delay=3),
+            stop("HT", arr=t(10, 58), arr_delay=1),
+        ],
+    ),
     # Replacement bus never reaches the facts.
-    service(900, [stop("ASD", dep=t(11, 0)), stop("UT", arr=t(11, 40))],
-            kind="Stopbus ipv trein"),
+    service(900, [stop("ASD", dep=t(11, 0)), stop("UT", arr=t(11, 40))], kind="Stopbus ipv trein"),
     # A completely cancelled service is dropped whole.
-    service(801, [stop("ASD", dep=t(12, 0), dep_cx=True), stop("UT", arr=t(12, 27), arr_cx=True)],
-            cancelled=True),
+    service(
+        801,
+        [stop("ASD", dep=t(12, 0), dep_cx=True), stop("UT", arr=t(12, 27), arr_cx=True)],
+        cancelled=True,
+    ),
     # Cut short at UT and resumed at EHV: UT → HT → EHV never ran, EHV → VL did.
-    service(802, [stop("ASD", dep=t(13, 0)),
-                  stop("UT", arr=t(13, 27), dep=t(13, 30), dep_cx=True),
-                  stop("HT", arr=t(13, 58), dep=t(14, 0), arr_cx=True, dep_cx=True),
-                  stop("EHV", arr=t(14, 20), dep=t(14, 22), arr_cx=True),
-                  stop("VL", arr=t(14, 50))]),
+    service(
+        802,
+        [
+            stop("ASD", dep=t(13, 0)),
+            stop("UT", arr=t(13, 27), dep=t(13, 30), dep_cx=True),
+            stop("HT", arr=t(13, 58), dep=t(14, 0), arr_cx=True, dep_cx=True),
+            stop("EHV", arr=t(14, 20), dep=t(14, 22), arr_cx=True),
+            stop("VL", arr=t(14, 50)),
+        ],
+    ),
     # A diversion appended after the terminus, out of time order: excluded whole.
     service(803, [stop("ASD", dep=t(15, 0)), stop("HT", arr=t(15, 58)), stop("UT", arr=t(15, 27))]),
     # A cross-border Sprinter: VL → KALD is clipped as outside_country, not quarantined.
-    service(6000, [stop("EHV", dep=t(16, 0)), stop("VL", arr=t(16, 30), dep=t(16, 32)),
-                   stop("KALD", arr=t(16, 40))], kind="Sprinter"),
+    service(
+        6000,
+        [
+            stop("EHV", dep=t(16, 0)),
+            stop("VL", arr=t(16, 30), dep=t(16, 32)),
+            stop("KALD", arr=t(16, 40)),
+        ],
+        kind="Sprinter",
+    ),
     # One train, three records: IC 2452 renumbered 3563 at UT (sid 3000), the 3563-only
     # portion (sid 3001, a subset) and a re-issue under 302452 (sid 3002, equal size, later).
     # Only sid 3000 survives, labelled by its first number.
-    service(2452, [stop("ASD", dep=t(17, 0)), stop("UT", arr=t(17, 27), dep=t(17, 30)),
-                   stop("EHV", arr=t(18, 20))], sid=3000, numbers={1: 3563, 2: 3563}),
+    service(
+        2452,
+        [
+            stop("ASD", dep=t(17, 0)),
+            stop("UT", arr=t(17, 27), dep=t(17, 30)),
+            stop("EHV", arr=t(18, 20)),
+        ],
+        sid=3000,
+        numbers={1: 3563, 2: 3563},
+    ),
     service(3563, [stop("UT", dep=t(17, 30)), stop("EHV", arr=t(18, 20))], sid=3001),
-    service(302452, [stop("ASD", dep=t(17, 0)), stop("UT", arr=t(17, 27), dep=t(17, 30)),
-                     stop("EHV", arr=t(18, 20))], sid=3002),
+    service(
+        302452,
+        [
+            stop("ASD", dep=t(17, 0)),
+            stop("UT", arr=t(17, 27), dep=t(17, 30)),
+            stop("EHV", arr=t(18, 20)),
+        ],
+        sid=3002,
+    ),
 ]
 
 
@@ -99,8 +150,21 @@ def nl_root(tmp_path: Path, monkeypatch) -> Path:
             writer.writerows(rows)
     with open(nl.stations_path(), "w", newline="") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["id", "code", "uic", "name_short", "name_medium", "name_long", "slug",
-                         "country", "type", "geo_lat", "geo_lng"])
+        writer.writerow(
+            [
+                "id",
+                "code",
+                "uic",
+                "name_short",
+                "name_medium",
+                "name_long",
+                "slug",
+                "country",
+                "type",
+                "geo_lat",
+                "geo_lng",
+            ]
+        )
         for i, (code, uic, name, country, lat, lon) in enumerate(STATIONS):
             writer.writerow([i, code, uic, name, name, name, code.lower(), country, "x", lat, lon])
     return tmp_path

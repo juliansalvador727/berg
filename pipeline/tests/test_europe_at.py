@@ -27,27 +27,54 @@ STOPS = [
 TRIPS = [
     # (trip_id, short name, [(stop place, arr, dep, passing)])
     # RJX 20: observed +1 min at the start point, +3 min at the end point.
-    ("t20", "RJX 20", [("at:49:1", "10:00:00", "10:00:00", False),
-                       ("at:43:2", "10:30:00", "10:32:00", False),
-                       ("at:43:3", "10:50:00", "10:50:00", True),
-                       ("at:44:4", "11:14:00", "11:14:00", False)]),
+    (
+        "t20",
+        "RJX 20",
+        [
+            ("at:49:1", "10:00:00", "10:00:00", False),
+            ("at:43:2", "10:30:00", "10:32:00", False),
+            ("at:43:3", "10:50:00", "10:50:00", True),
+            ("at:44:4", "11:14:00", "11:14:00", False),
+        ],
+    ),
     # RJX 21: its start observation is a registration artefact (3 h early), so the end one
     # applies throughout.
-    ("t21", "RJX 21", [("at:44:4", "12:00:00", "12:00:00", False),
-                       ("at:43:2", "12:40:00", "12:42:00", False),
-                       ("at:49:1", "13:14:00", "13:14:00", False)]),
+    (
+        "t21",
+        "RJX 21",
+        [
+            ("at:44:4", "12:00:00", "12:00:00", False),
+            ("at:43:2", "12:40:00", "12:42:00", False),
+            ("at:49:1", "13:14:00", "13:14:00", False),
+        ],
+    ),
     # R 5000 is timetabled but ÖBB recorded no run: not published.
-    ("t5000", "R 5000", [("at:44:4", "14:00:00", "14:00:00", False),
-                         ("at:44:5", "14:20:00", "14:20:00", False)]),
+    (
+        "t5000",
+        "R 5000",
+        [("at:44:4", "14:00:00", "14:00:00", False), ("at:44:5", "14:20:00", "14:20:00", False)],
+    ),
     # REX 7: the number runs twice that day; each run pairs with the trip it overlaps.
-    ("t7a", "REX 7", [("at:44:4", "06:00:00", "06:00:00", False),
-                      ("at:44:5", "06:20:00", "06:20:00", False)]),
-    ("t7b", "REX 7", [("at:44:4", "18:00:00", "18:00:00", False),
-                      ("at:44:5", "18:20:00", "18:20:00", False)]),
+    (
+        "t7a",
+        "REX 7",
+        [("at:44:4", "06:00:00", "06:00:00", False), ("at:44:5", "06:20:00", "06:20:00", False)],
+    ),
+    (
+        "t7b",
+        "REX 7",
+        [("at:44:4", "18:00:00", "18:00:00", False), ("at:44:5", "18:20:00", "18:20:00", False)],
+    ),
     # EC 111 continues to München: the foreign leg is clipped, not quarantined.
-    ("t111", "EC 111", [("at:44:4", "15:00:00", "15:00:00", False),
-                        ("at:44:5", "15:15:00", "15:17:00", False),
-                        ("de:09162:6", "17:30:00", "17:30:00", False)]),
+    (
+        "t111",
+        "EC 111",
+        [
+            ("at:44:4", "15:00:00", "15:00:00", False),
+            ("at:44:5", "15:15:00", "15:17:00", False),
+            ("de:09162:6", "17:30:00", "17:30:00", False),
+        ],
+    ),
 ]
 RUNS = [
     # (number, planned start, actual start, planned end, actual end)
@@ -80,28 +107,59 @@ def write(path, header, rows):
 def at_root(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "DATA_ROOT", tmp_path)
     g = at.gtfs_dir(2026)
-    write(g / "agency.txt", "agency_id,agency_name,agency_url,agency_timezone",
-          [("01", "OEBB Personenverkehr AG", "https://www.oebb.at", "Europe/Vienna")])
-    write(g / "routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type",
-          [("r1", "01", "X", "Line", "2")])
-    write(g / "calendar.txt",
-          "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date",
-          [("TA", 1, 1, 1, 1, 1, 1, 1, "20251214", "20261212")])
+    write(
+        g / "agency.txt",
+        "agency_id,agency_name,agency_url,agency_timezone",
+        [("01", "OEBB Personenverkehr AG", "https://www.oebb.at", "Europe/Vienna")],
+    )
+    write(
+        g / "routes.txt",
+        "route_id,agency_id,route_short_name,route_long_name,route_type",
+        [("r1", "01", "X", "Line", "2")],
+    )
+    write(
+        g / "calendar.txt",
+        "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date",
+        [("TA", 1, 1, 1, 1, 1, 1, 1, "20251214", "20261212")],
+    )
     write(g / "calendar_dates.txt", "service_id,date,exception_type", [("TA", "20260101", "2")])
-    write(g / "trips.txt", "route_id,service_id,trip_id,trip_short_name",
-          [("r1", "TA", tid, name) for tid, name, _ in TRIPS])
-    write(g / "stop_times.txt",
-          "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type",
-          [(tid, a, d, f"{sp}:0:1", i, int(p), int(p))
-           for tid, _, sts in TRIPS for i, (sp, a, d, p) in enumerate(sts, 1)])
-    write(g / "stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station",
-          [row for sp, name, lat, lon in STOPS
-           for row in ((f"P{sp}", name, lat, lon, "1", ""), (f"{sp}:0:1", name, lat, lon, "", f"P{sp}"))])
+    write(
+        g / "trips.txt",
+        "route_id,service_id,trip_id,trip_short_name",
+        [("r1", "TA", tid, name) for tid, name, _ in TRIPS],
+    )
+    write(
+        g / "stop_times.txt",
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type",
+        [
+            (tid, a, d, f"{sp}:0:1", i, int(p), int(p))
+            for tid, _, sts in TRIPS
+            for i, (sp, a, d, p) in enumerate(sts, 1)
+        ],
+    )
+    write(
+        g / "stops.txt",
+        "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station",
+        [
+            row
+            for sp, name, lat, lon in STOPS
+            for row in (
+                (f"P{sp}", name, lat, lon, "1", ""),
+                (f"{sp}:0:1", name, lat, lon, "", f"P{sp}"),
+            )
+        ],
+    )
     runs = at.raw_runs_dir() / "2026" / "2026-02-23_mmtis_zugfahrten.csv"
     runs.parent.mkdir(parents=True, exist_ok=True)
-    runs.write_text(at.RUNS_HEADER + "\n" + "\n".join(
-        f"{n},{DAY},{ts(pa)},{ts(aa)},XA,{ts(pb)},{ts(ab)},XB," for n, pa, aa, pb, ab in RUNS
-    ) + "\n", encoding="utf-8")
+    runs.write_text(
+        at.RUNS_HEADER
+        + "\n"
+        + "\n".join(
+            f"{n},{DAY},{ts(pa)},{ts(aa)},XA,{ts(pb)},{ts(ab)},XB," for n, pa, aa, pb, ab in RUNS
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     at.write_dim_station([g], AUSTRIA.dim_station_parquet)
     con = duckdb.connect()
@@ -113,7 +171,9 @@ def at_root(tmp_path, monkeypatch):
 def stop_times(con, trip):
     return con.execute(
         "SELECT station_id, sched_arr, act_arr, sched_dep, act_dep FROM stg_stops "
-        "WHERE trip_id = ? ORDER BY stop_seq", [trip]).fetchall()
+        "WHERE trip_id = ? ORDER BY stop_seq",
+        [trip],
+    ).fetchall()
 
 
 def test_delay_is_interpolated_between_the_two_observations(at_root):

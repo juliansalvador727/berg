@@ -131,9 +131,7 @@ def route_all(
             print(f"  routed {done}/{len(by_src)} sources", flush=True)
 
     for p, _reason in fallback:
-        xy = quantize(
-            np.asarray([p.from_lon, p.to_lon]), np.asarray([p.from_lat, p.to_lat]), bbox
-        )
+        xy = quantize(np.asarray([p.from_lon, p.to_lon]), np.asarray([p.from_lat, p.to_lat]), bbox)
         routes[p.route_id] = (xy, FLAG_STRAIGHT_FALLBACK)
 
     r = np.asarray(ratios)

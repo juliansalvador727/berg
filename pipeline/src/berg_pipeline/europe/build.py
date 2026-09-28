@@ -67,11 +67,15 @@ def publish_days(con, cfg: DatasetConfig, first: date, last: date, quality: dict
     total_bytes = 0
     for day in days:
         legs = ingest.export_day(
-            con, day, cfg.publish_root / "legs" / f"{day:%Y/%m/%d}.parquet",
+            con,
+            day,
+            cfg.publish_root / "legs" / f"{day:%Y/%m/%d}.parquet",
             compression_level=cfg.compression_level,
         )
         journeys = ingest.export_journeys_day(
-            con, day, cfg.publish_root / "journeys" / f"{day:%Y/%m/%d}.parquet",
+            con,
+            day,
+            cfg.publish_root / "journeys" / f"{day:%Y/%m/%d}.parquet",
             compression_level=cfg.compression_level,
         )
         total_bytes += legs["bytes"] + journeys["bytes"]

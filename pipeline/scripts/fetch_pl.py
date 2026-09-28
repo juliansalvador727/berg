@@ -21,8 +21,10 @@ from berg_pipeline import paths
 
 API = "https://api.spoznienia.me"
 RAW = paths.DATA_ROOT / "datasets" / "pl" / "raw" / "api"
-HEADERS = {"User-Agent": "berg/europe-archive (historical train map; one request at a time)",
-           "Accept-Encoding": "gzip"}
+HEADERS = {
+    "User-Agent": "berg/europe-archive (historical train map; one request at a time)",
+    "Accept-Encoding": "gzip",
+}
 REQUEST_INTERVAL_S = 1.5  # 40 a minute against a limit of 60
 PAGE = 500
 
@@ -39,14 +41,14 @@ def get(client: httpx.Client, path: str, params: dict | None = None):
         try:
             r = client.get(API + path, params=params)
         except httpx.TransportError as e:
-            delay = min(600, 15 * 2 ** attempt)  # Render cold starts take up to a minute
+            delay = min(600, 15 * 2**attempt)  # Render cold starts take up to a minute
             print(f"  {path}: {type(e).__name__}, retry in {delay}s", flush=True)
             time.sleep(delay)
             continue
         if r.status_code == 200:
             return r.json()
         if r.status_code == 429 or r.status_code >= 500:
-            delay = int(r.headers.get("Retry-After", 0)) or min(600, 30 * 2 ** attempt)
+            delay = int(r.headers.get("Retry-After", 0)) or min(600, 30 * 2**attempt)
             print(f"  {path}: HTTP {r.status_code}, retry in {delay}s", flush=True)
             time.sleep(delay)
             continue
@@ -60,7 +62,9 @@ def fetch_day(client: httpx.Client, day: date) -> tuple[int, int]:
         return -1, -1
     runs, offset = [], 0
     while True:
-        page = get(client, "/train-runs", {"date": day.isoformat(), "offset": offset, "limit": PAGE})
+        page = get(
+            client, "/train-runs", {"date": day.isoformat(), "offset": offset, "limit": PAGE}
+        )
         runs += page
         if len(page) < PAGE:
             break
@@ -81,8 +85,11 @@ def fetch_day(client: httpx.Client, day: date) -> tuple[int, int]:
             details[d["id"]] = d
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
             f.flush()
-    body = {"date": day.isoformat(), "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "runs": [details.get(r["id"], r) for r in runs]}
+    body = {
+        "date": day.isoformat(),
+        "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "runs": [details.get(r["id"], r) for r in runs],
+    }
     tmp = out.with_suffix(".tmp")
     tmp.write_text(json.dumps(body, ensure_ascii=False))
     tmp.rename(out)
@@ -98,8 +105,10 @@ def main(first: date, last: date) -> int:
         while day <= last:
             n, with_stops = fetch_day(client, day)
             if n >= 0:
-                print(f"{day}: {n} runs, {with_stops} with stops ({time.monotonic() - t0:.0f}s)",
-                      flush=True)
+                print(
+                    f"{day}: {n} runs, {with_stops} with stops ({time.monotonic() - t0:.0f}s)",
+                    flush=True,
+                )
             day += timedelta(days=1)
     print(f"done in {time.monotonic() - t0:.0f}s")
     return 0

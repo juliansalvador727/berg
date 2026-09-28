@@ -47,11 +47,24 @@ HEADER = (
     "RELATION_DIRECTION,PTCAR_LG_NM_NL,LINE_NO_ARR,PLANNED_DATE_ARR,PLANNED_DATE_DEP,"
     "REAL_DATE_ARR,REAL_DATE_DEP"
 )
-REQUIRED_COLUMNS = frozenset({
-    "DATDEP", "TRAIN_NO", "RELATION", "TRAIN_SERV", "PTCAR_NO", "THOP1_COD",
-    "PLANNED_DATE_ARR", "PLANNED_TIME_ARR", "PLANNED_DATE_DEP", "PLANNED_TIME_DEP",
-    "REAL_DATE_ARR", "REAL_TIME_ARR", "REAL_DATE_DEP", "REAL_TIME_DEP",
-})
+REQUIRED_COLUMNS = frozenset(
+    {
+        "DATDEP",
+        "TRAIN_NO",
+        "RELATION",
+        "TRAIN_SERV",
+        "PTCAR_NO",
+        "THOP1_COD",
+        "PLANNED_DATE_ARR",
+        "PLANNED_TIME_ARR",
+        "PLANNED_DATE_DEP",
+        "PLANNED_TIME_DEP",
+        "REAL_DATE_ARR",
+        "REAL_TIME_ARR",
+        "REAL_DATE_DEP",
+        "REAL_TIME_DEP",
+    }
+)
 # Measuring points a train passes without stopping.
 PASS_CODES = ("D", "P")
 # ptcar classes where passengers board. Everything else is a junction, siding or workshop.
@@ -100,8 +113,9 @@ def _download(url: str, out: Path) -> None:
         try:
             have = part.stat().st_size if part.exists() else 0
             headers = {"Range": f"bytes={have}-"} if have else {}
-            with httpx.stream("GET", url, headers=headers, timeout=300,
-                              follow_redirects=True) as response:
+            with httpx.stream(
+                "GET", url, headers=headers, timeout=300, follow_redirects=True
+            ) as response:
                 if response.status_code == 416:  # already complete
                     break
                 response.raise_for_status()
@@ -150,8 +164,7 @@ def fetch_stations(force: bool = False) -> Path:
 CLOSED_STATIONS = {
     # ptcarid: (name, code, lat, lon, source)
     125: ("Baulers", "FBLR", 50.607588, 4.344372, "Wikidata Q109037563"),
-    864: ("Mortsel-Deurnesteenweg", "GMOD", 51.183023, 4.446514,
-          "iRail stations.csv, BE00864"),
+    864: ("Mortsel-Deurnesteenweg", "GMOD", 51.183023, 4.446514, "iRail stations.csv, BE00864"),
 }
 
 
@@ -185,8 +198,9 @@ def write_dim_station(ptcar_csv: Path, out: Path) -> dict:
         WHERE geo_point_2d IS NOT NULL""")
     for pid, (name, code, lat, lon, _source) in CLOSED_STATIONS.items():
         if con.execute("SELECT count(*) FROM s WHERE bpuic = ?", [pid]).fetchone()[0] == 0:
-            con.execute("INSERT INTO s VALUES (?, ?, ?, ?, ?, true, 'BE')",
-                        [pid, name, code, lon, lat])
+            con.execute(
+                "INSERT INTO s VALUES (?, ?, ?, ?, ?, true, 'BE')", [pid, name, code, lon, lat]
+            )
     n, ids, passenger = con.execute(
         "SELECT count(*), count(DISTINCT bpuic), count(*) FILTER (passenger) FROM s"
     ).fetchone()
@@ -221,8 +235,10 @@ def _category_sql(expr: str) -> str:
     expr = f"coalesce(nullif(trim({expr}), ''), 'TRAIN')"
     cases = " ".join(f"WHEN '{k}' THEN '{v}'" for k, v in CATEGORIES.items())
     prefix = f"upper(split_part(trim({expr}), ' ', 1))"
-    return (f"CASE WHEN regexp_matches(trim({expr}), '{S_RELATION}') THEN 'S' "
-            f"ELSE CASE {prefix} {cases} ELSE {prefix} END END")
+    return (
+        f"CASE WHEN regexp_matches(trim({expr}), '{S_RELATION}') THEN 'S' "
+        f"ELSE CASE {prefix} {cases} ELSE {prefix} END END"
+    )
 
 
 def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
@@ -246,10 +262,10 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                RELATION                                        AS relation,
                TRAIN_SERV                                      AS operator,
                CAST(PTCAR_NO AS BIGINT)                        AS ptcar,
-               {_utc('PLANNED_DATE_ARR', 'PLANNED_TIME_ARR')}  AS s_arr,
-               {_utc('PLANNED_DATE_DEP', 'PLANNED_TIME_DEP')}  AS s_dep,
-               {_utc('REAL_DATE_ARR', 'REAL_TIME_ARR')}        AS a_arr,
-               {_utc('REAL_DATE_DEP', 'REAL_TIME_DEP')}        AS a_dep
+               {_utc("PLANNED_DATE_ARR", "PLANNED_TIME_ARR")}  AS s_arr,
+               {_utc("PLANNED_DATE_DEP", "PLANNED_TIME_DEP")}  AS s_dep,
+               {_utc("REAL_DATE_ARR", "REAL_TIME_ARR")}        AS a_arr,
+               {_utc("REAL_DATE_DEP", "REAL_TIME_DEP")}        AS a_dep
         FROM read_csv({listed}, all_varchar=true, header=true, delim=',', quote='"',
                       union_by_name=true)
         WHERE CAST(strptime(DATDEP, '%d%b%Y') AS DATE) BETWEEN DATE '{first}' AND DATE '{last}'
@@ -298,10 +314,10 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
                 FROM _be_stops GROUP BY ALL
             )
             SELECT r.service_day,
-                   {_category_sql('v.relation')} || ' ' || r.train_number AS trip_id,
+                   {_category_sql("v.relation")} || ' ' || r.train_number AS trip_id,
                    v.operator,
                    r.train_number,
-                   {_category_sql('v.relation')}                      AS category,
+                   {_category_sql("v.relation")}                      AS category,
                    v.relation                                         AS line,
                    r.ptcar                                            AS station_id,
                    r.seq                                              AS stop_seq,
@@ -322,7 +338,8 @@ def stage_days(con, days: list[date], dim_station_parquet: Path) -> dict:
         f"""SELECT count(*), count(*) FILTER (d.bpuic IS NULL)
             FROM stg_stops s LEFT JOIN '{dim_station_parquet.as_posix()}' d
               ON d.bpuic = s.station_id
-            WHERE s.service_day BETWEEN ? AND ?""", [first, last]
+            WHERE s.service_day BETWEEN ? AND ?""",
+        [first, last],
     ).fetchone()
     return {
         "rows_stopping": stats[0],

@@ -67,47 +67,75 @@ def train(number, rows, category="Long-distance", kind="IC", line=None, cancelle
 
 TRAINS = [
     # A measured IC HKI → PSL → (passes timing point 99) → TPE. Two legs, 99 dropped.
-    train(27, [
-        row("DEPARTURE", 1, ts(6, 0), ts(6, 1)),
-        row("ARRIVAL", 10, ts(6, 5), ts(6, 6)),
-        row("DEPARTURE", 10, ts(6, 6), ts(6, 7)),
-        row("ARRIVAL", 99, ts(6, 20), ts(6, 21), stopping=False),
-        row("DEPARTURE", 99, ts(6, 20), ts(6, 21), stopping=False),
-        row("ARRIVAL", 160, ts(7, 40), ts(7, 42)),
-    ]),
+    train(
+        27,
+        [
+            row("DEPARTURE", 1, ts(6, 0), ts(6, 1)),
+            row("ARRIVAL", 10, ts(6, 5), ts(6, 6)),
+            row("DEPARTURE", 10, ts(6, 6), ts(6, 7)),
+            row("ARRIVAL", 99, ts(6, 20), ts(6, 21), stopping=False),
+            row("DEPARTURE", 99, ts(6, 20), ts(6, 21), stopping=False),
+            row("ARRIVAL", 160, ts(7, 40), ts(7, 42)),
+        ],
+    ),
     # Commuter with an unmeasured arrival: its one leg falls back to the timetable, whole.
-    train(9001, [
-        row("DEPARTURE", 1, ts(8, 0), ts(8, 2)),
-        row("ARRIVAL", 18, ts(8, 15)),
-    ], category="Commuter", kind="HL", line="I"),
+    train(
+        9001,
+        [
+            row("DEPARTURE", 1, ts(8, 0), ts(8, 2)),
+            row("ARRIVAL", 18, ts(8, 15)),
+        ],
+        category="Commuter",
+        kind="HL",
+        line="I",
+    ),
     # Cargo never reaches the facts.
-    train(3000, [
-        row("DEPARTURE", 1, ts(9, 0), ts(9, 0)),
-        row("ARRIVAL", 160, ts(11, 0), ts(11, 0)),
-    ], category="Cargo", kind="T"),
+    train(
+        3000,
+        [
+            row("DEPARTURE", 1, ts(9, 0), ts(9, 0)),
+            row("ARRIVAL", 160, ts(11, 0), ts(11, 0)),
+        ],
+        category="Cargo",
+        kind="T",
+    ),
     # A cancelled train is dropped whole.
-    train(28, [
-        row("DEPARTURE", 1, ts(10, 0)),
-        row("ARRIVAL", 160, ts(11, 40)),
-    ], cancelled=True),
+    train(
+        28,
+        [
+            row("DEPARTURE", 1, ts(10, 0)),
+            row("ARRIVAL", 160, ts(11, 40)),
+        ],
+        cancelled=True,
+    ),
     # A stop cancelled mid-route: PSL's departure is gone, so PSL → TPE never ran.
-    train(29, [
-        row("DEPARTURE", 1, ts(12, 0), ts(12, 0)),
-        row("ARRIVAL", 10, ts(12, 5), ts(12, 5)),
-        row("DEPARTURE", 10, ts(12, 6), cancelled=True),
-        row("ARRIVAL", 160, ts(13, 40), cancelled=True),
-    ]),
+    train(
+        29,
+        [
+            row("DEPARTURE", 1, ts(12, 0), ts(12, 0)),
+            row("ARRIVAL", 10, ts(12, 5), ts(12, 5)),
+            row("DEPARTURE", 10, ts(12, 6), cancelled=True),
+            row("ARRIVAL", 160, ts(13, 40), cancelled=True),
+        ],
+    ),
     # A malformed train (two departures in a row) is excluded whole, never guessed at.
-    train(31, [
-        row("DEPARTURE", 1, ts(14, 0), ts(14, 0)),
-        row("DEPARTURE", 10, ts(14, 5), ts(14, 5)),
-        row("ARRIVAL", 160, ts(15, 40), ts(15, 40)),
-    ]),
+    train(
+        31,
+        [
+            row("DEPARTURE", 1, ts(14, 0), ts(14, 0)),
+            row("DEPARTURE", 10, ts(14, 5), ts(14, 5)),
+            row("ARRIVAL", 160, ts(15, 40), ts(15, 40)),
+        ],
+    ),
     # Station 1000 exists in two countries; this one is the Finnish Ahvenus.
-    train(35, [
-        row("DEPARTURE", 160, ts(16, 0), ts(16, 0)),
-        row("ARRIVAL", 1000, ts(17, 0), ts(17, 0)),
-    ], kind="H"),
+    train(
+        35,
+        [
+            row("DEPARTURE", 160, ts(16, 0), ts(16, 0)),
+            row("ARRIVAL", 1000, ts(17, 0), ts(17, 0)),
+        ],
+        kind="H",
+    ),
 ]
 
 
@@ -126,8 +154,15 @@ def dim(tmp_path: Path) -> Path:
     out = tmp_path / "dim_station.parquet"
     fi.write_dim_station(
         [
-            {"stationUICCode": u, "stationShortCode": c, "stationName": n, "longitude": lo,
-             "latitude": la, "passengerTraffic": True, "countryCode": cc}
+            {
+                "stationUICCode": u,
+                "stationShortCode": c,
+                "stationName": n,
+                "longitude": lo,
+                "latitude": la,
+                "passengerTraffic": True,
+                "countryCode": cc,
+            }
             for u, c, n, lo, la, cc in STATIONS
         ],
         out,
@@ -153,8 +188,12 @@ def test_stage_keeps_passenger_commercial_stops_only(fi_root, dim):
     assert staged["trains_malformed"] == 1
     trips = {t for (t,) in con.execute("SELECT DISTINCT trip_id FROM stg_stops").fetchall()}
     assert trips == {"IC 27", "HL 9001", "IC 29", "H 35"}
-    stations_27 = [s for (s,) in con.execute(
-        "SELECT station_id FROM stg_stops WHERE trip_id = 'IC 27' ORDER BY stop_seq").fetchall()]
+    stations_27 = [
+        s
+        for (s,) in con.execute(
+            "SELECT station_id FROM stg_stops WHERE trip_id = 'IC 27' ORDER BY stop_seq"
+        ).fetchall()
+    ]
     assert stations_27 == [1, 10, 160]  # timing point 99 dropped, source order kept
 
 
@@ -179,7 +218,9 @@ def test_cancelled_rows_never_become_movement(fi_root, dim):
     """IC 29 lost PSL's departure and TPE's arrival: TPE has no live row left, so the train
     terminates at PSL. Nothing is invented for the cancelled part and nothing is quarantined."""
     con, _, legs = built(fi_root, dim)
-    ran = con.execute("SELECT from_bpuic, to_bpuic FROM fct_legs WHERE trip_id = 'IC 29'").fetchall()
+    ran = con.execute(
+        "SELECT from_bpuic, to_bpuic FROM fct_legs WHERE trip_id = 'IC 29'"
+    ).fetchall()
     assert ran == [(1, 10)]
     assert "missing_time" not in legs
 
@@ -203,7 +244,15 @@ def test_exports_the_shared_wire_contract(fi_root, dim, tmp_path):
     # IC 27's 95-minute PSL → TPE leg is split into two hourly sub-legs: 3 + 1 + 1 + 1.
     assert ingest.export_day(con, DAY, out)["rows"] == 6
     cols = duckdb.sql(f"DESCRIBE SELECT * FROM '{out.as_posix()}'").fetchall()
-    assert [c[0] for c in cols] == ["route_id", "journey_id", "t_dep", "dur", "type", "delay", "flags"]
+    assert [c[0] for c in cols] == [
+        "route_id",
+        "journey_id",
+        "t_dep",
+        "dur",
+        "type",
+        "delay",
+        "flags",
+    ]
     journeys = tmp_path / "journeys.parquet"
     ingest.export_journeys_day(con, DAY, journeys)
     lines = dict(duckdb.sql(f"SELECT trip_id, line FROM '{journeys.as_posix()}'").fetchall())
@@ -229,9 +278,7 @@ def test_manifest_advertises_gaps_as_missing_coverage(tmp_path, monkeypatch):
 
 def test_catalog_keeps_switzerland_at_the_root_and_carries_other_entries():
     live = {"datasets": {"ch": {"path": "stale"}, "nl": {"path": "datasets/nl"}}}
-    cat = catalog.build_catalog(
-        {"fi": {"start": "2023-01-01", "end": "2025-12-31"}}, existing=live
-    )
+    cat = catalog.build_catalog({"fi": {"start": "2023-01-01", "end": "2025-12-31"}}, existing=live)
     assert cat["datasets"]["ch"]["path"] == ""
     assert cat["datasets"]["ch"]["leg_schema_version"] == 3
     assert cat["datasets"]["nl"] == {"path": "datasets/nl"}
@@ -247,8 +294,10 @@ _spec.loader.exec_module(sync_dataset)
 
 
 def test_budget_gate_refuses_over_allocation_and_over_bucket():
-    remote = {"legs/2020/01/01.parquet": {"size": 8_900_000_000},
-              "datasets/fi/legs/2023/01/01.parquet": {"size": 50}}
+    remote = {
+        "legs/2020/01/01.parquet": {"size": 8_900_000_000},
+        "datasets/fi/legs/2023/01/01.parquet": {"size": 50},
+    }
     report = sync_dataset.budget(FINLAND, 90_000_000, remote)
     # The dataset's old bytes are replaced, not added.
     assert report["bucket_bytes_projected"] == 8_990_000_000
@@ -261,7 +310,9 @@ def test_budget_gate_refuses_over_allocation_and_over_bucket():
 def test_thin_day_passes_only_when_the_source_cancelled_it():
     con = duckdb.connect()
     stops.create_tables(con)
-    con.execute("INSERT INTO source_days VALUES ('2023-03-21', 1121, 1120), ('2023-03-22', 1100, 20)")
+    con.execute(
+        "INSERT INTO source_days VALUES ('2023-03-21', 1121, 1120), ('2023-03-22', 1100, 20)"
+    )
     explained, unexplained = stops.thin_day_verdicts(
         con, {date(2023, 3, 21): 8, date(2023, 3, 22): 40, date(2023, 3, 23): 13_000}, 2_000
     )

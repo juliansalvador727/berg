@@ -72,16 +72,20 @@ def thin_day_verdicts(con, counts: dict[date, int], floor: int) -> tuple[list, l
             [day],
         ).fetchone()
         if row and row[0] and row[1] / row[0] >= SOURCE_CANCELLED_SHARE:
-            explained.append({"day": day.isoformat(), "legs": legs,
-                              "source_trains": row[0], "source_cancelled": row[1]})
+            explained.append(
+                {
+                    "day": day.isoformat(),
+                    "legs": legs,
+                    "source_trains": row[0],
+                    "source_cancelled": row[1],
+                }
+            )
         else:
             unexplained.append((day.isoformat(), legs))
     return explained, unexplained
 
 
-def build_legs(
-    con, cfg: DatasetConfig, first: date, last: date, dim_station_parquet: Path
-) -> dict:
+def build_legs(con, cfg: DatasetConfig, first: date, last: date, dim_station_parquet: Path) -> dict:
     """stg_stops for service days [first, last] → fct_legs, through the shared leg contract.
 
     Same rules as the Swiss builder, minus its two Swiss-only workarounds: times are already
