@@ -11,9 +11,21 @@ import numpy as np
 # Must match berg_pipeline.constants.CH_BBOX — the wire quantization grid.
 CH_BBOX = (5.9, 45.8, 10.5, 47.9)
 
-_LAT0 = np.deg2rad((CH_BBOX[1] + CH_BBOX[3]) / 2)
 M_PER_DEG_LAT = 111_132.0
-M_PER_DEG_LON = 111_320.0 * float(np.cos(_LAT0))
+M_PER_DEG_LON = 111_320.0 * float(np.cos(np.deg2rad((CH_BBOX[1] + CH_BBOX[3]) / 2)))
+
+
+def set_reference_latitude(lat: float) -> None:
+    """Re-center the projection for another network, before anything is projected.
+
+    Switzerland needs one factor; a taller network does not fit it. Finland spans ~60-67.5°N,
+    where cos(lat) runs 0.50 → 0.38, so a single factor at the center is off by up to ~14%
+    east-west at the extremes. That is still far inside what the metric tolerances care about
+    (a 300 m snap ceiling, a 10 m simplify, a 4× detour ratio), and it keeps one unit
+    everywhere. Build a network much taller than that and this needs a real projection.
+    """
+    global M_PER_DEG_LON
+    M_PER_DEG_LON = 111_320.0 * float(np.cos(np.deg2rad(lat)))
 
 
 def to_meters(lon, lat):

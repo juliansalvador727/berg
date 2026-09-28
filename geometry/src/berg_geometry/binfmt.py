@@ -11,8 +11,10 @@ Struct-of-arrays, same philosophy as legs.bin: no parsing in the browser, just o
     u8[n]    flags              (bit0 = straight-line fallback, no track found)
     u16[2p]  interleaved x,y    (quantized into the grid; ~7 m resolution across CH)
 
-Little-endian throughout. Coordinates quantize into CH_BBOX — anything outside clamps, which
-is fine because legs are already clipped to the bbox at ingest.
+Little-endian throughout. Coordinates quantize into the file's own bbox — CH_BBOX for the Swiss
+file, a box fitted to the served stations for other datasets. Anything outside clamps, which is
+fine because legs are already clipped at ingest. Readers take the grid from the header, so one
+routes.bin per dataset needs no Europe-wide box (which would cost most of the precision).
 """
 
 import struct
@@ -29,9 +31,12 @@ VERSION = 1
 FLAG_STRAIGHT_FALLBACK = 1 << 0
 
 
-def quantize(lons: np.ndarray, lats: np.ndarray) -> np.ndarray:
+Bbox = tuple[float, float, float, float]
+
+
+def quantize(lons: np.ndarray, lats: np.ndarray, bbox: Bbox = CH_BBOX) -> np.ndarray:
     """Degrees → interleaved uint16 grid coordinates, consecutive duplicates dropped."""
-    lon0, lat0, lon1, lat1 = CH_BBOX
+    lon0, lat0, lon1, lat1 = bbox
     x = np.clip(np.round((lons - lon0) / (lon1 - lon0) * 65535), 0, 65535)
     y = np.clip(np.round((lats - lat0) / (lat1 - lat0) * 65535), 0, 65535)
     xy = np.column_stack([x, y]).astype(np.uint16)
@@ -42,8 +47,8 @@ def quantize(lons: np.ndarray, lats: np.ndarray) -> np.ndarray:
     return xy
 
 
-def dequantize(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    lon0, lat0, lon1, lat1 = CH_BBOX
+def dequantize(xy: np.ndarray, bbox: Bbox = CH_BBOX) -> tuple[np.ndarray, np.ndarray]:
+    lon0, lat0, lon1, lat1 = bbox
     return (
         xy[:, 0].astype(np.float64) / 65535 * (lon1 - lon0) + lon0,
         xy[:, 1].astype(np.float64) / 65535 * (lat1 - lat0) + lat0,
@@ -52,6 +57,7 @@ def dequantize(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 @dataclass
 class RoutesBin:
+    bbox: Bbox
     route_ids: np.ndarray  # u32, ascending
     offsets: np.ndarray  # u32, len n+1
     flags: np.ndarray  # u8
@@ -64,8 +70,10 @@ class RoutesBin:
         return self.points[self.offsets[i] : self.offsets[i + 1]]
 
 
-def write_routes_bin(routes: dict[int, tuple[np.ndarray, int]], out_path: Path) -> dict:
-    """routes: route_id → (interleaved-quantized points (p,2) u16, flags)."""
+def write_routes_bin(
+    routes: dict[int, tuple[np.ndarray, int]], out_path: Path, bbox: Bbox = CH_BBOX
+) -> dict:
+    """routes: route_id → (points (p,2) u16 quantized into `bbox`, flags)."""
     ids = np.asarray(sorted(routes), dtype=np.uint32)
     counts = np.asarray([len(routes[i][0]) for i in ids], dtype=np.uint32)
     offsets = np.zeros(len(ids) + 1, dtype=np.uint32)
@@ -81,7 +89,7 @@ def write_routes_bin(routes: dict[int, tuple[np.ndarray, int]], out_path: Path) 
     with open(out_path, "wb") as fh:
         fh.write(MAGIC)
         fh.write(struct.pack("<II", VERSION, len(ids)))
-        fh.write(struct.pack("<4d", *CH_BBOX))
+        fh.write(struct.pack("<4d", *bbox))
         fh.write(ids.tobytes())
         fh.write(offsets.tobytes())
         fh.write(flags.tobytes())
@@ -95,7 +103,7 @@ def write_routes_bin(routes: dict[int, tuple[np.ndarray, int]], out_path: Path) 
     }
 
 
-def read_routes_bin(path: Path) -> RoutesBin:
+def read_routes_bin(path: Path, expect_bbox: Bbox | None = CH_BBOX) -> RoutesBin:
     raw = path.read_bytes()
     if raw[:4] != MAGIC:
         raise ValueError(f"{path}: not a routes.bin (magic {raw[:4]!r})")
@@ -103,8 +111,10 @@ def read_routes_bin(path: Path) -> RoutesBin:
     if version != VERSION:
         raise ValueError(f"{path}: version {version}, expected {VERSION}")
     bbox = struct.unpack_from("<4d", raw, 12)
-    if tuple(round(v, 6) for v in bbox) != tuple(round(v, 6) for v in CH_BBOX):
-        raise ValueError(f"{path}: bbox {bbox} != CH_BBOX {CH_BBOX}")
+    if expect_bbox is not None and tuple(round(v, 6) for v in bbox) != tuple(
+        round(v, 6) for v in expect_bbox
+    ):
+        raise ValueError(f"{path}: bbox {bbox} != expected {expect_bbox}")
     o = 44
     route_ids = np.frombuffer(raw, dtype="<u4", count=n, offset=o)
     o += 4 * n
@@ -115,4 +125,4 @@ def read_routes_bin(path: Path) -> RoutesBin:
     points = np.frombuffer(raw, dtype="<u2", offset=o).reshape(-1, 2)
     if len(points) != offsets[-1]:
         raise ValueError(f"{path}: {len(points)} points but offsets claim {offsets[-1]}")
-    return RoutesBin(route_ids=route_ids, offsets=offsets, flags=flags, points=points)
+    return RoutesBin(bbox=bbox, route_ids=route_ids, offsets=offsets, flags=flags, points=points)

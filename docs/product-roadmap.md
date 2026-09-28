@@ -13,7 +13,7 @@ detailed railway landscape. It is not a timeline scrubber.
   station pair. Selecting one seeks to departure, highlights it, and follows it on the map.
 - A staged startup progress bar covers DuckDB, metadata, route geometry, map style, and the first
   movement window.
-- OpenFreeMap's dark vector style supplies clean cartography and city/place labels. MapLibre DEM
+- CARTO's Dark Matter vector style supplies quiet cartography and city/place labels. MapLibre DEM
   hillshade adds mountain relief. Both are temporary hosted sources pending self-hosting.
 - All 2,148 rail stations referenced by published movements are visible and clickable. A station
   panel queries observed arrivals/departures from 15 minutes behind to three simulated hours
@@ -99,6 +99,6 @@ different from “scheduled” rather than filling unavailable fields with guess
 5. Publish archive search indexes and richer journey/call sidecars.
 6. Measure desktop/mobile performance, then add LOD and GPU optimizations where measured.
 
-Implementation references: [OpenFreeMap styles](https://openfreemap.org/quick_start/),
+Implementation references: [CARTO basemap styles](https://github.com/CartoDB/basemap-styles),
 [MapLibre hillshade](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-hillshade-layer/),
 and [deck.gl ScenegraphLayer](https://deck.gl/docs/api-reference/mesh-layers/scenegraph-layer).

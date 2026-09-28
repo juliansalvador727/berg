@@ -3,86 +3,115 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#080b10" />
-    <title>berg — Swiss trains, live through history</title>
+    <meta name="theme-color" content="#0b0c0e" />
+    <title>berg — European trains, live through history</title>
   </head>
   <body>
     <div id="map"></div>
 
     <div id="loading" role="status" aria-live="polite">
       <div class="loading-card">
-        <div class="loading-copy">
-          <strong>Loading the railway</strong>
-          <span id="loading-label">Starting DuckDB…</span>
-        </div>
+        <strong class="wordmark">berg</strong>
+        <span id="loading-label">Starting DuckDB…</span>
         <div class="progress-track"><i id="loading-progress"></i></div>
       </div>
     </div>
 
-    <header id="topbar" class="hidden">
-      <nav class="map-actions glass" aria-label="Map controls">
-        <button id="command-button" class="map-action" type="button">
-          <span class="map-action-icon" aria-hidden="true">⌕</span>
-          <span class="map-action-copy"><strong>Find a train</strong><small>Identity, line, or date</small></span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <button id="playback-button" class="map-action" type="button">
-          <span id="playback-icon" class="map-action-icon" aria-hidden="true">Ⅱ</span>
-          <span class="map-action-copy"><strong id="playback-label">Pause playback</strong><small>Historical simulation</small></span>
-          <kbd>Space</kbd>
-        </button>
-        <button id="filter-button" class="map-action" type="button" aria-expanded="false" aria-controls="filters">
-          <span class="map-action-icon display-icon" aria-hidden="true">◫</span>
-          <span class="map-action-copy"><strong>Train display</strong><small id="filter-summary">All services · service colours</small></span>
-          <span class="map-action-chevron" aria-hidden="true">›</span>
-        </button>
-      </nav>
-
-      <div class="clock-card glass" aria-label="Simulation time">
-        <span id="hud-date" class="hud-date">--</span>
-        <time id="time">--:--:--</time>
-        <div class="clock-meta">
-          <button id="speed-badge" type="button" aria-label="Change playback speed">
-            <span>Speed</span><strong id="speed-value">600×</strong><i aria-hidden="true">⌄</i>
+    <div id="topbar" class="hidden">
+      <div class="left-rail">
+        <nav class="toolbar panel" aria-label="Map controls">
+          <span class="wordmark">berg</span>
+          <button id="command-button" class="search-button" type="button" aria-label="Find a train">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></svg>
+            <span>Search trains or dates</span>
+            <kbd>Ctrl K</kbd>
           </button>
-          <span id="count">0 trains</span>
+          <button id="filter-button" class="icon-button" type="button" aria-label="Map layers"
+            aria-expanded="false" aria-controls="filters">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m8 2.5 5.5 3L8 8.5l-5.5-3Z" /><path d="m2.5 8.5 5.5 3 5.5-3" /><path d="m2.5 11 5.5 3 5.5-3" /></svg>
+          </button>
+        </nav>
+
+        <section id="filters" class="panel hidden" aria-label="Map layers">
+          <header class="panel-header">
+            <h2>Map layers</h2>
+            <button id="filters-close" class="icon-button small" type="button" aria-label="Close map layers">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+            </button>
+          </header>
+          <div class="panel-section">
+            <h3>Show</h3>
+            <div id="layer-toggles" class="toggle-list"></div>
+          </div>
+          <div id="country-section" class="panel-section">
+            <h3>Countries</h3>
+            <div id="country-toggles" class="toggle-list"></div>
+          </div>
+          <div class="panel-section">
+            <h3>Services</h3>
+            <div id="filter-chips" class="chips"></div>
+          </div>
+          <div class="panel-section">
+            <h3>Colour trains by</h3>
+            <div class="segmented" role="group" aria-label="Colour trains by">
+              <button id="mode-type" class="on" type="button" aria-pressed="true">Service</button>
+              <button id="mode-delay" type="button" aria-pressed="false">Delay</button>
+            </div>
+            <div id="legend" class="legend"></div>
+          </div>
+          <footer class="panel-footer">
+            <div id="archive-meta"></div>
+            <details class="sources">
+              <summary>Sources &amp; licences</summary>
+              <div id="data-sources"></div>
+            </details>
+          </footer>
+        </section>
+      </div>
+
+      <div class="right-rail">
+        <section id="activity" class="panel" aria-label="Trains running over time">
+          <header class="activity-header">
+            <div>
+              <h2>Trains running</h2>
+              <span id="activity-scope"></span>
+            </div>
+            <strong id="count">0</strong>
+          </header>
+          <div id="activity-chart" class="activity-chart"></div>
+        </section>
+
+        <aside id="details" class="panel details hidden" aria-live="polite">
+          <button id="details-close" class="icon-button small close" type="button" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+          </button>
+          <div id="details-content"></div>
+        </aside>
+      </div>
+
+      <div class="bottom-rail">
+        <div id="coverage" class="coverage hidden" role="status"></div>
+        <div id="playbar" class="panel" aria-label="Playback">
+          <button id="playback-button" class="play-button" type="button">
+            <svg id="icon-pause" class="icon filled" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="3" width="2.75" height="10" rx=".75" /><rect x="9.25" y="3" width="2.75" height="10" rx=".75" /></svg>
+            <svg id="icon-play" class="icon filled hidden" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6a.7.7 0 0 0 1.06.6l7.6-4.8a.7.7 0 0 0 0-1.2l-7.6-4.8A.7.7 0 0 0 5 3.2Z" /></svg>
+            <span id="playback-label" class="sr-only">Pause playback</span>
+          </button>
+          <div class="clock">
+            <time id="time">--:--:--</time>
+            <span id="hud-date">--/--/----</span>
+          </div>
+          <div id="speeds" class="segmented" role="group" aria-label="Playback speed"></div>
         </div>
       </div>
-    </header>
+    </div>
 
-    <section id="filters" class="glass hidden" aria-label="Train filters">
-      <div class="filter-heading">
-        <div><strong>Train display</strong><small>Choose what appears on the map</small></div>
-        <button id="filters-close" class="icon-button" type="button" aria-label="Close train display">×</button>
-      </div>
-      <div class="panel-label">Services</div>
-      <div id="filter-chips" class="chips"></div>
-      <div class="divider"></div>
-      <div class="panel-label">Colour arrows by</div>
-      <div class="mode-row">
-        <button id="mode-type" class="text-button on" type="button">Service</button>
-        <button id="mode-delay" class="text-button" type="button">Delay</button>
-      </div>
-      <div id="legend" class="legend"></div>
-      <div id="archive-meta" class="micro"></div>
-      <div class="micro map-credits">
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
-        · <a href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a>
-        · <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noreferrer">Terrain sources</a>
-      </div>
-    </section>
-
-    <aside id="details" class="glass details hidden" aria-live="polite">
-      <button id="details-close" class="icon-button close" type="button" aria-label="Close">×</button>
-      <div id="details-content"></div>
-    </aside>
-
-    <div id="command" class="command-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="command" class="command-backdrop hidden" role="dialog" aria-modal="true" aria-label="Search">
       <div class="command-panel">
         <div class="command-input-row">
-          <span class="search-icon">⌕</span>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></svg>
           <input id="command-input" autocomplete="off" spellcheck="false"
-            placeholder="Train, line, or YYYY-MM-DD HH:MM…" />
+            placeholder="Train, line, country, or DD/MM/YYYY HH:MM" />
           <kbd>Esc</kbd>
         </div>
         <div id="command-context" class="command-context"></div>

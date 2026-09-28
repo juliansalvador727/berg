@@ -166,3 +166,19 @@ def test_routes_bin_rejects_garbage(tmp_path: Path):
     bad.write_bytes(b"NOPE" + b"\x00" * 100)
     with pytest.raises(ValueError, match="magic"):
         read_routes_bin(bad)
+
+
+def test_non_swiss_bbox_round_trips(tmp_path: Path):
+    """A dataset's own grid survives write → read, and the reader can be told not to insist
+    on Switzerland's."""
+    bbox = (20.0, 59.8, 31.0, 67.5)
+    lons, lats = np.array([24.94, 25.47]), np.array([60.17, 65.01])
+    xy = quantize(lons, lats, bbox)
+    out = tmp_path / "routes.bin"
+    write_routes_bin({7: (xy, 0)}, out, bbox)
+    with pytest.raises(ValueError):
+        read_routes_bin(out)  # the default still guards the Swiss file
+    rb = read_routes_bin(out, expect_bbox=None)
+    assert rb.bbox == bbox
+    back_lon, back_lat = dequantize(rb.polyline(7), rb.bbox)
+    assert np.allclose(back_lon, lons, atol=2e-4) and np.allclose(back_lat, lats, atol=2e-4)

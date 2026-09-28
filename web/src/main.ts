@@ -7,29 +7,25 @@ import "@fontsource-variable/noto-sans";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./style.css";
 
-import { SWITZERLAND_BORDER } from "./assets/switzerland-border";
+import { ActivityChart } from "./activity";
 import { Clock, SPEEDS } from "./clock";
-import {
-  BUFFER_SECONDS,
-  INITIAL_VIEW,
-  MAP_STYLE_URL,
-  ROUTE_PAIRS_URL,
-  ROUTES_URL,
-  STATIONS_URL,
-  TERRAIN_TILE_URL,
-  TRAIN_TYPES_URL,
-} from "./config";
+import { BUFFER_SECONDS, INITIAL_VIEW, MAP_STYLE_URL, TERRAIN_TILE_URL, datasetUrl } from "./config";
 import { fetchRoutes, type RoutePath, type Routes } from "./routes";
 import {
   type ColorMode,
   delayColor,
+  isJourney,
+  type JourneyRef,
+  type LinkedEnds,
   positioned,
+  type RouteSampler,
   PUNCTUAL_S,
   trainsLayer,
   type PositionedLeg,
   typeColors,
 } from "./render/trains";
-import { FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest } from "./types";
+import { BRIDGE_ROUTE_BASE, CrossBorder, dedupe, FLAG_BRIDGE, type Link } from "./links";
+import { type DatasetInfo, FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest, type TimeSemantics } from "./types";
 import type {
   JourneySearchResult,
   StationBoardDeparture,
@@ -37,18 +33,48 @@ import type {
   WorkerResponse,
 } from "./worker/legs.worker";
 
+type RGB = [number, number, number];
+
 interface Station {
   id: number;
   name: string;
   lon: number;
   lat: number;
+  /** Station ids are dataset-local; a Finnish and a Swiss station may share a number. */
+  dataset: number;
+}
+
+interface TrackPath extends RoutePath {
+  dataset: number;
+}
+
+/** One country's static layer: geometry, stations, and dictionaries, all dataset-local. */
+interface DatasetView {
+  info: DatasetInfo;
+  manifest: Manifest;
+  routes: Routes;
+  stations: Station[];
+  stationById: Map<number, Station>;
+  stationDepartureRouteIds: Map<number, number[]>;
+  routePairs: Record<string, [number, number]>;
+  types: string[];
+  /** Service-group id per type id, resolved once against this dataset's own codes. */
+  groupOfType: string[];
+  colors: RGB[];
+  trackPaths: TrackPath[];
 }
 
 interface BergE2ETestHook {
   highlightedStationRouteIds: () => number[];
   openStation: (name: string) => boolean;
   stationPoints: () => Array<Station & { x: number; y: number }>;
-  trainPoints: () => Array<{ journeyId: number; x: number; y: number }>;
+  trainPoints: () => Array<{ dataset: string; journeyId: number; bridge: boolean; x: number; y: number }>;
+  crossBorder: () => { loaded: boolean; hiddenLegs: number; bridgeLegs: number; links: number };
+  watchJourney: (dataset: string, journeyId: number, day: string) => Promise<boolean>;
+  selectedDataset: () => string | null;
+  seek: (epoch: number) => void;
+  dayLinks: (day: string) => Promise<Link[]>;
+  loadedDatasets: () => string[];
   selectedJourneyId: () => number | null;
   selectedRouteIds: () => number[];
 }
@@ -62,16 +88,83 @@ declare global {
 interface ServiceGroup {
   id: string;
   label: string;
-  codes: ReadonlySet<string>;
+  /** Train type codes per dataset. Codes are not comparable across countries: "S" is an
+   * S-Bahn in Switzerland and a Pendolino in Finland. */
+  codes: Record<string, ReadonlySet<string>>;
 }
 
 const SERVICE_GROUPS: ServiceGroup[] = [
-  { id: "s", label: "S-Bahn", codes: new Set(["S", "SN"]) },
-  { id: "regional", label: "Regional", codes: new Set(["R", "RB", "RE", "IRE", "TER", "PE"]) },
-  { id: "intercity", label: "IC / IR", codes: new Set(["IC", "IR"]) },
-  { id: "fast", label: "ICE / fast", codes: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]) },
-  { id: "night", label: "Night", codes: new Set(["NJ", "EN", "NZ"]) },
+  {
+    id: "s",
+    label: "S-Bahn",
+    codes: {
+      ch: new Set(["S", "SN"]),
+      fi: new Set(["HL", "HLV"]),
+      nl: new Set(["SPR"]),
+      be: new Set(["S"]),
+      de: new Set(["S"]),
+      at: new Set(["S"]),
+    },
+  },
+  {
+    id: "regional",
+    label: "Regional",
+    codes: {
+      ch: new Set(["R", "RB", "RE", "IRE", "TER", "PE"]),
+      fi: new Set(["H", "HDM", "HSM"]),
+      nl: new Set(["ST", "SNT"]),
+      be: new Set(["L", "P"]),
+      de: new Set(["RB", "RE", "IRE", "MEX", "RS", "FEX", "R", "OS"]),
+      at: new Set(["R", "REX", "CJX", "CAT", "OS", "RB"]),
+    },
+  },
+  {
+    id: "intercity",
+    label: "IC / IR",
+    codes: {
+      ch: new Set(["IC", "IR"]),
+      fi: new Set(["IC", "IC2", "P", "PVV", "PVS"]),
+      nl: new Set(["IC", "ICD"]),
+      be: new Set(["IC"]),
+      de: new Set(["IC", "IR", "D", "FLX", "WB"]),
+      at: new Set(["IC", "IR", "D"]),
+    },
+  },
+  {
+    id: "fast",
+    label: "ICE / fast",
+    codes: {
+      ch: new Set(["ICE", "TGV", "EC", "RJ", "RJX"]),
+      fi: new Set(["S", "AE"]),
+      nl: new Set(["ICE", "THA", "EST", "EC", "ECD", "INT"]),
+      be: new Set(["ICE", "THA", "EST", "TGV", "EC", "INT"]),
+      de: new Set(["ICE", "ECE", "EC", "RJ", "RJX", "TGV", "EST"]),
+      at: new Set(["ICE", "EC", "RJ", "RJX"]),
+    },
+  },
+  {
+    id: "night",
+    label: "Night",
+    codes: {
+      ch: new Set(["NJ", "EN", "NZ"]),
+      fi: new Set(["PYO"]),
+      nl: new Set(["NJ", "ES", "NT"]),
+      be: new Set(["NJ", "EN", "ES"]),
+      de: new Set(["NJ", "EN", "ES"]),
+      at: new Set(["NJ", "EN"]),
+    },
+  },
 ];
+const OTHER_GROUP = "other";
+
+/** How a dataset's times may be described. Never render weaker evidence as "observed". */
+const EVIDENCE_LABEL: Record<TimeSemantics, string> = {
+  observed: "observed",
+  final_prediction: "final-prediction",
+  delay_only: "scheduled + reported delay",
+  delay_interpolated: "scheduled + interpolated delay",
+  scheduled: "scheduled",
+};
 
 const REFETCH_MARGIN_S = 60;
 const DEFAULT_DAY = "2018-01-01";
@@ -80,6 +173,9 @@ let nextRequestId = 1;
 /** Approximate ground resolution at the map center for zoom-adaptive arrow smoothing. */
 const metersPerPixel = (latitude: number, zoom: number): number =>
   (156_543.03392 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom;
+
+/** route_id is uint16 within a dataset, so this packs (dataset, route) into one map key. */
+const trackKey = (dataset: number, routeId: number): number => dataset * 65_536 + routeId;
 
 const byId = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -90,59 +186,65 @@ const byId = <T extends HTMLElement>(id: string): T => {
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]!);
 
-const fmtClock = (epoch: number): string =>
-  new Date(epoch * 1000).toLocaleString("de-CH", {
-    timeZone: "Europe/Zurich",
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+// Dates always read DD/MM/YYYY and times 24-hour, whatever the viewer's locale. en-GB gives
+// exactly that; formatters are cached per zone because the clock formats every frame.
+const formats = new Map<string, Intl.DateTimeFormat>();
+const format = (epoch: number, timeZone: string, options: Intl.DateTimeFormatOptions): string => {
+  const key = `${timeZone}|${JSON.stringify(options)}`;
+  let formatter = formats.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", { timeZone, hourCycle: "h23", ...options });
+    formats.set(key, formatter);
+  }
+  return formatter.format(new Date(epoch * 1000));
+};
+const DATE = { day: "2-digit", month: "2-digit", year: "numeric" } as const;
 
-const fmtShortTime = (epoch: number): string =>
-  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
-    timeZone: "Europe/Zurich",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const fmtShortTime = (epoch: number, timeZone: string): string =>
+  format(epoch, timeZone, { hour: "2-digit", minute: "2-digit" });
 
-const fmtHudDate = (epoch: number): string =>
-  new Date(epoch * 1000).toLocaleDateString("de-CH", {
-    timeZone: "Europe/Zurich",
-    weekday: "short",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+const fmtHudDate = (epoch: number, timeZone: string): string =>
+  format(epoch, timeZone, { weekday: "short", ...DATE }).replace(",", "");
 
-const fmtHudTime = (epoch: number): string =>
-  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
-    timeZone: "Europe/Zurich",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+const fmtClock = (epoch: number, timeZone: string): string =>
+  `${fmtHudDate(epoch, timeZone)} ${fmtShortTime(epoch, timeZone)}`;
 
-const trainNumber = (tripId: string): string => {
+const fmtHudTime = (epoch: number, timeZone: string): string =>
+  format(epoch, timeZone, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+/** An ISO day ("2025-12-15") as DD/MM/YYYY. */
+const fmtDay = (day: string | null): string => {
+  if (!day) return "—";
+  const [y, m, d] = day.split("-");
+  return `${d}/${m}/${y}`;
+};
+
+const utcDay = (epoch: number): string => new Date(Math.floor(epoch) * 1000).toISOString().slice(0, 10);
+
+/** The public train number inside a dataset's journey identity. */
+const trainNumber = (tripId: string, datasetId: string): string => {
+  // "S 42183 #2" is the second ride labelled S 42183 that day; the number is still 42183.
+  if (datasetId !== "ch") return tripId.replace(/ #\d+$/, "").split(" ").at(-1) ?? tripId;
   const parts = tripId.split(":");
   if (tripId.includes(":sjyid:")) return parts[parts.length - 1]?.split("-")[0] ?? tripId;
   return parts.length >= 3 ? parts[parts.length - 2]! : tripId;
 };
 
-/** Convert a Europe/Zurich wall-clock value without depending on the viewer's own timezone. */
-function zurichEpoch(value: string): number | null {
-  const match = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/.exec(value.trim());
+/** Convert a wall-clock value in `timeZone` without depending on the viewer's own zone. */
+function zonedEpoch(value: string, timeZone: string): number | null {
+  // DD/MM/YYYY, the displayed format, or ISO YYYY-MM-DD; either with an optional HH:MM.
+  const match =
+    /^(?:(\d{4})-(\d{2})-(\d{2})|(\d{1,2})[/.](\d{1,2})[/.](\d{4}))(?:[ T](\d{1,2}):(\d{2}))?$/.exec(value.trim());
   if (!match) return null;
-  const hour = Number(match[2] ?? 8);
-  const minute = Number(match[3] ?? 0);
+  const pad = (part: string) => part.padStart(2, "0");
+  const day = match[1] ? `${match[1]}-${match[2]}-${match[3]}` : `${match[6]}-${pad(match[5]!)}-${pad(match[4]!)}`;
+  const hour = Number(match[7] ?? 8);
+  const minute = Number(match[8] ?? 0);
   if (hour > 23 || minute > 59) return null;
-  const desiredAsUtc = Date.parse(`${match[1]}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
+  const desiredAsUtc = Date.parse(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
   if (!Number.isFinite(desiredAsUtc)) return null;
   const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Zurich",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -173,6 +275,61 @@ function ask(worker: Worker, payload: WorkerRequestPayload): Promise<WorkerRespo
   });
 }
 
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
+  return (await response.json()) as T;
+}
+
+/** Everything static for one dataset, fetched once when the country first comes into view. */
+async function loadDatasetView(info: DatasetInfo, manifest: Manifest): Promise<DatasetView> {
+  const [routes, allStations, typeMap, routePairs] = await Promise.all([
+    fetchRoutes(datasetUrl(info.path, "static/routes.bin")),
+    fetchJson<Array<Omit<Station, "dataset">>>(datasetUrl(info.path, "static/stations.json")),
+    fetchJson<Record<string, string>>(datasetUrl(info.path, "static/train_types.json")),
+    fetchJson<Record<string, [number, number]>>(datasetUrl(info.path, "static/route_pairs.json")),
+  ]);
+
+  const served = new Set<number>();
+  const stationDepartureRouteIds = new Map<number, number[]>();
+  for (const [routeIdText, [from, to]] of Object.entries(routePairs)) {
+    const routeId = Number(routeIdText);
+    served.add(from);
+    served.add(to);
+    stationDepartureRouteIds.set(from, [...(stationDepartureRouteIds.get(from) ?? []), routeId]);
+  }
+  const stations: Station[] = allStations
+    .filter((station) => served.has(station.id))
+    .map(({ id, name, lon, lat }) => ({ id, name, lon, lat, dataset: info.index }));
+
+  const maxType = Math.max(0, ...Object.keys(typeMap).map(Number));
+  const types = Array.from({ length: maxType + 1 }, (_, index) => typeMap[String(index)] ?? "?");
+  const groupOfType = types.map(
+    (code) => SERVICE_GROUPS.find((group) => group.codes[info.id]?.has(code))?.id ?? OTHER_GROUP,
+  );
+  // Switzerland keeps its original per-code palette. Other countries colour by service group,
+  // because their codes mean different things.
+  const [local, regional, longDistance] = typeColors(["S", "RE", "IC"]) as [RGB, RGB, RGB];
+  const colors: RGB[] =
+    info.id === "ch"
+      ? typeColors(types)
+      : groupOfType.map((group) => (group === "s" ? local : group === "regional" ? regional : longDistance));
+
+  return {
+    info,
+    manifest,
+    routes,
+    stations,
+    stationById: new Map(stations.map((station) => [station.id, station])),
+    stationDepartureRouteIds,
+    routePairs,
+    types,
+    groupOfType,
+    colors,
+    trackPaths: routes.paths().map((route) => ({ ...route, dataset: info.index })),
+  };
+}
+
 async function main(): Promise<void> {
   const e2eMode =
     import.meta.env.MODE === "e2e" ||
@@ -189,51 +346,58 @@ async function main(): Promise<void> {
   const worker = new Worker(new URL("./worker/legs.worker.ts", import.meta.url), { type: "module" });
   const ready = await ask(worker, { kind: "init" });
   if (ready.kind !== "ready") throw new Error("worker did not become ready");
-  const manifest: Manifest = ready.manifest;
-  if (!manifest.start || !manifest.end) throw new Error("manifest advertises no days");
+  const datasets: DatasetInfo[] = ready.datasets;
+  const manifests: Manifest[] = ready.manifests;
+  const multiCountry = datasets.length > 1;
+  for (const manifest of manifests) {
+    if (!manifest.start || !manifest.end) throw new Error("a manifest advertises no days");
+  }
 
   setProgress(24, "Loading routes, stations, and train classes…");
-  const [routes, allStations, typeMap, routePairs] = await Promise.all([
-    fetchRoutes(ROUTES_URL) as Promise<Routes>,
-    fetch(STATIONS_URL).then((response) => response.json() as Promise<Station[]>),
-    fetch(TRAIN_TYPES_URL).then((response) => response.json() as Promise<Record<string, string>>),
-    fetch(ROUTE_PAIRS_URL).then(
-      (response) => response.json() as Promise<Record<string, [number, number]>>,
-    ),
-  ]);
+  const views: Array<DatasetView | undefined> = new Array(datasets.length);
+  const viewLoads = new Map<number, Promise<DatasetView | undefined>>();
+  // Bumped whenever a country's static layer arrives, so the map rebuilds its static layers.
+  let staticVersion = 0;
+  // Set once the cross-border layer is loaded (below); a view arriving later refetches the window.
+  let crossBorderPending = (): boolean => false;
+  const ensureView = (index: number): Promise<DatasetView | undefined> => {
+    let load = viewLoads.get(index);
+    if (!load) {
+      load = loadDatasetView(datasets[index]!, manifests[index]!).then(
+        (view) => {
+          views[index] = view;
+          staticVersion++;
+          // The cross-border layer reads each country's route pairs and places bridges on its
+          // journeys, so a window built before this country arrived is rebuilt.
+          if (crossBorderPending()) win = { ...win, to: -1 };
+          return view;
+        },
+        (error: unknown) => {
+          // One country's missing geometry must not take the others down; retry on next view.
+          console.warn(`static layer for ${datasets[index]!.id} unavailable`, error);
+          viewLoads.delete(index);
+          return undefined;
+        },
+      );
+      viewLoads.set(index, load);
+    }
+    return load;
+  };
+  // Switzerland is dataset 0 and the initial view; other countries load when panned into view.
+  const swiss = await ensureView(0);
+  if (!swiss) throw new Error("the Swiss static layer could not be loaded");
+  const loadedViews = (): DatasetView[] => views.filter((view): view is DatasetView => view !== undefined);
 
   setProgress(48, "Preparing the observed rail network…");
-  const served = new Set<number>();
-  const stationDepartureRouteIds = new Map<number, number[]>();
-  for (const [routeIdText, [from, to]] of Object.entries(routePairs)) {
-    const routeId = Number(routeIdText);
-    served.add(from);
-    served.add(to);
-    stationDepartureRouteIds.set(from, [
-      ...(stationDepartureRouteIds.get(from) ?? []),
-      routeId,
-    ]);
-  }
-  const stations = allStations.filter((station) => served.has(station.id));
-  const stationById = new Map(stations.map((station) => [station.id, station]));
-  const trackPaths = routes.paths();
-  const trackPathById = new Map(trackPaths.map((route) => [route.routeId, route]));
+  const enabledGroups = new Set([...SERVICE_GROUPS.map((group) => group.id), OTHER_GROUP]);
+  const allGroups = [...SERVICE_GROUPS.map(({ id, label }) => ({ id, label })), { id: OTHER_GROUP, label: "Other" }];
 
-  const maxType = Math.max(...Object.keys(typeMap).map(Number));
-  const types = Array.from({ length: maxType + 1 }, (_, index) => typeMap[String(index)] ?? "?");
-  const colors = typeColors(types);
-  const knownGroupedTypes = new Set(SERVICE_GROUPS.flatMap((group) => [...group.codes]));
-  const allGroups = [
-    ...SERVICE_GROUPS,
-    {
-      id: "other",
-      label: "Other",
-      codes: new Set(types.filter((type) => !knownGroupedTypes.has(type))),
-    },
-  ];
-  const enabledGroups = new Set(allGroups.map((group) => group.id));
+  const typeEnabled = (dataset: number, typeId: number): boolean =>
+    enabledGroups.has(views[dataset]?.groupOfType[typeId] ?? OTHER_GROUP);
+  const typeName = (dataset: number, typeId: number): string => views[dataset]?.types[typeId] ?? "Train";
+  const typeColor = (leg: Leg): RGB => views[leg.dataset]?.colors[leg.type] ?? [200, 200, 200];
 
-  setProgress(64, "Loading the dark map and mountain relief…");
+  setProgress(64, "Loading the map and mountain relief…");
   const map = new maplibregl.Map({
     container: "map",
     style: MAP_STYLE_URL,
@@ -242,9 +406,13 @@ async function main(): Promise<void> {
     pitch: e2eMode ? 0 : 24,
     bearing: 0,
     maxPitch: 70,
-    attributionControl: false,
+    attributionControl: { compact: true },
   });
   await map.once("load");
+  // The basemap is context, not content: drop road names, house numbers, and POIs.
+  for (const layer of map.getStyle().layers ?? []) {
+    if (/^(roadname_|housenumber|poi_)/.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+  }
 
   if (!e2eMode) {
     try {
@@ -256,7 +424,9 @@ async function main(): Promise<void> {
         encoding: "terrarium",
         attribution: '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data sources</a>',
       });
-      const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+      // Under water, roads, and labels, so the relief reads as texture on the land only.
+      const layers = map.getStyle().layers ?? [];
+      const beneath = (layers.find((layer) => layer.id === "waterway") ?? layers.find((layer) => layer.type === "symbol"))?.id;
       map.addLayer(
         {
           id: "berg-hillshade",
@@ -264,13 +434,13 @@ async function main(): Promise<void> {
           source: "berg-terrain",
           paint: {
             "hillshade-method": "multidirectional",
-            "hillshade-exaggeration": 0.28,
-            "hillshade-shadow-color": "#020509",
-            "hillshade-highlight-color": "#607184",
-            "hillshade-accent-color": "#111b25",
+            "hillshade-exaggeration": 0.2,
+            "hillshade-shadow-color": "#000000",
+            "hillshade-highlight-color": "#2a2e35",
+            "hillshade-accent-color": "#0e1013",
           },
         },
-        firstLabel,
+        beneath,
       );
     } catch (error) {
       console.warn("terrain relief unavailable", error);
@@ -285,13 +455,50 @@ async function main(): Promise<void> {
   });
   map.addControl(overlay);
 
-  const days = Object.keys(manifest.days).sort();
-  const substantialDays = days.filter((day) => manifest.days[day]!.legs >= 10_000);
-  const initialDay = DEFAULT_DAY in manifest.days
+  /** Countries whose bounding box overlaps the visible map, in dataset order. */
+  /**
+   * Countries in view that the current day concerns. A neighbour whose archive does not reach
+   * this day (Germany's box covers Basel, but its data starts in 2025) would only fetch its
+   * geometry to draw nothing and put a "no data" notice over the country being watched. It
+   * still counts when it is the country under the map center, so flying there explains the gap.
+   */
+  const visibleDatasets = (): number[] => {
+    const bounds = map.getBounds();
+    const day = utcDay(clock.simTime);
+    const focus = focusDataset().index;
+    return datasets
+      .filter(({ index }) => enabledDatasets.has(index))
+      .filter(({ bbox: [west, south, east, north] }) =>
+        west <= bounds.getEast() && east >= bounds.getWest() && south <= bounds.getNorth() && north >= bounds.getSouth(),
+      )
+      .filter(({ index }) => {
+        const { start, end } = manifests[index]!;
+        return index === focus || !start || !end || (day >= start && day <= end);
+      })
+      .map((info) => info.index);
+  };
+  /** The country the clock speaks for: the one under the map center, else Switzerland. */
+  const focusDataset = (): DatasetInfo => {
+    const { lng, lat } = map.getCenter();
+    return (
+      datasets.find(({ bbox: [west, south, east, north] }) => lng >= west && lng <= east && lat >= south && lat <= north) ??
+      datasets[0]!
+    );
+  };
+
+  const swissDays = Object.keys(manifests[0]!.days).sort();
+  const allDays = [...new Set(manifests.flatMap((manifest) => Object.keys(manifest.days)))].sort();
+  const substantialDays = swissDays.filter((day) => manifests[0]!.days[day]!.legs >= 10_000);
+  // Start on the first day every dataset has published, so the whole map is populated from the
+  // first frame. With a single dataset, or none in common, keep the Swiss default.
+  const sharedDays = multiCountry
+    ? swissDays.filter((day) => manifests.every((manifest) => day in manifest.days))
+    : [];
+  const initialDay = sharedDays[0] ?? (DEFAULT_DAY in manifests[0]!.days
     ? DEFAULT_DAY
-    : (substantialDays[substantialDays.length - 1] ?? days[days.length - 1]!);
-  const tMin = Date.parse(`${days[0]}T00:00:00Z`) / 1000;
-  const tMax = Date.parse(`${days[days.length - 1]}T23:59:59Z`) / 1000;
+    : (substantialDays[substantialDays.length - 1] ?? swissDays[swissDays.length - 1]!));
+  const tMin = Date.parse(`${allDays[0]}T00:00:00Z`) / 1000;
+  const tMax = Date.parse(`${allDays[allDays.length - 1]}T23:59:59Z`) / 1000;
   const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);
   clock.setSpeed(600);
   clock.play();
@@ -300,15 +507,17 @@ async function main(): Promise<void> {
   const filters = byId<HTMLElement>("filters");
   const hudDateElement = byId<HTMLSpanElement>("hud-date");
   const timeElement = byId<HTMLTimeElement>("time");
-  const countElement = byId<HTMLSpanElement>("count");
-  const speedBadge = byId<HTMLButtonElement>("speed-badge");
-  const speedValue = byId<HTMLElement>("speed-value");
+  const countElement = byId<HTMLElement>("count");
+  const activityScope = byId<HTMLSpanElement>("activity-scope");
+  const coverageElement = byId<HTMLDivElement>("coverage");
   const playbackButton = byId<HTMLButtonElement>("playback-button");
-  const playbackIcon = byId<HTMLSpanElement>("playback-icon");
   const playbackLabel = byId<HTMLElement>("playback-label");
+  const playIcon = byId<HTMLElement>("icon-play");
+  const pauseIcon = byId<HTMLElement>("icon-pause");
+  const speedGroup = byId<HTMLDivElement>("speeds");
   const filterButton = byId<HTMLButtonElement>("filter-button");
-  const filterSummary = byId<HTMLElement>("filter-summary");
   const archiveMeta = byId<HTMLDivElement>("archive-meta");
+  const dataSources = byId<HTMLDivElement>("data-sources");
   const details = byId<HTMLElement>("details");
   const detailsContent = byId<HTMLDivElement>("details-content");
   const command = byId<HTMLDivElement>("command");
@@ -317,6 +526,7 @@ async function main(): Promise<void> {
   const commandResults = byId<HTMLDivElement>("command-results");
   const filterChips = byId<HTMLDivElement>("filter-chips");
   const legendElement = byId<HTMLDivElement>("legend");
+  const activity = new ActivityChart(byId("activity-chart"), fmtShortTime);
   let colorMode: ColorMode = "type";
   let visibleStationBoard: { station: Station; departures: StationBoardDeparture[] } | null = null;
   let stationBoardGeneration = 0;
@@ -334,24 +544,82 @@ async function main(): Promise<void> {
   };
   playbackButton.onclick = togglePlayback;
 
-  const updateFilterSummary = () => {
-    const enabled = enabledGroups.size;
-    const services = enabled === allGroups.length ? "All services" : `${enabled} of ${allGroups.length} services`;
-    filterSummary.textContent = `${services} · ${colorMode === "type" ? "service" : "delay"} colours`;
+  const speedButtons = SPEEDS.map((speed) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${speed}×`;
+    button.setAttribute("aria-label", `Run at ${speed}×`);
+    button.onclick = () => {
+      clock.setSpeed(speed);
+      clock.play();
+    };
+    speedGroup.appendChild(button);
+    return { speed, button };
+  });
+
+  /** A switch row: the whole row is the control, its state lives in aria-checked. */
+  const toggleRow = (label: string, on: boolean, onChange: (on: boolean) => void, code = "", meta = "") => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toggle";
+    button.setAttribute("role", "switch");
+    button.setAttribute("aria-checked", String(on));
+    button.innerHTML = `${code ? `<span class="code">${escapeHtml(code)}</span>` : ""}<span class="label">${escapeHtml(label)}</span>${meta ? `<span class="meta">${escapeHtml(meta)}</span>` : ""}<span class="switch" aria-hidden="true"></span>`;
+    button.onclick = () => {
+      const next = button.getAttribute("aria-checked") !== "true";
+      button.setAttribute("aria-checked", String(next));
+      onChange(next);
+    };
+    return button;
   };
 
-  archiveMeta.textContent = `${days.length.toLocaleString()} days · ${routes.length.toLocaleString()} routes · ${stations.length.toLocaleString()} stations`;
+  const layerVisible = { trains: true, tracks: true, stations: true };
+  const layerToggles = byId<HTMLDivElement>("layer-toggles");
+  for (const [key, label] of [["trains", "Trains"], ["tracks", "Tracks"], ["stations", "Stations"]] as const) {
+    layerToggles.appendChild(
+      toggleRow(label, true, (on) => {
+        layerVisible[key] = on;
+      }),
+    );
+  }
+
+  const enabledDatasets = new Set(datasets.map((info) => info.index));
+  const countryToggles = byId<HTMLDivElement>("country-toggles");
+  const countryToggleByIndex = new Map<number, HTMLButtonElement>();
+  byId("country-section").classList.toggle("hidden", !multiCountry);
+  const setCountryEnabled = (index: number, on: boolean) => {
+    if (on) enabledDatasets.add(index);
+    else enabledDatasets.delete(index);
+    countryToggleByIndex.get(index)?.setAttribute("aria-checked", String(on));
+    staticVersion++;
+  };
+  for (const info of datasets) {
+    const { start, end } = manifests[info.index]!;
+    const row = toggleRow(info.name, true, (on) => setCountryEnabled(info.index, on), info.country, `${start?.slice(0, 4)}–${end?.slice(0, 4)}`);
+    row.title = `${fmtDay(start)} → ${fmtDay(end)}`;
+    countryToggleByIndex.set(info.index, row);
+    countryToggles.appendChild(row);
+  }
+
+  archiveMeta.textContent = multiCountry
+    ? `${datasets.length} countries · ${allDays.length.toLocaleString("en-GB")} days · ${fmtDay(allDays[0]!)} → ${fmtDay(allDays.at(-1)!)}`
+    : `${swissDays.length.toLocaleString("en-GB")} days · ${swiss.routes.length.toLocaleString("en-GB")} routes · ${swiss.stations.length.toLocaleString("en-GB")} stations`;
+  // Every dataset keeps its own attribution and licence, shown wherever its data is.
+  const sourceLink = (info: DatasetInfo): string =>
+    `${escapeHtml(info.attribution)} · <a href="${escapeHtml(info.license_url)}" target="_blank" rel="noreferrer">${escapeHtml(info.license)}</a>`;
+  dataSources.innerHTML = datasets.map((info) => `<div>${sourceLink(info)}</div>`).join("");
 
   for (const group of allGroups) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "chip on";
+    button.setAttribute("aria-pressed", "true");
     button.textContent = group.label;
     button.onclick = () => {
       if (enabledGroups.has(group.id)) enabledGroups.delete(group.id);
       else enabledGroups.add(group.id);
       button.classList.toggle("on", enabledGroups.has(group.id));
-      updateFilterSummary();
+      button.setAttribute("aria-pressed", String(enabledGroups.has(group.id)));
       if (visibleStationBoard) {
         renderStationBoard(visibleStationBoard.station, visibleStationBoard.departures);
       }
@@ -359,12 +627,7 @@ async function main(): Promise<void> {
     filterChips.appendChild(button);
   }
 
-  const typeEnabled = (typeId: number): boolean => {
-    const code = types[typeId] ?? "?";
-    return allGroups.some((group) => enabledGroups.has(group.id) && group.codes.has(code));
-  };
-
-  const swatch = (color: [number, number, number], label: string): string =>
+  const swatch = (color: RGB, label: string): string =>
     `<span class="key"><i style="background:rgb(${color.join(",")})"></i>${label}</span>`;
   const modeButtons: Record<ColorMode, HTMLElement> = {
     type: byId("mode-type"),
@@ -372,6 +635,7 @@ async function main(): Promise<void> {
   };
   const renderLegend = () => {
     const sample = (delay: number, flags = 0): Leg => ({
+      dataset: 0,
       route_id: 0,
       journey_id: 0,
       route_start: 0,
@@ -402,42 +666,68 @@ async function main(): Promise<void> {
       colorMode = mode;
       for (const [key, element] of Object.entries(modeButtons)) {
         element.classList.toggle("on", key === mode);
+        element.setAttribute("aria-pressed", String(key === mode));
       }
       renderLegend();
-      updateFilterSummary();
     };
   }
   renderLegend();
-  updateFilterSummary();
 
-  const trackLayer = new PathLayer<RoutePath>({
-    id: "observed-rail-network",
-    data: trackPaths,
-    getPath: (route) => route.path,
-    getColor: (route) => (route.fallback ? [92, 102, 116, 30] : [105, 124, 143, 85]),
-    getWidth: 1,
-    widthUnits: "pixels",
-    widthMinPixels: 0.65,
-    pickable: false,
-  });
-  const countryBorderLayer = new PathLayer<{ path: [number, number][] }>({
-    id: "switzerland-border",
-    data: [{ path: SWITZERLAND_BORDER }],
-    getPath: ({ path }) => path,
-    getColor: [255, 255, 255, 95],
-    getWidth: 1,
-    widthUnits: "pixels",
-    widthMinPixels: 0.65,
-    widthMaxPixels: 1,
-    capRounded: true,
-    jointRounded: true,
-    pickable: false,
-  });
+  const trackPathById = new Map<number, TrackPath>();
+  let trackLayer: PathLayer<TrackPath> | null = null;
+  let stationLayer: ScatterplotLayer<Station> | null = null;
+  let allStations: Station[] = [];
+  let builtStaticVersion = -1;
+  /** Rebuild the static layers only when a country's static layer has arrived. */
+  const refreshStaticLayers = () => {
+    if (builtStaticVersion === staticVersion) return;
+    builtStaticVersion = staticVersion;
+    const loaded = loadedViews();
+    trackPathById.clear();
+    for (const route of loaded.flatMap((view) => view.trackPaths)) {
+      trackPathById.set(trackKey(route.dataset, route.routeId), route);
+    }
+    const shown = loaded.filter((view) => enabledDatasets.has(view.info.index));
+    allStations = shown.flatMap((view) => view.stations);
+    trackLayer = new PathLayer<TrackPath>({
+      id: "observed-rail-network",
+      data: shown.flatMap((view) => view.trackPaths),
+      getPath: (route) => route.path,
+      getColor: (route) => (route.fallback ? [92, 102, 116, 30] : [105, 124, 143, 85]),
+      getWidth: 1,
+      widthUnits: "pixels",
+      widthMinPixels: 0.65,
+      pickable: false,
+    });
+    stationLayer = new ScatterplotLayer<Station>({
+      id: "stations",
+      data: allStations,
+      getPosition: (station) => [station.lon, station.lat],
+      getFillColor: [177, 190, 205, 165],
+      getLineColor: [7, 11, 17, 220],
+      // A geographic radius naturally grows on screen as the user zooms in. Pixel clamps keep
+      // stations usable at national zoom without letting them dominate close-up views.
+      getRadius: 80,
+      radiusUnits: "meters",
+      radiusMinPixels: 2.5,
+      radiusMaxPixels: 15,
+      stroked: true,
+      lineWidthMinPixels: 1,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [229, 72, 77, 230],
+      onClick: ({ object }) => {
+        if (object) void openStation(object);
+      },
+    });
+  };
 
   let selectedJourney: JourneySearchResult | null = null;
-  let selectedJourneyTracks: RoutePath[] = [];
-  let highlightedStationRouteIds: number[] = [];
+  let selectedJourneyTracks: TrackPath[] = [];
+  let highlightedStationRoutes: { dataset: number; routeIds: number[] } | null = null;
   let spectateGeneration = 0;
+  const selectedRef = (): JourneyRef | null =>
+    selectedJourney ? { dataset: selectedJourney.dataset, journeyId: selectedJourney.journeyId } : null;
 
   const showDetails = (html: string) => {
     detailsContent.innerHTML = html;
@@ -454,6 +744,11 @@ async function main(): Promise<void> {
     selectedJourney
       ? `<div class="watch-actions"><button class="primary" data-stop-spectating data-keep-details type="button">Stop spectating</button></div>`
       : "";
+  /** Provenance and evidence semantics for a detail panel. */
+  const sourceNote = (dataset: number): string => {
+    const info = datasets[dataset]!;
+    return `<div class="source">${escapeHtml(info.name)} · ${escapeHtml(EVIDENCE_LABEL[info.time_semantics] ?? info.time_semantics)} times · ${sourceLink(info)}</div>`;
+  };
   detailsContent.addEventListener("click", (event) => {
     const target = event.target instanceof Element
       ? event.target.closest<HTMLButtonElement>("[data-stop-spectating]")
@@ -467,82 +762,90 @@ async function main(): Promise<void> {
   byId<HTMLButtonElement>("details-close").onclick = () => {
     stationBoardGeneration++;
     visibleStationBoard = null;
-    highlightedStationRouteIds = [];
+    highlightedStationRoutes = null;
     stopSpectating();
   };
-
-  const stationLayer = new ScatterplotLayer<Station>({
-    id: "stations",
-    data: stations,
-    getPosition: (station) => [station.lon, station.lat],
-    getFillColor: [177, 190, 205, 165],
-    getLineColor: [7, 11, 17, 220],
-    // A geographic radius naturally grows on screen as the user zooms in. Pixel clamps keep
-    // stations usable at national zoom without letting them dominate close-up views.
-    getRadius: 80,
-    radiusUnits: "meters",
-    radiusMinPixels: 2.5,
-    radiusMaxPixels: 15,
-    stroked: true,
-    lineWidthMinPixels: 1,
-    pickable: true,
-    autoHighlight: true,
-    highlightColor: [255, 0, 0, 220],
-    onClick: ({ object }) => {
-      if (object) void openStation(object);
-    },
-  });
 
   let e2ePositionedTrains: PositionedLeg[] = [];
   if (e2eMode) {
     window.__BERG_E2E__ = {
-      highlightedStationRouteIds: () => [...highlightedStationRouteIds],
+      highlightedStationRouteIds: () => [...(highlightedStationRoutes?.routeIds ?? [])],
       openStation: (name) => {
-        const station = stations.find((candidate) => candidate.name === name);
+        const station = allStations.find((candidate) => candidate.name === name);
         if (!station) return false;
         void openStation(station);
         return true;
       },
       stationPoints: () =>
-        stations.map((station) => {
+        allStations.map((station) => {
           const point = map.project([station.lon, station.lat]);
           return { ...station, x: point.x, y: point.y };
         }),
       trainPoints: () =>
         e2ePositionedTrains.map((train) => {
           const point = map.project(train.pos);
-          return { journeyId: train.leg.journey_id, x: point.x, y: point.y };
+          return {
+            dataset: datasets[train.leg.dataset]!.id,
+            journeyId: train.leg.journey_id,
+            bridge: (train.leg.flags & FLAG_BRIDGE) !== 0,
+            x: point.x,
+            y: point.y,
+          };
         }),
+      crossBorder: () => ({
+        loaded: crossBorder !== null,
+        hiddenLegs: hiddenLegs.length,
+        bridgeLegs: win.legs.filter((leg) => (leg.flags & FLAG_BRIDGE) !== 0).length,
+        links: windowLinks.length,
+      }),
+      watchJourney: async (datasetId, journeyId, day) => {
+        const dataset = datasets.findIndex((info) => info.id === datasetId);
+        if (dataset < 0) return false;
+        const response = await ask(worker, {
+          kind: "journey",
+          dataset,
+          journeyId,
+          simTime: Date.parse(`${day}T12:00:00Z`) / 1000,
+        });
+        if (response.kind !== "journey-result" || !response.result) return false;
+        await watchJourney(response.result);
+        return true;
+      },
+      selectedDataset: () => (selectedJourney ? datasets[selectedJourney.dataset]!.id : null),
+      seek: (epoch) => seekTo(epoch),
+      dayLinks: async (day) => (await crossBorder?.day(day))?.links ?? [],
+      loadedDatasets: () => loadedViews().map((view) => view.info.id),
       selectedJourneyId: () => selectedJourney?.journeyId ?? null,
       selectedRouteIds: () => selectedJourneyTracks.map((route) => route.routeId),
     };
   }
 
-  function stationName(id: number): string {
-    return stationById.get(id)?.name ?? `Station ${id}`;
+  function stationName(dataset: number, id: number): string {
+    return views[dataset]?.stationById.get(id)?.name ?? `Station ${id}`;
   }
 
-  function routeDescription(routeId: number): { from: string; to: string } {
-    const pair = routePairs[String(routeId)];
+  function routeDescription(dataset: number, routeId: number): { from: string; to: string } {
+    const pair = views[dataset]?.routePairs[String(routeId)];
     return pair
-      ? { from: stationName(pair[0]), to: stationName(pair[1]) }
+      ? { from: stationName(dataset, pair[0]), to: stationName(dataset, pair[1]) }
       : { from: "Unknown origin", to: "Unknown destination" };
   }
 
   async function openStation(station: Station): Promise<void> {
     const generation = ++stationBoardGeneration;
     visibleStationBoard = null;
-    highlightedStationRouteIds = [];
+    highlightedStationRoutes = null;
     showDetails(`
       <div class="eyebrow">Station</div>
       <h2>${escapeHtml(station.name)}</h2>
-      <div class="sub">Loading observed departures…</div>
+      <div class="sub">Loading departures…</div>
       ${stationSpectateAction()}`);
     map.easeTo({ center: [station.lon, station.lat], zoom: Math.max(map.getZoom(), 11), duration: 650 });
     try {
       const response = await ask(worker, {
         kind: "station-board",
-        routeIds: stationDepartureRouteIds.get(station.id) ?? [],
+        dataset: station.dataset,
+        routeIds: views[station.dataset]?.stationDepartureRouteIds.get(station.id) ?? [],
         simTime: clock.simTime,
         horizon: 3 * 3600,
       });
@@ -551,7 +854,7 @@ async function main(): Promise<void> {
       renderStationBoard(station, response.departures);
     } catch (error) {
       if (generation !== stationBoardGeneration) return;
-      highlightedStationRouteIds = [];
+      highlightedStationRoutes = null;
       showDetails(`
         <div class="eyebrow">Station</div><h2>${escapeHtml(station.name)}</h2>
         <div class="empty">Could not load the board: ${escapeHtml(String(error))}</div>
@@ -560,23 +863,28 @@ async function main(): Promise<void> {
   }
 
   function renderStationBoard(station: Station, departures: StationBoardDeparture[]): void {
-    highlightedStationRouteIds = [];
-    const filteredDepartures = departures.filter((departure) => typeEnabled(departure.type));
+    highlightedStationRoutes = null;
+    const dataset = station.dataset;
+    const timeZone = datasets[dataset]!.timezone;
+    const manifest = manifests[dataset]!;
+    const filteredDepartures = departures.filter((departure) => typeEnabled(dataset, departure.type));
     const visible = filteredDepartures.slice(0, 36);
     const renderedDepartures: StationBoardDeparture[] = [];
+    const covered = utcDay(clock.simTime) in manifest.days;
+    const evidence = EVIDENCE_LABEL[datasets[dataset]!.time_semantics] ?? "observed";
     const body = visible.length
       ? visible
           .map((departure) => {
             const stops: number[] = [];
             for (const routeId of departure.routeIds) {
-              const pair = routePairs[String(routeId)];
+              const pair = views[dataset]?.routePairs[String(routeId)];
               if (!pair || pair[0] === pair[1]) continue;
               if (stops[stops.length - 1] !== pair[1]) stops.push(pair[1]);
             }
             const destination = stops.at(-1);
             if (destination === undefined) return "";
             const departureIndex = renderedDepartures.push(departure) - 1;
-            const via = stops.slice(0, -1).map(stationName);
+            const via = stops.slice(0, -1).map((stop) => stationName(dataset, stop));
             const viaSummary = via.length
               ? `via ${escapeHtml(via[0]!)}${via.length > 1 ? ` +${via.length - 1}` : ""}`
               : "direct";
@@ -588,9 +896,9 @@ async function main(): Promise<void> {
               : `<div class="board-direct">${viaSummary}</div>`;
             return `<div class="board-departure" data-departure-index="${departureIndex}">
               <div class="board-row">
-                <time>${fmtShortTime(departure.time)}</time>
+                <time>${fmtShortTime(departure.time, timeZone)}</time>
                 <b>${escapeHtml(departure.line || "Train")}</b>
-                <span>${escapeHtml(stationName(destination))}</span>
+                <span>${escapeHtml(stationName(dataset, destination))}</span>
               </div>
               ${disclosure}
             </div>`;
@@ -598,78 +906,101 @@ async function main(): Promise<void> {
           .join("")
       : `<div class="empty">${departures.length > 0
           ? "No departures match the selected train services."
-          : "No observed departures in the next three simulated hours."}</div>`;
+          : covered
+            ? `No ${escapeHtml(evidence)} departures in the next three simulated hours.`
+            : `No ${escapeHtml(datasets[dataset]!.name)} data is published for this date.`}</div>`;
     showDetails(`
-      <div class="eyebrow">Station board · observed data</div>
+      <div class="eyebrow">Station board · ${escapeHtml(evidence)} data</div>
       <h2>${escapeHtml(station.name)}</h2>
-      <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime)}</div>
+      <div class="sub">15 minutes back · 3 hours ahead at ${fmtShortTime(clock.simTime, timeZone)}</div>
       <div class="board"><h3>Departures</h3>${body}</div>
-      ${stationSpectateAction()}`);
+      ${stationSpectateAction()}
+      ${multiCountry ? sourceNote(dataset) : ""}`);
     for (const row of detailsContent.querySelectorAll<HTMLElement>("[data-departure-index]")) {
       const departure = renderedDepartures[Number(row.dataset.departureIndex)];
       if (!departure) continue;
-      row.addEventListener("pointerenter", () => {
-        highlightedStationRouteIds = [...departure.routeIds];
-      });
+      const highlight = () => {
+        highlightedStationRoutes = { dataset, routeIds: [...departure.routeIds] };
+      };
+      row.addEventListener("pointerenter", highlight);
       row.addEventListener("pointerleave", () => {
-        highlightedStationRouteIds = [];
+        highlightedStationRoutes = null;
       });
-      row.addEventListener("focusin", () => {
-        highlightedStationRouteIds = [...departure.routeIds];
-      });
+      row.addEventListener("focusin", highlight);
       row.addEventListener("focusout", (event) => {
-        if (!row.contains(event.relatedTarget as Node | null)) highlightedStationRouteIds = [];
+        if (!row.contains(event.relatedTarget as Node | null)) highlightedStationRoutes = null;
       });
     }
   }
 
-  const showSpeedCommands = () => {
-    commandContext.textContent = "Playback · automatically running unless paused";
-    commandResults.innerHTML = "";
-    for (const speed of SPEEDS) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `command-item${clock.speed === speed && !clock.paused ? " active" : ""}`;
-      button.innerHTML = `<span class="token">${speed}×</span><span><strong>Run at ${speed}×</strong><small>${speed === 600 ? "Default observer speed" : "Historical playback speed"}</small></span><kbd>Enter</kbd>`;
-      button.onclick = () => {
-        clock.setSpeed(speed);
-        clock.play();
-        speedValue.textContent = `${speed}×`;
-        closeCommand();
-      };
-      commandResults.appendChild(button);
-    }
-    const pause = document.createElement("button");
-    pause.type = "button";
-    pause.className = `command-item${clock.paused ? " active" : ""}`;
-    pause.innerHTML = `<span class="token">Ⅱ</span><span><strong>${clock.paused ? "Resume" : "Pause"}</strong><small>Keep the current historical instant</small></span><kbd>Space</kbd>`;
-    pause.onclick = () => {
-      togglePlayback();
-      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
-      closeCommand();
-    };
-    commandResults.appendChild(pause);
-  };
-
   const showTrainSearchPrompt = () => {
     commandContext.textContent = "Find a train on the displayed day";
-    commandResults.innerHTML = `<div class="empty">Search by train number, journey identity, or line — for example IC5, S1, or ICE.</div>`;
+    commandResults.innerHTML = `<div class="empty">Search by train number, journey identity, or line — for example IC5, S1, or ICE. Enter a date such as 02/01/2018 08:00 to jump there.${multiCountry ? " Type a country name to fly there." : ""}</div>`;
   };
 
-  let commandHome: "search" | "speed" = "search";
-  const openCommand = (home: "search" | "speed" = "search") => {
-    commandHome = home;
+  const openCommand = () => {
     command.classList.remove("hidden");
     commandInput.value = "";
-    if (home === "speed") showSpeedCommands();
-    else showTrainSearchPrompt();
+    showTrainSearchPrompt();
     requestAnimationFrame(() => commandInput.focus());
   };
   const closeCommand = () => command.classList.add("hidden");
-  byId<HTMLButtonElement>("command-button").onclick = () => openCommand("search");
-  speedBadge.onclick = () => openCommand("speed");
+  byId<HTMLButtonElement>("command-button").onclick = openCommand;
   command.onclick = (event) => {
     if (event.target === command) closeCommand();
+  };
+
+  /** Seek without losing the wall-clock hour, landing on the nearest day the country covers. */
+  const nearestCoveredTime = (dataset: number, time: number): number => {
+    const days = Object.keys(manifests[dataset]!.days).sort();
+    const today = utcDay(time);
+    if (days.length === 0 || today in manifests[dataset]!.days) return time;
+    // First covered day on or after today, or the last one; ISO dates sort as strings.
+    const after = days.find((day) => day > today);
+    const before = days.filter((day) => day < today).at(-1);
+    const distance = (day: string) => Math.abs(Date.parse(day) - Date.parse(today));
+    const target = after && (!before || distance(after) <= distance(before)) ? after : before!;
+    return Date.parse(`${target}T00:00:00Z`) / 1000 + (((time % 86_400) + 86_400) % 86_400);
+  };
+
+  const seekTo = (time: number) => {
+    clock.seek(time);
+    win = { from: 0, to: -1, datasets: [], legs: [] };
+  };
+
+  function flyToDataset(dataset: number): void {
+    const [west, south, east, north] = datasets[dataset]!.bbox;
+    closeCommand();
+    if (!enabledDatasets.has(dataset)) setCountryEnabled(dataset, true);
+    const time = nearestCoveredTime(dataset, clock.simTime);
+    if (time !== clock.simTime) {
+      stopSpectating();
+      seekTo(time);
+    }
+    map.fitBounds([west, south, east, north], { padding: 48, duration: 900 });
+    void ensureView(dataset);
+  }
+
+  const countryMatches = (query: string): number[] => {
+    const needle = query.trim().toLocaleLowerCase();
+    if (!multiCountry || needle.length < 2) return [];
+    return datasets
+      .filter((info) => info.name.toLocaleLowerCase().startsWith(needle) || info.country.toLocaleLowerCase() === needle)
+      .map((info) => info.index);
+  };
+
+  const renderCountryItems = (indexes: number[]) => {
+    for (const index of indexes) {
+      const info = datasets[index]!;
+      const manifest = manifests[index]!;
+      const covered = utcDay(clock.simTime) in manifest.days;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "command-item";
+      button.innerHTML = `<span class="token">${escapeHtml(info.country)}</span><span><strong>Fly to ${escapeHtml(info.name)}</strong><small>${escapeHtml(info.provider)} · ${fmtDay(manifest.start)} → ${fmtDay(manifest.end)}${covered ? "" : " · jumps to the nearest covered day"}</small></span><kbd>Enter</kbd>`;
+      button.onclick = () => flyToDataset(index);
+      commandResults.appendChild(button);
+    }
   };
 
   let searchGeneration = 0;
@@ -678,23 +1009,22 @@ async function main(): Promise<void> {
     window.clearTimeout(searchTimer);
     const query = commandInput.value.trim();
     if (!query) {
-      if (commandHome === "speed") showSpeedCommands();
-      else showTrainSearchPrompt();
+      showTrainSearchPrompt();
       return;
     }
-    const requestedTime = zurichEpoch(query);
+    const timeZone = focusDataset().timezone;
+    const requestedTime = zonedEpoch(query, timeZone);
     if (requestedTime !== null) {
-      commandContext.textContent = "Historical navigation · Europe/Zurich time";
+      commandContext.textContent = `Historical navigation · ${timeZone} time`;
       commandResults.innerHTML = "";
       const button = document.createElement("button");
       button.type = "button";
       button.className = "command-item";
       const inRange = requestedTime >= tMin && requestedTime <= tMax;
       button.disabled = !inRange;
-      button.innerHTML = `<span class="token">GO</span><span><strong>${escapeHtml(fmtClock(requestedTime))}</strong><small>${inRange ? "Jump to this instant, then search trains on that day" : "Outside the published archive"}</small></span><kbd>Enter</kbd>`;
+      button.innerHTML = `<span class="token">GO</span><span><strong>${escapeHtml(fmtClock(requestedTime, timeZone))}</strong><small>${inRange ? "Jump to this instant, then search trains on that day" : "Outside the published archive"}</small></span><kbd>Enter</kbd>`;
       button.onclick = () => {
-        clock.seek(requestedTime);
-        win = { from: 0, to: -1, legs: [] };
+        seekTo(requestedTime);
         selectedJourney = null;
         selectedJourneyTracks = [];
         closeCommand();
@@ -703,37 +1033,58 @@ async function main(): Promise<void> {
       commandResults.appendChild(button);
       return;
     }
-    commandContext.textContent = `Searching trains on ${new Date(clock.simTime * 1000).toISOString().slice(0, 10)}…`;
-    commandResults.innerHTML = `<div class="empty">Querying the journey sidecar…</div>`;
+    const countries = countryMatches(query);
+    commandContext.textContent = `Searching trains on ${fmtDay(utcDay(clock.simTime))}…`;
+    commandResults.innerHTML = "";
+    renderCountryItems(countries);
+    commandResults.insertAdjacentHTML("beforeend", `<div class="empty">Querying the journey sidecar…</div>`);
     const generation = ++searchGeneration;
     searchTimer = window.setTimeout(async () => {
       try {
-        const response = await ask(worker, { kind: "search", query, simTime: clock.simTime });
+        const response = await ask(worker, {
+          kind: "search",
+          query,
+          simTime: clock.simTime,
+          datasets: searchDatasets(),
+        });
         if (generation !== searchGeneration || response.kind !== "search-results") return;
-        renderSearchResults(response.day, response.results);
+        renderSearchResults(response.day, response.results, countries);
       } catch (error) {
         commandResults.innerHTML = `<div class="empty">Search failed: ${escapeHtml(String(error))}</div>`;
       }
     }, 180);
   };
 
-  function renderSearchResults(day: string, results: JourneySearchResult[]): void {
-    commandContext.textContent = `Trains on ${day} · search uses exact published journey identities and lines`;
+  /** Search the countries in view first; with none in view, every country with static data. */
+  const searchDatasets = (): number[] => {
+    const loaded = new Set(loadedViews().map((view) => view.info.index));
+    const inView = visibleDatasets().filter((index) => loaded.has(index));
+    return inView.length > 0 ? inView : [...loaded].filter((index) => enabledDatasets.has(index));
+  };
+
+  function renderSearchResults(day: string, results: JourneySearchResult[], countries: number[]): void {
+    commandContext.textContent = `Trains on ${fmtDay(day)}`;
     commandResults.innerHTML = "";
+    renderCountryItems(countries);
     if (results.length === 0) {
-      commandResults.innerHTML = `<div class="empty">No matching train on this day. Search a line such as IC5, S1, ICE, or a train number contained in its trip ID.</div>`;
+      commandResults.insertAdjacentHTML(
+        "beforeend",
+        `<div class="empty">No matching train on this day. Search a line such as IC5, S1, ICE, or a train number contained in its trip ID.</div>`,
+      );
       return;
     }
     for (const result of results) {
-      const route = routeDescription(result.firstRouteId);
+      const info = datasets[result.dataset]!;
+      const route = routeDescription(result.dataset, result.firstRouteId);
+      const number = trainNumber(result.tripId, info.id);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "command-item";
       button.innerHTML = `
-        <span class="token">${escapeHtml(result.line || trainNumber(result.tripId))}</span>
-        <span><strong>${escapeHtml(route.from)} → ${escapeHtml(route.to)}</strong>
-        <small>Train ${escapeHtml(trainNumber(result.tripId))} · ${escapeHtml(result.tripId)}</small></span>
-        <time>${fmtShortTime(result.start)}</time>`;
+        <span class="token">${escapeHtml(result.line || number)}</span>
+        <span><strong>${escapeHtml(route.from)} → ${escapeHtml(route.to)}${multiCountry ? `<span class="country-tag">${escapeHtml(info.country)}</span>` : ""}</strong>
+        <small>Train ${escapeHtml(number)} · ${escapeHtml(result.tripId)}</small></span>
+        <time>${fmtShortTime(result.start, info.timezone)}</time>`;
       button.onclick = () => void watchJourney(result);
       commandResults.appendChild(button);
     }
@@ -747,56 +1098,54 @@ async function main(): Promise<void> {
     if (generation !== spectateGeneration) return;
     stationBoardGeneration++;
     visibleStationBoard = null;
-    highlightedStationRouteIds = [];
+    highlightedStationRoutes = null;
     selectedJourney = result;
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedValue.textContent = "1×";
+    const info = datasets[result.dataset]!;
+    const number = trainNumber(result.tripId, info.id);
     const watchTime = seekToStart ? Math.max(tMin, result.start) : clock.simTime;
-    if (seekToStart) {
-      clock.seek(watchTime);
-      win = { from: 0, to: -1, legs: [] };
-    }
-    const route = routeDescription(result.firstRouteId);
+    if (seekToStart) seekTo(watchTime);
+    const route = routeDescription(result.dataset, result.firstRouteId);
     showDetails(`
       <div class="eyebrow">Spectating train</div>
-      <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
-      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · ${seekToStart ? "departs" : "started"} ${fmtShortTime(result.start)}</div>
+      <h2>${escapeHtml(result.line || `Train ${number}`)}</h2>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · ${seekToStart ? "departs" : "started"} ${fmtShortTime(result.start, info.timezone)}</div>
       <div class="board"><h3>Loading train…</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
       <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>`);
     closeCommand();
     await refill(watchTime);
 
+    const stillSelected = () =>
+      generation === spectateGeneration &&
+      selectedJourney?.dataset === result.dataset &&
+      selectedJourney.journeyId === result.journeyId;
     // A newer selection may have replaced this one while its remote window was loading.
-    if (generation !== spectateGeneration || selectedJourney?.journeyId !== result.journeyId) return;
+    if (!stillSelected()) return;
     try {
       const routeResponse = await ask(worker, {
         kind: "journey-route",
+        dataset: result.dataset,
         journeyId: result.journeyId,
         simTime: result.start,
       });
-      if (
-        generation === spectateGeneration &&
-        selectedJourney?.journeyId === result.journeyId &&
-        routeResponse.kind === "journey-route-result"
-      ) {
+      if (stillSelected() && routeResponse.kind === "journey-route-result") {
         selectedJourneyTracks = routeResponse.routeIds
-          .map((routeId) => trackPathById.get(routeId))
-          .filter((route): route is RoutePath => route !== undefined);
+          .map((routeId) => trackPathById.get(trackKey(result.dataset, routeId)))
+          .filter((route): route is TrackPath => route !== undefined);
       }
     } catch (error) {
       console.warn("full journey route unavailable", error);
     }
-    if (generation !== spectateGeneration || selectedJourney?.journeyId !== result.journeyId) return;
+    if (!stillSelected()) return;
+    const ref = { dataset: result.dataset, journeyId: result.journeyId };
     const selected = positioned(
       win.legs,
       clock.simTime,
-      routes,
+      routesFor,
       Math.max(30, Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6)),
-    ).items.find(
-      (item) => item.leg.journey_id === result.journeyId,
-    );
+    ).items.find((item) => isJourney(item.leg, ref));
     if (selected) {
       map.jumpTo({
         center: selected.pos,
@@ -805,31 +1154,34 @@ async function main(): Promise<void> {
     }
     showDetails(`
       <div class="eyebrow">Spectating train · 1× playback</div>
-      <h2>${escapeHtml(result.line || `Train ${trainNumber(result.tripId)}`)}</h2>
-      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departed ${fmtShortTime(result.start)}</div>
+      <h2>${escapeHtml(result.line || `Train ${number}`)}</h2>
+      <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)} · departed ${fmtShortTime(result.start, info.timezone)}</div>
       <div class="board"><h3>Journey identity</h3><div class="empty">${escapeHtml(result.tripId)}</div></div>
-      <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>`);
+      ${crossBorderNote(result)}
+      <div class="watch-actions"><button class="primary" data-stop-spectating type="button">Stop spectating</button></div>
+      ${multiCountry ? sourceNote(result.dataset) : ""}`);
   }
 
   async function spectatePositionedTrain(item: PositionedLeg): Promise<void> {
     const generation = ++spectateGeneration;
     stationBoardGeneration++;
     visibleStationBoard = null;
-    highlightedStationRouteIds = [];
+    highlightedStationRoutes = null;
     selectedJourney = null;
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedValue.textContent = "1×";
-    const route = routeDescription(item.leg.route_id);
+    const { dataset } = item.leg;
+    const route = routeDescription(dataset, item.leg.route_id);
     showDetails(`
       <div class="eyebrow">Selecting train · 1× playback</div>
-      <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+      <h2>${escapeHtml(typeName(dataset, item.leg.type))}</h2>
       <div class="sub">${escapeHtml(route.from)} → ${escapeHtml(route.to)}</div>
       <div class="board"><h3>Loading journey identity…</h3></div>`);
     try {
       const response = await ask(worker, {
         kind: "journey",
+        dataset,
         journeyId: item.leg.journey_id,
         // Journey IDs are only unique inside the file containing this leg.
         simTime: item.leg.t_dep,
@@ -838,7 +1190,7 @@ async function main(): Promise<void> {
       if (response.kind !== "journey-result" || !response.result) {
         showDetails(`
           <div class="eyebrow">Train unavailable</div>
-          <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+          <h2>${escapeHtml(typeName(dataset, item.leg.type))}</h2>
           <div class="empty">The journey identity could not be loaded for this train.</div>`);
         return;
       }
@@ -847,7 +1199,7 @@ async function main(): Promise<void> {
       if (generation !== spectateGeneration) return;
       showDetails(`
         <div class="eyebrow">Train unavailable</div>
-        <h2>${escapeHtml(types[item.leg.type] ?? "Train")}</h2>
+        <h2>${escapeHtml(typeName(dataset, item.leg.type))}</h2>
         <div class="empty">Could not load this train: ${escapeHtml(String(error))}</div>`);
     }
   }
@@ -855,33 +1207,180 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
       event.preventDefault();
-      if (command.classList.contains("hidden")) openCommand("search");
+      if (command.classList.contains("hidden")) openCommand();
       else closeCommand();
     } else if (event.key === "Escape" && !command.classList.contains("hidden")) {
       closeCommand();
     } else if (event.code === "Space" && command.classList.contains("hidden")) {
       event.preventDefault();
-      togglePlayback();
-      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
+      if (!event.repeat) togglePlayback();
     }
   });
 
-  let win: { from: number; to: number; legs: Leg[] } = { from: 0, to: -1, legs: [] };
+  /** A dataset's routes, with the cross-border layer's bridge geometry above BRIDGE_ROUTE_BASE. */
+  const bridgeAware = new Map<number, { routes: Routes; sampler: RouteSampler }>();
+  const routesFor = (dataset: number): RouteSampler | undefined => {
+    const routes = views[dataset]?.routes;
+    const bridges = crossBorder?.routes;
+    if (!routes || !bridges) return routes;
+    const cached = bridgeAware.get(dataset);
+    if (cached?.routes === routes) return cached.sampler;
+    const sampler: RouteSampler = {
+      sampleAt: (routeId, frac, direction, bearingWindowM) =>
+        routeId >= BRIDGE_ROUTE_BASE
+          ? bridges.sampleAt(routeId - BRIDGE_ROUTE_BASE, frac, direction, bearingWindowM)
+          : routes.sampleAt(routeId, frac, direction, bearingWindowM),
+      positionAt: (routeId, frac) =>
+        routeId >= BRIDGE_ROUTE_BASE
+          ? bridges.positionAt(routeId - BRIDGE_ROUTE_BASE, frac)
+          : routes.positionAt(routeId, frac),
+    };
+    bridgeAware.set(dataset, { routes, sampler });
+    return sampler;
+  };
+
+  /**
+   * The countries whose facts the window should hold: those in view with static geometry
+   * loaded, plus the spectated train's. A country off screen costs no range requests.
+   */
+  const wantedDatasets = (): number[] => {
+    const wanted = new Set(visibleDatasets().filter((index) => views[index] !== undefined));
+    if (selectedJourney) wanted.add(selectedJourney.dataset);
+    return [...wanted].sort((a, b) => a - b);
+  };
+
+  let win: { from: number; to: number; datasets: number[]; legs: Leg[] } = {
+    from: 0,
+    to: -1,
+    datasets: [],
+    legs: [],
+  };
   let refillInFlight: Promise<void> | null = null;
   const lookahead = () => Math.max(BUFFER_SECONDS, BUFFER_SECONDS * (clock.speed / 60));
   // Keep two wall-clock seconds of data in hand. A fixed 60 simulated-second margin was only
   // 100 ms at 600×, so a normal range request could exhaust the window and flash the map.
   const refetchMargin = () => Math.max(REFETCH_MARGIN_S, clock.speed * 2);
+  const windowCovers = (time: number, wanted: number[]): boolean =>
+    time >= win.from && time <= win.to - refetchMargin() && wanted.every((index) => win.datasets.includes(index));
+  // The cross-border layer: loaded once when there is more than one country. Until it arrives,
+  // every dataset draws alone, exactly as before.
+  let crossBorder: CrossBorder | null = null;
+  let hiddenLegs: Leg[] = [];
+  let linkedEnds: LinkedEnds | null = null;
+  let windowLinks: Array<{ day: string; link: Link }> = [];
+  let followInFlight = false;
+  if (ready.links && multiCountry) {
+    CrossBorder.load(ready.links, datasets).then(
+      (layer) => {
+        crossBorder = layer;
+        crossBorderPending = () => true;
+        win = { ...win, to: -1 }; // refetch so the current window is deduplicated and bridged
+      },
+      (error: unknown) => console.warn("cross-border layer unavailable", error),
+    );
+  }
+
+  /** One window of legs → drawn once, with bridge legs where a train crosses between datasets. */
+  async function applyCrossBorder(next: typeof win): Promise<typeof win> {
+    const layer = crossBorder;
+    if (!layer) {
+      hiddenLegs = [];
+      linkedEnds = null;
+      windowLinks = [];
+      return next;
+    }
+    const dayKeys = new Set<string>([utcDay(next.to)]);
+    for (let t = next.from; t <= next.to; t += 86_400) dayKeys.add(utcDay(t));
+    const days = (await Promise.all([...dayKeys].map((day) => layer.day(day)))).filter(
+      (day): day is NonNullable<typeof day> => day !== null,
+    );
+    // Duplicates need two datasets on the map; bridges and links need only the first journey's
+    // (a train leaving Germany is followed before Switzerland is in view).
+    const { kept, hidden } = next.datasets.length < 2 ? { kept: next.legs, hidden: [] } : dedupe(
+      next.legs,
+      (leg) => {
+        const pair = views[leg.dataset]?.routePairs[String(leg.route_id)];
+        if (!pair) return undefined;
+        const a = layer.stationGroup(leg.dataset, pair[0]);
+        const b = layer.stationGroup(leg.dataset, pair[1]);
+        return a === undefined || b === undefined ? undefined : [a, b];
+      },
+      (dataset) => layer.rank(dataset),
+      layer.manifest.dedup_window_s,
+    );
+    const inWindow = (dataset: number) => next.datasets.includes(dataset) && views[dataset] !== undefined;
+    const bridges = layer.bridgeLegs(days, next.from, next.to, inWindow);
+    hiddenLegs = hidden;
+    linkedEnds = layer.linkedEnds(days, (a, b) => inWindow(a) && inWindow(b));
+    windowLinks = days.flatMap(({ day, links }) => links.map((link) => ({ day, link })));
+    const legs = bridges.length > 0 ? [...kept, ...bridges].sort((a, b) => a.t_dep - b.t_dep) : kept;
+    return { ...next, legs };
+  }
+
+  /** The link continuing (or continued by) a journey on its own departure day. */
+  const linkFor = (
+    journey: JourneySearchResult,
+    side: "from" | "to",
+  ): { day: string; link: Link } | undefined => {
+    const id = datasets[journey.dataset]!.id;
+    const day = utcDay(journey.start);
+    return windowLinks.find(
+      (entry) => entry.day === day && entry.link[side][0] === id && entry.link[side][1] === journey.journeyId,
+    );
+  };
+
+  /** Spectating crosses the border: the camera moves on to the next country's journey. */
+  async function followLink({ day, link }: { day: string; link: Link }): Promise<void> {
+    const dataset = datasets.findIndex((info) => info.id === link.to[0]);
+    if (dataset < 0) return;
+    const generation = spectateGeneration;
+    const response = await ask(worker, {
+      kind: "journey",
+      dataset,
+      journeyId: link.to[1],
+      simTime: Date.parse(`${day}T12:00:00Z`) / 1000,
+    });
+    if (generation !== spectateGeneration) return;
+    if (response.kind === "journey-result" && response.result) {
+      await watchJourney(response.result, false);
+    } else {
+      selectedJourney = null;
+      selectedJourneyTracks = [];
+    }
+  }
+
+  /** "Continues in Switzerland as …" / "Continued from Germany …" for a spectated journey. */
+  const crossBorderNote = (journey: JourneySearchResult): string => {
+    const lines: string[] = [];
+    const onward = linkFor(journey, "from");
+    const incoming = linkFor(journey, "to");
+    const name = (id: string) => datasets.find((info) => info.id === id)?.name ?? id;
+    if (incoming) {
+      lines.push(`Continued from ${name(incoming.link.from[0])} (${incoming.link.from_trip})`);
+    }
+    if (onward) {
+      const bridged = onward.link.kind === "bridge" ? " · the border section is interpolated between the two sources" : "";
+      lines.push(`Continues in ${name(onward.link.to[0])} as ${onward.link.to_trip}${bridged}`);
+    }
+    return lines.map((line) => `<div class="sub cross-border">${escapeHtml(line)}</div>`).join("");
+  };
+
   async function refill(time: number): Promise<void> {
     // If another window is being fetched, wait for it and then decide whether it covered this
     // seek. Spectating must not silently lose its load because ordinary playback was fetching.
     while (refillInFlight) await refillInFlight;
-    if (time >= win.from && time <= win.to - refetchMargin()) return;
+    const wanted = wantedDatasets();
+    if (windowCovers(time, wanted)) return;
 
     const request = (async () => {
       try {
-        const response = await ask(worker, { kind: "window", simTime: time, lookahead: lookahead() });
-        if (response.kind === "window") win = response;
+        const response = await ask(worker, {
+          kind: "window",
+          simTime: time,
+          lookahead: lookahead(),
+          datasets: wanted,
+        });
+        if (response.kind === "window") win = await applyCrossBorder(response);
       } catch (error) {
         console.error("window fetch failed", error);
       }
@@ -894,7 +1393,29 @@ async function main(): Promise<void> {
     }
   }
 
+  /** A country in view whose facts do not reach this instant is missing coverage, not idle. */
+  const coverageNotice = (time: number): string => {
+    const day = utcDay(time);
+    for (const index of visibleDatasets()) {
+      const manifest = manifests[index]!;
+      const info = datasets[index]!;
+      if (manifest.source_cancelled_days?.includes(day)) {
+        return `Most ${info.name} trains were cancelled on ${fmtDay(day)} · recorded by the source`;
+      }
+      const hour = new Date(Math.floor(time) * 1000).toISOString().slice(0, 13);
+      if (manifest.source_gap_hours?.includes(hour)) {
+        return `No ${info.name} data for ${hour.slice(11)}:00–${hour.slice(11)}:59 UTC on ${fmtDay(day)} · source gap`;
+      }
+      if (day in manifest.days) continue;
+      return manifest.start && manifest.end && day >= manifest.start && day <= manifest.end
+        ? `No ${info.name} data for ${fmtDay(day)} · source gap`
+        : `No ${info.name} data for ${fmtDay(day)} · covered ${fmtDay(manifest.start)} → ${fmtDay(manifest.end)}`;
+    }
+    return "";
+  };
+
   setProgress(82, "Fetching the first train window…");
+  refreshStaticLayers();
   await refill(clock.simTime);
   setProgress(100, "Ready");
   topbar.classList.remove("hidden");
@@ -908,27 +1429,36 @@ async function main(): Promise<void> {
   function frame(): void {
     const time = clock.tick();
     if (time > tMax) clock.seek(tMin);
-    if (time < win.from || time > win.to - refetchMargin()) void refill(time);
+    for (const index of visibleDatasets()) {
+      if (!viewLoads.has(index)) void ensureView(index);
+    }
+    refreshStaticLayers();
+    if (!windowCovers(time, wantedDatasets())) void refill(time);
 
-    const selectedJourneyId = selectedJourney?.journeyId ?? null;
+    const selected = selectedRef();
     const relevantLegs = win.legs.filter(
-      (leg) => typeEnabled(leg.type) || leg.journey_id === selectedJourneyId,
+      (leg) =>
+        (enabledDatasets.has(leg.dataset) && typeEnabled(leg.dataset, leg.type)) || isJourney(leg, selected),
     );
+    // A leg drawn by a stronger dataset is hidden, except on the train being spectated.
+    if (selected) for (const leg of hiddenLegs) if (isJourney(leg, selected)) relevantLegs.push(leg);
     // Average the route tangent across roughly six screen pixels. At national zoom this removes
     // noisy vertex-to-vertex heading changes; close up it converges to the precise local track.
     const bearingWindowM = Math.max(
       30,
       Math.min(8_000, metersPerPixel(map.getCenter().lat, map.getZoom()) * 6),
     );
-    const { items, dropped } = positioned(relevantLegs, time, routes, bearingWindowM);
+    const { items, dropped } = positioned(relevantLegs, time, routesFor, bearingWindowM, linkedEnds);
     e2ePositionedTrains = items;
-    const selected = selectedJourneyId === null
-      ? undefined
-      : items.find((item) => item.leg.journey_id === selectedJourneyId);
-    const selectedTrack = selected ? trackPathById.get(selected.leg.route_id) : undefined;
-    const stationBoardTracks = highlightedStationRouteIds
-      .map((routeId) => trackPathById.get(routeId))
-      .filter((route): route is RoutePath => route !== undefined);
+    const selectedItem = selected === null ? undefined : items.find((item) => isJourney(item.leg, selected));
+    const selectedTrack = selectedItem && selectedItem.leg.route_id < BRIDGE_ROUTE_BASE
+      ? trackPathById.get(trackKey(selectedItem.leg.dataset, selectedItem.leg.route_id))
+      : undefined;
+    const stationBoardTracks = highlightedStationRoutes
+      ? highlightedStationRoutes.routeIds
+          .map((routeId) => trackPathById.get(trackKey(highlightedStationRoutes!.dataset, routeId)))
+          .filter((route): route is TrackPath => route !== undefined)
+      : [];
     const highlightedTracks = stationBoardTracks.length > 0
       ? stationBoardTracks
       : selectedJourneyTracks.length > 0
@@ -936,11 +1466,11 @@ async function main(): Promise<void> {
         : selectedTrack
           ? [selectedTrack]
           : [];
-    const selectedTrackLayer = new PathLayer<RoutePath>({
+    const selectedTrackLayer = new PathLayer<TrackPath>({
       id: "selected-train-track",
       data: highlightedTracks,
       getPath: (route) => route.path,
-      getColor: [255, 0, 0, 235],
+      getColor: [229, 72, 77, 235],
       getWidth: 4,
       widthUnits: "pixels",
       widthMinPixels: 3,
@@ -951,9 +1481,9 @@ async function main(): Promise<void> {
     const trainIcons = trainsLayer(
       items,
       time,
-      colors,
+      typeColor,
       colorMode,
-      selectedJourneyId,
+      selected,
       map.getBearing(),
       map.getZoom(),
       (item) => void spectatePositionedTrain(item),
@@ -961,28 +1491,60 @@ async function main(): Promise<void> {
     overlay.setProps({
       // The full national track layer contains 512k vertices. Browser tests validate its
       // selected route IDs but omit that visual layer so software WebGL can keep up in CI.
-      layers: e2eMode
-        ? [stationLayer, trainIcons]
-        : [trackLayer, countryBorderLayer, selectedTrackLayer, stationLayer, trainIcons],
+      layers: [
+        layerVisible.tracks && !e2eMode ? trackLayer : null,
+        e2eMode ? null : selectedTrackLayer,
+        layerVisible.stations ? stationLayer : null,
+        layerVisible.trains ? trainIcons : null,
+      ],
     });
 
     if (selectedJourney) {
       // Keep the camera locked to the interpolated position. Repeated easeTo calls restart an
       // animation and visibly hitch at 8×; a direct per-frame center update stays continuous.
-      if (selected) map.setCenter(selected.pos);
-      if (time > selectedJourney.end + 60) {
+      if (selectedItem) map.setCenter(selectedItem.pos);
+      const onward = linkFor(selectedJourney, "from");
+      if (onward && time >= onward.link.at) {
+        if (!followInFlight) {
+          followInFlight = true;
+          void followLink(onward).finally(() => {
+            followInFlight = false;
+          });
+        }
+      } else if (time > Math.max(selectedJourney.end, onward?.link.at ?? 0) + 60) {
         selectedJourney = null;
         selectedJourneyTracks = [];
       }
     }
 
-    hudDateElement.textContent = fmtHudDate(time);
-    timeElement.textContent = fmtHudTime(time);
+    const focus = focusDataset();
+    const zone = focus.timezone.split("/").at(-1)!.replaceAll("_", " ");
+    hudDateElement.textContent = `${fmtHudDate(time, focus.timezone)} · ${zone}`;
+    timeElement.textContent = fmtHudTime(time, focus.timezone);
     timeElement.dateTime = new Date(time * 1000).toISOString();
-    playbackIcon.textContent = clock.paused ? "▶" : "Ⅱ";
+    playIcon.classList.toggle("hidden", !clock.paused);
+    pauseIcon.classList.toggle("hidden", clock.paused);
     playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
-    speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
-    countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
+    for (const { speed, button } of speedButtons) {
+      const active = speed === clock.speed;
+      button.classList.toggle("on", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    countElement.textContent = items.length.toLocaleString("en-GB");
+    countElement.title = dropped ? `${dropped} trains could not be placed on a route` : "";
+    // The count covers the countries whose trains are loaded, whether or not the train layer is drawn.
+    const counted = win.datasets.filter((index) => enabledDatasets.has(index));
+    activityScope.textContent = multiCountry
+      ? counted.map((index) => datasets[index]!.country).join(" · ") || "No country in view"
+      : datasets[0]!.name;
+    // A window still loading would draw as an empty map; that is latency, not a count.
+    const loaded = time >= win.from && time <= win.to && wantedDatasets().every((index) => win.datasets.includes(index));
+    if (loaded) {
+      activity.record(time, items.length, `${counted.join(",")}|${[...enabledGroups].sort().join(",")}`, focus.timezone);
+    }
+    const notice = coverageNotice(time);
+    coverageElement.textContent = notice;
+    coverageElement.classList.toggle("hidden", notice === "");
     scheduleFrame(frame);
   }
   requestAnimationFrame(frame);

@@ -18,23 +18,181 @@ perfect: its genuine holes are represented explicitly, quarantined rows remain e
 1,347 routes use a flagged straight-line fallback when the Switzerland OSM extract cannot
 provide a usable rail path.
 
+## European datasets (2026-09-23)
+
+Switzerland is joined by **Finland**, the first country in `europe.md`'s rollout order, as a
+separate dataset under `datasets/fi/` with its own id spaces, manifest and `routes.bin`.
+`catalog.json` at the bucket root lists both; Switzerland is listed with `"path": ""` and not
+one Swiss object was rebuilt, moved or renumbered. Clients without the catalog still read the
+Swiss root manifest.
+
+| Finland | Value |
+|---|---:|
+| Source | Fintraffic / Digitraffic, CC BY 4.0 |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 17,489,126 (2.3% scheduled fallback) |
+| Routes / fallbacks | 1,986 / 16 |
+| Published size | 167.8 MB of its 200 MB allocation |
+| Bucket after upload | ~5.63 GB of the 9.0 GB ceiling (2026-09-27) |
+
+Seven strike days are published thin and flagged as `source_cancelled_days`. Details:
+[`docs/data-notes-fi.md`](docs/data-notes-fi.md). Rebuild: `scripts/fetch_fi.py`,
+`scripts/build_fi.py`, the geometry job with `--fit-bbox`, then `scripts/sync_dataset.py fi`.
+
+The **Netherlands** follows as `datasets/nl/`, built from the Rijden de Treinen archive. Its
+times are scheduled plus the last reported delay in whole minutes. They are not observations,
+so the dataset is labelled `delay_only` and the UI shows it as "scheduled + reported delay".
+
+| Netherlands | Value |
+|---|---:|
+| Source | Rijden de Treinen, CC BY 4.0 |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 59,901,681 (Dutch station pairs only) |
+| Routes / fallbacks | 2,294 / 0 |
+| Leg + journey bytes | 349.4 MB of its 500 MB allocation |
+
+Duplicate service records, diversions and mid-route cancellations each needed a rule. The
+details are in [`docs/data-notes-nl.md`](docs/data-notes-nl.md). To rebuild, run
+`scripts/build_nl.py --fetch`, then the geometry job with `--fit-bbox`, then
+`scripts/sync_dataset.py nl`.
+
+**Belgium** is `datasets/be/`, built from Infrabel's monthly raw punctuality files. Planned
+and actual times are to the second from Infrabel's train detection, so it is `observed` like
+Finland. The source lists only trains that ran and only Infrabel's own network.
+
+| Belgium | Value |
+|---|---:|
+| Source | Infrabel, CC0 |
+| Coverage | 2023-01-01 → 2026-08-30, 1,338 UTC days, 0 missing |
+| Published legs | 46,017,097 |
+| Routes / fallbacks | 3,859 / 0 |
+| Leg + journey bytes | 401.0 MB of its 450 MB allocation (zstd level 19) |
+
+The source's columns move twice in 2025, so files are read by column name. S lines are renamed
+at the 2025-12-14 timetable, and two closed halts are missing from today's station list. The
+details are in [`docs/data-notes-be.md`](docs/data-notes-be.md). To rebuild, run
+`scripts/build_be.py --fetch`, then the geometry job with `--fit-bbox` on the Overpass export
+(see `geometry/README.md`), then `scripts/sync_dataset.py be`.
+
+The frontend loads the catalog, fetches a country's static layer only when it enters the
+viewport, queries only visible countries' day files, keys everything by dataset, shows the
+clock in the focused country's timezone, labels missing coverage explicitly, and shows each
+dataset's attribution and licence. Typing a country name in Ctrl/Cmd+K flies there and jumps to
+its nearest covered day.
+
+**Germany** is `datasets/de/`. It is built from DB's Timetables API (IRIS) as crawled every six
+hours by piebro/deutsche-bahn-data, CC BY 4.0. Bahn-Vorhersage, the source `europe.md` names, is
+available only through a Mobilithek account and access request, which is still to be done. This
+archive covers every station only from 2025-11-02, so Germany covers a later window than the
+other countries. Times are the last scheduled or changed time the crawler saw, so the dataset is
+labelled `final_prediction`.
+
+| Germany | Value |
+|---|---:|
+| Source | DB Timetables + StaDa APIs via piebro/deutsche-bahn-data, CC BY 4.0 |
+| Coverage | 2025-11-03 → 2026-08-30, 301 UTC days, 0 missing, 203 crawl-gap hours flagged |
+| Published legs | 124,204,786 |
+| Routes / fallbacks | 19,586 / 67 |
+| Leg + journey bytes | 652.5 MB of its 2.95 GB allocation (zstd level 19) |
+| Bucket after upload | ~5.18 GB of the 9.0 GB ceiling |
+
+The crawler missed some hours: six-hour blocks through July 2026, and single midnight hours in
+April-June. These are published as `source_gap_hours`, and the UI labels them as a source gap
+rather than showing an empty map. The source revision is pinned and checked by SHA-256, because
+the maintainer rewrites history. The details are in
+[`docs/data-notes-de.md`](docs/data-notes-de.md). To rebuild, run `scripts/build_de.py --fetch`,
+then the geometry job on the rail extract of the Geofabrik PBF (see `geometry/README.md`), then
+`scripts/sync_dataset.py de`.
+
+The viewer now treats a neighbouring country as in view only when the current day falls inside
+its coverage, or when it is the country under the map center. Germany's box covers Basel, and
+without this rule the default Swiss view on 2018-01-01 fetched German geometry and showed a "no
+data" notice.
+
+**Cross-border layer** (`links/`, europe.md phase 4). This is a derived layer above the
+datasets, and none of them is edited.
+
+- **Station crosswalk:** 102 groups of the same physical station across datasets, each with its
+  match method, distance and confidence.
+- **Drawing each movement once:** where the Swiss archive and the German dataset both hold a leg
+  in the German border belt (4,138 legs on 2026-03-10), only the copy with stronger time evidence
+  is drawn. Swiss observations win over German final predictions.
+- **Journey links:** 82,513 overlaps, 5,376 handovers and 111,517 bridged crossings over 1,278
+  overlap days. A bridge crosses a gap neither dataset covers, such as ICEs between Freiburg and
+  Basel Bad Bf, Emmerich and Zevenaar, Aachen and Liège, or Rotterdam and Antwerp.
+  - It has interpolated times, is labelled as such, and runs on its own routed geometry (52
+    routes, 0 fallbacks).
+  - Spectating follows a train into the next country.
+  - Bridge station pairs are accepted only on their record over the whole build, because a
+    shared train number repeats daily by coincidence. The rules and the per-pair evidence are in
+    [`docs/cross-border.md`](docs/cross-border.md) and `links/manifest.json`.
+- **Rebuilt 2026-09-25** over the extended window: 101,190 overlaps, 6,434 handovers and
+  177,904 bridged crossings over 1,338 days, 65 bridge routes, 0 fallbacks.
+- **Size and rebuild:** the bucket is ~5.46 GB (15,824 objects) after the 2026-09-25 extension. To rebuild after any dataset
+  changes, run `scripts/build_links.py`, then `scripts/sync_links.py`.
+
+The viewer now opens on the first UTC day every dataset has published, currently
+**2025-11-03**, when Germany's archive starts. It is computed from the manifests, so it moves
+if coverage changes. The Swiss 2018-01-01 default applies only when the datasets share no day.
+
+**Austria** is `datasets/at`, integrated 2026-09-25. ÖBB-Infrastruktur's train-run file (EU
+Delegated Regulation 2024/490 data, CC BY 3.0 AT) gives each run's planned and actual time at
+the first and last operating point ÖBB recorded. These are yards, junctions and track groups,
+not passenger termini. ÖBB-Personenverkehr's GTFS timetable (CC BY 4.0) gives the stops. Runs
+and trips are joined by train number and day. Each stop's delay is interpolated between the
+two observations, so the dataset is labelled `delay_interpolated`, shown as "scheduled +
+interpolated delay".
+
+| Austria | Value |
+|---|---:|
+| Sources | ÖBB-Infrastruktur train runs + ÖBB-Personenverkehr GTFS |
+| Coverage | 2025-12-15 → 2026-09-05, 265 UTC days, 0 missing |
+| Published legs | 15,983,394 (Austrian station pairs only) |
+| Routes / fallbacks | 2,875 / 0 |
+| Leg + journey bytes | 130.9 MB of its 200 MB allocation (zstd level 19) |
+
+- The timetable starts at the 2025-12-14 change, so Austria starts 2025-12-15 and the viewer's
+  shared default day moved from 2025-11-03 to 2025-12-15.
+- The GTFS was published once and never updated, so the share of runs paired with a trip falls
+  from about 91% in winter to about 79% in August.
+- OSM tags the Wien S-Bahn Stammstrecke and Feldkirch – Buchs as under construction, so the
+  geometry input adds those ways.
+- The details are in [`docs/data-notes-at.md`](docs/data-notes-at.md).
+- To rebuild, run `scripts/build_at.py --fetch`, then the geometry job on
+  `austria-rail.osm.pbf` (see `geometry/README.md`), then `scripts/sync_dataset.py at`.
+
+**Forward extension (2026-09-25).** A German backfill before 2025-11 is not an option, so the
+shared window grows forward instead. The Netherlands and Belgium now run to 2026-08-30, and
+Switzerland gained 2026-07 and 2026-08 (see the snapshot below). Both European rebuilds re-ran
+over their existing databases: the append-only registries kept every id, and every 2023-2025
+day file came out byte-identical, so only the 242 new days per country were uploaded. Finland
+and Belgium's caps rose to 0.20 and 0.45 GB, taken from Germany's unused allocation (europe.md).
+
+Finland followed on 2026-09-27, once Digitraffic's rail API was back after its 2026-09-25
+outage. Its 2023-2025 day files also came out byte-identical, so only the 242 new days and the
+static files were uploaded. All five datasets besides Austria now share 2025-11-03 → 2026-08-30,
+and all six share 2025-12-15 → 2026-08-30. Finland's 2026 summer is thin by design: Helsinki
+commuter service is cut back in the source timetable from 2026-05-30 to 2026-08-09
+(`docs/data-notes-fi.md`).
+
 ## Published snapshot
 
 | Item | Current value |
 |---|---:|
 | Manifest schema | 3 |
-| UTC day entries | 3,090 |
-| Manifest range | 2017-12-31 through 2026-07-01 |
+| UTC day entries | 3,152 |
+| Manifest range | 2017-12-31 through 2026-09-01 |
 | Explicit missing UTC days | 15 |
-| Published legs | 422,103,769 |
-| Local leg files | 3,090 |
-| Local journey files | 3,090 |
-| Registered routes | 11,502 |
-| Geometry records | 11,502 |
+| Published legs | 431,289,031 |
+| Local leg files | 3,152 |
+| Local journey files | 3,152 |
+| Registered routes | 11,580 |
+| Geometry records | 11,580 |
 | Local publish mirror | about 3.7 GB plus manifest |
 
-The apparent 2017-12-31/2026-07-01 edges come from converting Europe/Zurich service times to
-UTC. The source service-day coverage is 2018-01 through 2026-06. The 29 missing source days
+The apparent 2017-12-31/2026-09-01 edges come from converting Europe/Zurich service times to
+UTC. The source service-day coverage is 2018-01 through 2026-08 (2026-07 and 2026-08 were
+added on 2026-09-25 from the v2 archive, the only series published from 2026-07). The 29 missing source days
 collapse to 15 fully absent UTC files because neighboring service days can contribute rows
 across UTC midnight.
 
@@ -153,6 +311,26 @@ Do these in order unless product priorities change:
 - [ ] Decide whether aggregates are a product requirement; `aggregates_json` is still an
   intentional `NotImplementedError` stub.
 - [ ] Audit `missing_time` and decide the zero-duration policy described above.
+- [ ] Low priority: label journeys with their real endpoints. Search results
+  (`web/src/main.ts:1063`) and the spectating header (`web/src/main.ts:1096`) build
+  "from → to" from `firstRouteId`, the first leg only. WB 963 Stuttgart–Rosenheim therefore
+  reads "Stuttgart Hbf → Ulm Hbf", and IC 187 Stuttgart–Singen reads "Stuttgart Hbf → Böblingen".
+  Have `journeyById`/`searchJourneys` in
+  `web/src/worker/legs.worker.ts` also return the route of the latest-arriving leg, and label
+  first leg's origin → last leg's destination. The clicked-train panel (`main.ts:1162`) may keep
+  showing the current leg, but should say so.
+- [ ] Low priority: link late trains whose shared-station time is only scheduled. `_judge` in
+  `europe/links.py` needs both journeys at the shared station within `SHARED_STATION_S`
+  (10 min). The Swiss archive has no actual time at Singen (the Singen→Schaffhausen leg is a
+  scheduled fallback, flag 1), so an IC 187 that reaches Singen more than 10 min late never
+  links to its Swiss section: 2025-11-12, 22 min late, arrives 13:48 against a Swiss 13:32.
+  When either call is a scheduled fallback, compare against the other side's scheduled time
+  as well. Rebuild and sync links afterwards.
+- [ ] Low priority: add non-ÖBB operators to Austria. The Zugfahrten runs include WESTbahn, but the
+  ÖBB-PV GTFS lists only ÖBB, Montafonerbahn and CAT, so WB runs never pair and are dropped.
+  WB 963 (Stuttgart–Wien) ends at Rosenheim/Freilassing, the last German station, with no
+  Austrian journey to link to. Take stops from the national all-operator timetable (or
+  WESTbahn's own GTFS), rebuild `at`, then rebuild and sync links.
 
 The detailed UI, GLB, rail-tile, terrain, search, and station-board contracts are in
 [`docs/product-roadmap.md`](docs/product-roadmap.md).
