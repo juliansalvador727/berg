@@ -30,7 +30,7 @@ npm run preview -- --host localhost --port 5173
 ## Browser tests
 
 The Playwright suite uses Chromium against the published R2 archive. It covers startup and clock
-movement, pause/resume and speed changes, service and delay filters, historical navigation, train
+movement, pause/resume and speed changes, service, delay, and country filters, historical navigation, train
 search, route spectating, direct train-arrow clicks, station boards, and the station/unspectate
 regression. The map interaction assertions use coordinates reported by an E2E-only hook and still
 perform real pointer clicks on the deck.gl canvas; the hook is absent from normal builds.
@@ -73,10 +73,10 @@ costs nothing regardless of how coarse the files are.
 
 ## Current product gaps
 
-The train-observer foundation is implemented: automatic 600× playback, Ctrl/Cmd+K speed and
-date/train search, journey spectating, a startup progress bar, service-family filters, clickable
-observed station boards, a dark city-labelled vector map, hillshade, and an observed-route track
-overlay. The public product is not finished:
+The train-observer foundation is implemented: automatic 600× playback with a speed control,
+Ctrl/Cmd+K date/train search, journey spectating, a startup progress bar, a map-layers panel
+(trains/tracks/stations, countries, service families), a trains-running chart, clickable observed
+station boards, a dark city-labelled vector map, hillshade, and an observed-route track overlay. The public product is not finished:
 
 - complete the human browser smoke checklist in `../current_state.md`;
 - create/license generic service-family GLBs and render them at close zoom;

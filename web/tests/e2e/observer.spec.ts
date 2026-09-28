@@ -47,7 +47,7 @@ async function spectateFromSearch(page: Page): Promise<void> {
   await expect(page.locator("#details .eyebrow")).toContainText("Spectating train", {
     timeout: 30_000,
   });
-  await expect(page.locator("#speed-value")).toHaveText("1×");
+  await expect(page.getByRole("button", { name: "Run at 1×" })).toHaveAttribute("aria-pressed", "true");
 }
 
 async function trainPoints(page: Page): Promise<TrainPoint[]> {
@@ -68,38 +68,46 @@ test("loads the archive and controls historical playback", async ({ page }) => {
 
   await page.keyboard.press("Space");
   await expect(page.getByRole("button", { name: /Resume playback/ })).toBeVisible();
-  await expect(page.locator("#speed-value")).toHaveText("Paused");
   const pausedTime = await clock.getAttribute("datetime");
   await page.waitForTimeout(1_100);
   await expect(clock).toHaveAttribute("datetime", pausedTime!);
 
-  await page.keyboard.press("Space");
-  await activate(page, "#speed-badge");
-  await page.getByRole("button", { name: /Run at 8×/ }).evaluate((element: HTMLElement) =>
-    element.click(),
-  );
-  await expect(page.locator("#speed-value")).toHaveText("8×");
+  const eight = page.getByRole("button", { name: "Run at 8×" });
+  await eight.evaluate((element: HTMLElement) => element.click());
+  await expect(eight).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#playback-label")).toHaveText("Pause playback");
 });
 
 test("filters services, navigates the archive, and spectates a complete route", async ({ page }) => {
   await openObserver(page);
 
-  const display = page.getByRole("button", { name: /Train display/ });
+  const display = page.getByRole("button", { name: "Map layers", exact: true });
   await display.evaluate((element: HTMLElement) => element.click());
   await expect(display).toHaveAttribute("aria-expanded", "true");
   const sBahn = page.getByRole("button", { name: "S-Bahn", exact: true });
   await sBahn.evaluate((element: HTMLElement) => element.click());
   await expect(sBahn).not.toHaveClass(/\bon\b/);
-  await expect(page.locator("#filter-summary")).toContainText("5 of 6 services");
-  await page
-    .getByRole("button", { name: "Delay", exact: true })
-    .evaluate((element: HTMLElement) => element.click());
-  await expect(page.locator("#filter-summary")).toContainText("delay colours");
+  await expect(sBahn).toHaveAttribute("aria-pressed", "false");
+  const delay = page.getByRole("button", { name: "Delay", exact: true });
+  await delay.evaluate((element: HTMLElement) => element.click());
+  await expect(delay).toHaveAttribute("aria-pressed", "true");
+
+  // Switching a country off removes its trains from the map; switching it back restores them.
+  const swiss = page.getByRole("switch", { name: /Switzerland/ });
+  const swissTrains = async () =>
+    (await trainPoints(page)).filter((train) => train.dataset === "ch").length;
+  await expect.poll(swissTrains, { timeout: 30_000 }).toBeGreaterThan(0);
+  await swiss.evaluate((element: HTMLElement) => element.click());
+  await expect(swiss).toHaveAttribute("aria-checked", "false");
+  await expect.poll(swissTrains, { timeout: 30_000 }).toBe(0);
+  await swiss.evaluate((element: HTMLElement) => element.click());
+  await expect.poll(swissTrains, { timeout: 30_000 }).toBeGreaterThan(0);
   await activate(page, "#filters-close");
 
+  // Dates are entered the way they are displayed: DD/MM/YYYY.
   await page.keyboard.press("Control+k");
   const input = page.locator("#command-input");
-  await input.fill("2018-01-02 07:30");
+  await input.fill("02/01/2018 07:30");
   await page
     .locator("#command-results .command-item")
     .evaluate((element: HTMLElement) => element.click());

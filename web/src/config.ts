@@ -11,7 +11,8 @@ export const datasetUrl = (path: string, file: string): string =>
   `${DATA_BASE_URL}/${path ? `${path}/` : ""}${file}`;
 
 export const PMTILES_URL = `${DATA_BASE_URL}/tiles/switzerland.pmtiles`;
-export const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+/** CARTO Dark Matter: a quiet, low-contrast basemap that lets the trains carry the colour. */
+export const MAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 export const TERRAIN_TILE_URL =
   "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png";
 

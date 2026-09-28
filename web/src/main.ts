@@ -7,7 +7,7 @@ import "@fontsource-variable/noto-sans";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./style.css";
 
-import { SWITZERLAND_BORDER } from "./assets/switzerland-border";
+import { ActivityChart } from "./activity";
 import { Clock, SPEEDS } from "./clock";
 import { BUFFER_SECONDS, INITIAL_VIEW, MAP_STYLE_URL, TERRAIN_TILE_URL, datasetUrl } from "./config";
 import { fetchRoutes, type RoutePath, type Routes } from "./routes";
@@ -186,41 +186,38 @@ const byId = <T extends HTMLElement>(id: string): T => {
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]!);
 
-const fmtClock = (epoch: number, timeZone: string): string =>
-  new Date(epoch * 1000).toLocaleString("de-CH", {
-    timeZone,
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+// Dates always read DD/MM/YYYY and times 24-hour, whatever the viewer's locale. en-GB gives
+// exactly that; formatters are cached per zone because the clock formats every frame.
+const formats = new Map<string, Intl.DateTimeFormat>();
+const format = (epoch: number, timeZone: string, options: Intl.DateTimeFormatOptions): string => {
+  const key = `${timeZone}|${JSON.stringify(options)}`;
+  let formatter = formats.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", { timeZone, hourCycle: "h23", ...options });
+    formats.set(key, formatter);
+  }
+  return formatter.format(new Date(epoch * 1000));
+};
+const DATE = { day: "2-digit", month: "2-digit", year: "numeric" } as const;
 
 const fmtShortTime = (epoch: number, timeZone: string): string =>
-  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  format(epoch, timeZone, { hour: "2-digit", minute: "2-digit" });
 
 const fmtHudDate = (epoch: number, timeZone: string): string =>
-  new Date(epoch * 1000).toLocaleDateString("de-CH", {
-    timeZone,
-    weekday: "short",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  format(epoch, timeZone, { weekday: "short", ...DATE }).replace(",", "");
+
+const fmtClock = (epoch: number, timeZone: string): string =>
+  `${fmtHudDate(epoch, timeZone)} ${fmtShortTime(epoch, timeZone)}`;
 
 const fmtHudTime = (epoch: number, timeZone: string): string =>
-  new Date(epoch * 1000).toLocaleTimeString("de-CH", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  format(epoch, timeZone, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+/** An ISO day ("2025-12-15") as DD/MM/YYYY. */
+const fmtDay = (day: string | null): string => {
+  if (!day) return "—";
+  const [y, m, d] = day.split("-");
+  return `${d}/${m}/${y}`;
+};
 
 const utcDay = (epoch: number): string => new Date(Math.floor(epoch) * 1000).toISOString().slice(0, 10);
 
@@ -235,12 +232,16 @@ const trainNumber = (tripId: string, datasetId: string): string => {
 
 /** Convert a wall-clock value in `timeZone` without depending on the viewer's own zone. */
 function zonedEpoch(value: string, timeZone: string): number | null {
-  const match = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?$/.exec(value.trim());
+  // DD/MM/YYYY, the displayed format, or ISO YYYY-MM-DD; either with an optional HH:MM.
+  const match =
+    /^(?:(\d{4})-(\d{2})-(\d{2})|(\d{1,2})[/.](\d{1,2})[/.](\d{4}))(?:[ T](\d{1,2}):(\d{2}))?$/.exec(value.trim());
   if (!match) return null;
-  const hour = Number(match[2] ?? 8);
-  const minute = Number(match[3] ?? 0);
+  const pad = (part: string) => part.padStart(2, "0");
+  const day = match[1] ? `${match[1]}-${match[2]}-${match[3]}` : `${match[6]}-${pad(match[5]!)}-${pad(match[4]!)}`;
+  const hour = Number(match[7] ?? 8);
+  const minute = Number(match[8] ?? 0);
   if (hour > 23 || minute > 59) return null;
-  const desiredAsUtc = Date.parse(`${match[1]}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
+  const desiredAsUtc = Date.parse(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
   if (!Number.isFinite(desiredAsUtc)) return null;
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -396,7 +397,7 @@ async function main(): Promise<void> {
   const typeName = (dataset: number, typeId: number): string => views[dataset]?.types[typeId] ?? "Train";
   const typeColor = (leg: Leg): RGB => views[leg.dataset]?.colors[leg.type] ?? [200, 200, 200];
 
-  setProgress(64, "Loading the dark map and mountain relief…");
+  setProgress(64, "Loading the map and mountain relief…");
   const map = new maplibregl.Map({
     container: "map",
     style: MAP_STYLE_URL,
@@ -405,9 +406,13 @@ async function main(): Promise<void> {
     pitch: e2eMode ? 0 : 24,
     bearing: 0,
     maxPitch: 70,
-    attributionControl: false,
+    attributionControl: { compact: true },
   });
   await map.once("load");
+  // The basemap is context, not content: drop road names, house numbers, and POIs.
+  for (const layer of map.getStyle().layers ?? []) {
+    if (/^(roadname_|housenumber|poi_)/.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+  }
 
   if (!e2eMode) {
     try {
@@ -419,7 +424,9 @@ async function main(): Promise<void> {
         encoding: "terrarium",
         attribution: '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Terrain data sources</a>',
       });
-      const firstLabel = map.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+      // Under water, roads, and labels, so the relief reads as texture on the land only.
+      const layers = map.getStyle().layers ?? [];
+      const beneath = (layers.find((layer) => layer.id === "waterway") ?? layers.find((layer) => layer.type === "symbol"))?.id;
       map.addLayer(
         {
           id: "berg-hillshade",
@@ -427,13 +434,13 @@ async function main(): Promise<void> {
           source: "berg-terrain",
           paint: {
             "hillshade-method": "multidirectional",
-            "hillshade-exaggeration": 0.28,
-            "hillshade-shadow-color": "#020509",
-            "hillshade-highlight-color": "#607184",
-            "hillshade-accent-color": "#111b25",
+            "hillshade-exaggeration": 0.2,
+            "hillshade-shadow-color": "#000000",
+            "hillshade-highlight-color": "#2a2e35",
+            "hillshade-accent-color": "#0e1013",
           },
         },
-        firstLabel,
+        beneath,
       );
     } catch (error) {
       console.warn("terrain relief unavailable", error);
@@ -460,6 +467,7 @@ async function main(): Promise<void> {
     const day = utcDay(clock.simTime);
     const focus = focusDataset().index;
     return datasets
+      .filter(({ index }) => enabledDatasets.has(index))
       .filter(({ bbox: [west, south, east, north] }) =>
         west <= bounds.getEast() && east >= bounds.getWest() && south <= bounds.getNorth() && north >= bounds.getSouth(),
       )
@@ -499,15 +507,15 @@ async function main(): Promise<void> {
   const filters = byId<HTMLElement>("filters");
   const hudDateElement = byId<HTMLSpanElement>("hud-date");
   const timeElement = byId<HTMLTimeElement>("time");
-  const countElement = byId<HTMLSpanElement>("count");
+  const countElement = byId<HTMLElement>("count");
+  const activityScope = byId<HTMLSpanElement>("activity-scope");
   const coverageElement = byId<HTMLDivElement>("coverage");
-  const speedBadge = byId<HTMLButtonElement>("speed-badge");
-  const speedValue = byId<HTMLElement>("speed-value");
   const playbackButton = byId<HTMLButtonElement>("playback-button");
-  const playbackIcon = byId<HTMLSpanElement>("playback-icon");
   const playbackLabel = byId<HTMLElement>("playback-label");
+  const playIcon = byId<HTMLElement>("icon-play");
+  const pauseIcon = byId<HTMLElement>("icon-pause");
+  const speedGroup = byId<HTMLDivElement>("speeds");
   const filterButton = byId<HTMLButtonElement>("filter-button");
-  const filterSummary = byId<HTMLElement>("filter-summary");
   const archiveMeta = byId<HTMLDivElement>("archive-meta");
   const dataSources = byId<HTMLDivElement>("data-sources");
   const details = byId<HTMLElement>("details");
@@ -518,6 +526,7 @@ async function main(): Promise<void> {
   const commandResults = byId<HTMLDivElement>("command-results");
   const filterChips = byId<HTMLDivElement>("filter-chips");
   const legendElement = byId<HTMLDivElement>("legend");
+  const activity = new ActivityChart(byId("activity-chart"), fmtShortTime);
   let colorMode: ColorMode = "type";
   let visibleStationBoard: { station: Station; departures: StationBoardDeparture[] } | null = null;
   let stationBoardGeneration = 0;
@@ -535,32 +544,82 @@ async function main(): Promise<void> {
   };
   playbackButton.onclick = togglePlayback;
 
-  const updateFilterSummary = () => {
-    const enabled = enabledGroups.size;
-    const services = enabled === allGroups.length ? "All services" : `${enabled} of ${allGroups.length} services`;
-    filterSummary.textContent = `${services} · ${colorMode === "type" ? "service" : "delay"} colours`;
+  const speedButtons = SPEEDS.map((speed) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `${speed}×`;
+    button.setAttribute("aria-label", `Run at ${speed}×`);
+    button.onclick = () => {
+      clock.setSpeed(speed);
+      clock.play();
+    };
+    speedGroup.appendChild(button);
+    return { speed, button };
+  });
+
+  /** A switch row: the whole row is the control, its state lives in aria-checked. */
+  const toggleRow = (label: string, on: boolean, onChange: (on: boolean) => void, code = "", meta = "") => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toggle";
+    button.setAttribute("role", "switch");
+    button.setAttribute("aria-checked", String(on));
+    button.innerHTML = `${code ? `<span class="code">${escapeHtml(code)}</span>` : ""}<span class="label">${escapeHtml(label)}</span>${meta ? `<span class="meta">${escapeHtml(meta)}</span>` : ""}<span class="switch" aria-hidden="true"></span>`;
+    button.onclick = () => {
+      const next = button.getAttribute("aria-checked") !== "true";
+      button.setAttribute("aria-checked", String(next));
+      onChange(next);
+    };
+    return button;
   };
 
+  const layerVisible = { trains: true, tracks: true, stations: true };
+  const layerToggles = byId<HTMLDivElement>("layer-toggles");
+  for (const [key, label] of [["trains", "Trains"], ["tracks", "Tracks"], ["stations", "Stations"]] as const) {
+    layerToggles.appendChild(
+      toggleRow(label, true, (on) => {
+        layerVisible[key] = on;
+      }),
+    );
+  }
+
+  const enabledDatasets = new Set(datasets.map((info) => info.index));
+  const countryToggles = byId<HTMLDivElement>("country-toggles");
+  const countryToggleByIndex = new Map<number, HTMLButtonElement>();
+  byId("country-section").classList.toggle("hidden", !multiCountry);
+  const setCountryEnabled = (index: number, on: boolean) => {
+    if (on) enabledDatasets.add(index);
+    else enabledDatasets.delete(index);
+    countryToggleByIndex.get(index)?.setAttribute("aria-checked", String(on));
+    staticVersion++;
+  };
+  for (const info of datasets) {
+    const { start, end } = manifests[info.index]!;
+    const row = toggleRow(info.name, true, (on) => setCountryEnabled(info.index, on), info.country, `${start?.slice(0, 4)}–${end?.slice(0, 4)}`);
+    row.title = `${fmtDay(start)} → ${fmtDay(end)}`;
+    countryToggleByIndex.set(info.index, row);
+    countryToggles.appendChild(row);
+  }
+
   archiveMeta.textContent = multiCountry
-    ? datasets
-        .map((info, index) => `${info.name} ${Object.keys(manifests[index]!.days).length.toLocaleString()} days`)
-        .join(" · ")
-    : `${swissDays.length.toLocaleString()} days · ${swiss.routes.length.toLocaleString()} routes · ${swiss.stations.length.toLocaleString()} stations`;
+    ? `${datasets.length} countries · ${allDays.length.toLocaleString("en-GB")} days · ${fmtDay(allDays[0]!)} → ${fmtDay(allDays.at(-1)!)}`
+    : `${swissDays.length.toLocaleString("en-GB")} days · ${swiss.routes.length.toLocaleString("en-GB")} routes · ${swiss.stations.length.toLocaleString("en-GB")} stations`;
   // Every dataset keeps its own attribution and licence, shown wherever its data is.
   const sourceLink = (info: DatasetInfo): string =>
     `${escapeHtml(info.attribution)} · <a href="${escapeHtml(info.license_url)}" target="_blank" rel="noreferrer">${escapeHtml(info.license)}</a>`;
-  dataSources.innerHTML = datasets.map(sourceLink).join("<br>");
+  dataSources.innerHTML = datasets.map((info) => `<div>${sourceLink(info)}</div>`).join("");
 
   for (const group of allGroups) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "chip on";
+    button.setAttribute("aria-pressed", "true");
     button.textContent = group.label;
     button.onclick = () => {
       if (enabledGroups.has(group.id)) enabledGroups.delete(group.id);
       else enabledGroups.add(group.id);
       button.classList.toggle("on", enabledGroups.has(group.id));
-      updateFilterSummary();
+      button.setAttribute("aria-pressed", String(enabledGroups.has(group.id)));
       if (visibleStationBoard) {
         renderStationBoard(visibleStationBoard.station, visibleStationBoard.departures);
       }
@@ -607,13 +666,12 @@ async function main(): Promise<void> {
       colorMode = mode;
       for (const [key, element] of Object.entries(modeButtons)) {
         element.classList.toggle("on", key === mode);
+        element.setAttribute("aria-pressed", String(key === mode));
       }
       renderLegend();
-      updateFilterSummary();
     };
   }
   renderLegend();
-  updateFilterSummary();
 
   const trackPathById = new Map<number, TrackPath>();
   let trackLayer: PathLayer<TrackPath> | null = null;
@@ -625,13 +683,15 @@ async function main(): Promise<void> {
     if (builtStaticVersion === staticVersion) return;
     builtStaticVersion = staticVersion;
     const loaded = loadedViews();
-    const paths = loaded.flatMap((view) => view.trackPaths);
     trackPathById.clear();
-    for (const route of paths) trackPathById.set(trackKey(route.dataset, route.routeId), route);
-    allStations = loaded.flatMap((view) => view.stations);
+    for (const route of loaded.flatMap((view) => view.trackPaths)) {
+      trackPathById.set(trackKey(route.dataset, route.routeId), route);
+    }
+    const shown = loaded.filter((view) => enabledDatasets.has(view.info.index));
+    allStations = shown.flatMap((view) => view.stations);
     trackLayer = new PathLayer<TrackPath>({
       id: "observed-rail-network",
-      data: paths,
+      data: shown.flatMap((view) => view.trackPaths),
       getPath: (route) => route.path,
       getColor: (route) => (route.fallback ? [92, 102, 116, 30] : [105, 124, 143, 85]),
       getWidth: 1,
@@ -655,25 +715,12 @@ async function main(): Promise<void> {
       lineWidthMinPixels: 1,
       pickable: true,
       autoHighlight: true,
-      highlightColor: [255, 0, 0, 220],
+      highlightColor: [229, 72, 77, 230],
       onClick: ({ object }) => {
         if (object) void openStation(object);
       },
     });
   };
-  const countryBorderLayer = new PathLayer<{ path: [number, number][] }>({
-    id: "switzerland-border",
-    data: [{ path: SWITZERLAND_BORDER }],
-    getPath: ({ path }) => path,
-    getColor: [255, 255, 255, 95],
-    getWidth: 1,
-    widthUnits: "pixels",
-    widthMinPixels: 0.65,
-    widthMaxPixels: 1,
-    capRounded: true,
-    jointRounded: true,
-    pickable: false,
-  });
 
   let selectedJourney: JourneySearchResult | null = null;
   let selectedJourneyTracks: TrackPath[] = [];
@@ -886,51 +933,19 @@ async function main(): Promise<void> {
     }
   }
 
-  const showSpeedCommands = () => {
-    commandContext.textContent = "Playback · automatically running unless paused";
-    commandResults.innerHTML = "";
-    for (const speed of SPEEDS) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `command-item${clock.speed === speed && !clock.paused ? " active" : ""}`;
-      button.innerHTML = `<span class="token">${speed}×</span><span><strong>Run at ${speed}×</strong><small>${speed === 600 ? "Default observer speed" : "Historical playback speed"}</small></span><kbd>Enter</kbd>`;
-      button.onclick = () => {
-        clock.setSpeed(speed);
-        clock.play();
-        speedValue.textContent = `${speed}×`;
-        closeCommand();
-      };
-      commandResults.appendChild(button);
-    }
-    const pause = document.createElement("button");
-    pause.type = "button";
-    pause.className = `command-item${clock.paused ? " active" : ""}`;
-    pause.innerHTML = `<span class="token">Ⅱ</span><span><strong>${clock.paused ? "Resume" : "Pause"}</strong><small>Keep the current historical instant</small></span><kbd>Space</kbd>`;
-    pause.onclick = () => {
-      togglePlayback();
-      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
-      closeCommand();
-    };
-    commandResults.appendChild(pause);
-  };
-
   const showTrainSearchPrompt = () => {
     commandContext.textContent = "Find a train on the displayed day";
-    commandResults.innerHTML = `<div class="empty">Search by train number, journey identity, or line — for example IC5, S1, or ICE.${multiCountry ? " Type a country name to fly there." : ""}</div>`;
+    commandResults.innerHTML = `<div class="empty">Search by train number, journey identity, or line — for example IC5, S1, or ICE. Enter a date such as 02/01/2018 08:00 to jump there.${multiCountry ? " Type a country name to fly there." : ""}</div>`;
   };
 
-  let commandHome: "search" | "speed" = "search";
-  const openCommand = (home: "search" | "speed" = "search") => {
-    commandHome = home;
+  const openCommand = () => {
     command.classList.remove("hidden");
     commandInput.value = "";
-    if (home === "speed") showSpeedCommands();
-    else showTrainSearchPrompt();
+    showTrainSearchPrompt();
     requestAnimationFrame(() => commandInput.focus());
   };
   const closeCommand = () => command.classList.add("hidden");
-  byId<HTMLButtonElement>("command-button").onclick = () => openCommand("search");
-  speedBadge.onclick = () => openCommand("speed");
+  byId<HTMLButtonElement>("command-button").onclick = openCommand;
   command.onclick = (event) => {
     if (event.target === command) closeCommand();
   };
@@ -956,6 +971,7 @@ async function main(): Promise<void> {
   function flyToDataset(dataset: number): void {
     const [west, south, east, north] = datasets[dataset]!.bbox;
     closeCommand();
+    if (!enabledDatasets.has(dataset)) setCountryEnabled(dataset, true);
     const time = nearestCoveredTime(dataset, clock.simTime);
     if (time !== clock.simTime) {
       stopSpectating();
@@ -981,7 +997,7 @@ async function main(): Promise<void> {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "command-item";
-      button.innerHTML = `<span class="token">${escapeHtml(info.country)}</span><span><strong>Fly to ${escapeHtml(info.name)}</strong><small>${escapeHtml(info.provider)} · ${manifest.start} → ${manifest.end}${covered ? "" : " · jumps to the nearest covered day"}</small></span><kbd>Enter</kbd>`;
+      button.innerHTML = `<span class="token">${escapeHtml(info.country)}</span><span><strong>Fly to ${escapeHtml(info.name)}</strong><small>${escapeHtml(info.provider)} · ${fmtDay(manifest.start)} → ${fmtDay(manifest.end)}${covered ? "" : " · jumps to the nearest covered day"}</small></span><kbd>Enter</kbd>`;
       button.onclick = () => flyToDataset(index);
       commandResults.appendChild(button);
     }
@@ -993,8 +1009,7 @@ async function main(): Promise<void> {
     window.clearTimeout(searchTimer);
     const query = commandInput.value.trim();
     if (!query) {
-      if (commandHome === "speed") showSpeedCommands();
-      else showTrainSearchPrompt();
+      showTrainSearchPrompt();
       return;
     }
     const timeZone = focusDataset().timezone;
@@ -1019,7 +1034,7 @@ async function main(): Promise<void> {
       return;
     }
     const countries = countryMatches(query);
-    commandContext.textContent = `Searching trains on ${utcDay(clock.simTime)}…`;
+    commandContext.textContent = `Searching trains on ${fmtDay(utcDay(clock.simTime))}…`;
     commandResults.innerHTML = "";
     renderCountryItems(countries);
     commandResults.insertAdjacentHTML("beforeend", `<div class="empty">Querying the journey sidecar…</div>`);
@@ -1044,11 +1059,11 @@ async function main(): Promise<void> {
   const searchDatasets = (): number[] => {
     const loaded = new Set(loadedViews().map((view) => view.info.index));
     const inView = visibleDatasets().filter((index) => loaded.has(index));
-    return inView.length > 0 ? inView : [...loaded];
+    return inView.length > 0 ? inView : [...loaded].filter((index) => enabledDatasets.has(index));
   };
 
   function renderSearchResults(day: string, results: JourneySearchResult[], countries: number[]): void {
-    commandContext.textContent = `Trains on ${day} · search uses exact published journey identities and lines`;
+    commandContext.textContent = `Trains on ${fmtDay(day)}`;
     commandResults.innerHTML = "";
     renderCountryItems(countries);
     if (results.length === 0) {
@@ -1088,7 +1103,6 @@ async function main(): Promise<void> {
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedValue.textContent = "1×";
     const info = datasets[result.dataset]!;
     const number = trainNumber(result.tripId, info.id);
     const watchTime = seekToStart ? Math.max(tMin, result.start) : clock.simTime;
@@ -1157,7 +1171,6 @@ async function main(): Promise<void> {
     selectedJourneyTracks = [];
     clock.setSpeed(1);
     clock.play();
-    speedValue.textContent = "1×";
     const { dataset } = item.leg;
     const route = routeDescription(dataset, item.leg.route_id);
     showDetails(`
@@ -1194,14 +1207,13 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
       event.preventDefault();
-      if (command.classList.contains("hidden")) openCommand("search");
+      if (command.classList.contains("hidden")) openCommand();
       else closeCommand();
     } else if (event.key === "Escape" && !command.classList.contains("hidden")) {
       closeCommand();
     } else if (event.code === "Space" && command.classList.contains("hidden")) {
       event.preventDefault();
-      togglePlayback();
-      speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
+      if (!event.repeat) togglePlayback();
     }
   });
 
@@ -1388,16 +1400,16 @@ async function main(): Promise<void> {
       const manifest = manifests[index]!;
       const info = datasets[index]!;
       if (manifest.source_cancelled_days?.includes(day)) {
-        return `Most ${info.name} trains were cancelled on ${day} · recorded by the source`;
+        return `Most ${info.name} trains were cancelled on ${fmtDay(day)} · recorded by the source`;
       }
       const hour = new Date(Math.floor(time) * 1000).toISOString().slice(0, 13);
       if (manifest.source_gap_hours?.includes(hour)) {
-        return `No ${info.name} data for ${hour.slice(11)}:00–${hour.slice(11)}:59 UTC on ${day} · source gap`;
+        return `No ${info.name} data for ${hour.slice(11)}:00–${hour.slice(11)}:59 UTC on ${fmtDay(day)} · source gap`;
       }
       if (day in manifest.days) continue;
       return manifest.start && manifest.end && day >= manifest.start && day <= manifest.end
-        ? `No ${info.name} data for ${day} · source gap`
-        : `No ${info.name} data for ${day} · covered ${manifest.start} → ${manifest.end}`;
+        ? `No ${info.name} data for ${fmtDay(day)} · source gap`
+        : `No ${info.name} data for ${fmtDay(day)} · covered ${fmtDay(manifest.start)} → ${fmtDay(manifest.end)}`;
     }
     return "";
   };
@@ -1425,7 +1437,8 @@ async function main(): Promise<void> {
 
     const selected = selectedRef();
     const relevantLegs = win.legs.filter(
-      (leg) => typeEnabled(leg.dataset, leg.type) || isJourney(leg, selected),
+      (leg) =>
+        (enabledDatasets.has(leg.dataset) && typeEnabled(leg.dataset, leg.type)) || isJourney(leg, selected),
     );
     // A leg drawn by a stronger dataset is hidden, except on the train being spectated.
     if (selected) for (const leg of hiddenLegs) if (isJourney(leg, selected)) relevantLegs.push(leg);
@@ -1457,7 +1470,7 @@ async function main(): Promise<void> {
       id: "selected-train-track",
       data: highlightedTracks,
       getPath: (route) => route.path,
-      getColor: [255, 0, 0, 235],
+      getColor: [229, 72, 77, 235],
       getWidth: 4,
       widthUnits: "pixels",
       widthMinPixels: 3,
@@ -1478,9 +1491,12 @@ async function main(): Promise<void> {
     overlay.setProps({
       // The full national track layer contains 512k vertices. Browser tests validate its
       // selected route IDs but omit that visual layer so software WebGL can keep up in CI.
-      layers: e2eMode
-        ? [stationLayer, trainIcons]
-        : [trackLayer, countryBorderLayer, selectedTrackLayer, stationLayer, trainIcons],
+      layers: [
+        layerVisible.tracks && !e2eMode ? trackLayer : null,
+        e2eMode ? null : selectedTrackLayer,
+        layerVisible.stations ? stationLayer : null,
+        layerVisible.trains ? trainIcons : null,
+      ],
     });
 
     if (selectedJourney) {
@@ -1502,14 +1518,30 @@ async function main(): Promise<void> {
     }
 
     const focus = focusDataset();
-    const zone = multiCountry ? ` · ${focus.timezone.split("/").at(-1)!.replaceAll("_", " ")}` : "";
-    hudDateElement.textContent = `${fmtHudDate(time, focus.timezone)}${zone}`;
+    const zone = focus.timezone.split("/").at(-1)!.replaceAll("_", " ");
+    hudDateElement.textContent = `${fmtHudDate(time, focus.timezone)} · ${zone}`;
     timeElement.textContent = fmtHudTime(time, focus.timezone);
     timeElement.dateTime = new Date(time * 1000).toISOString();
-    playbackIcon.textContent = clock.paused ? "▶" : "Ⅱ";
+    playIcon.classList.toggle("hidden", !clock.paused);
+    pauseIcon.classList.toggle("hidden", clock.paused);
     playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
-    speedValue.textContent = clock.paused ? "Paused" : `${clock.speed}×`;
-    countElement.textContent = `${items.length.toLocaleString()} trains${dropped ? ` · ${dropped} unplaced` : ""}`;
+    for (const { speed, button } of speedButtons) {
+      const active = speed === clock.speed;
+      button.classList.toggle("on", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    countElement.textContent = items.length.toLocaleString("en-GB");
+    countElement.title = dropped ? `${dropped} trains could not be placed on a route` : "";
+    // The count covers the countries whose trains are loaded, whether or not the train layer is drawn.
+    const counted = win.datasets.filter((index) => enabledDatasets.has(index));
+    activityScope.textContent = multiCountry
+      ? counted.map((index) => datasets[index]!.country).join(" · ") || "No country in view"
+      : datasets[0]!.name;
+    // A window still loading would draw as an empty map; that is latency, not a count.
+    const loaded = time >= win.from && time <= win.to && wantedDatasets().every((index) => win.datasets.includes(index));
+    if (loaded) {
+      activity.record(time, items.length, `${counted.join(",")}|${[...enabledGroups].sort().join(",")}`, focus.timezone);
+    }
     const notice = coverageNotice(time);
     coverageElement.textContent = notice;
     coverageElement.classList.toggle("hidden", notice === "");
