@@ -175,6 +175,34 @@ and all six share 2025-12-15 → 2026-08-30. Finland's 2026 summer is thin by de
 commuter service is cut back in the source timetable from 2026-05-30 to 2026-08-09
 (`docs/data-notes-fi.md`).
 
+**Great Britain** is `datasets/gb`, integrated 2026-09-29. The source is an archive of
+National Rail's Darwin Push Port (ilovetrains.co.uk, hourly files from 2025-09-07). Every
+passenger schedule and every actual time Darwin reported is in it, so national completeness
+follows from the source rather than from station sampling. National Rail's HSP API was
+rejected: it can only be queried per station pair and needs a Rail Data Marketplace login.
+Stations come from NaPTAN (`9100` + TIPLOC).
+
+| Great Britain | Value |
+|---|---:|
+| Source | Darwin Push Port archive + NaPTAN |
+| Coverage | 2025-09-08 → 2026-09-26, 382 UTC days, 2 missing (archive lost the timetable load) |
+| Published legs | 84,779,712 (4.6% scheduled fallback) |
+| Routes / fallbacks | 11,368 / 0 |
+| Leg + journey bytes | 477.6 MB of its 650 MB allocation (zstd level 19) |
+
+- Passenger trains per service day: about 21,900 on weekdays, 20,000 on Saturdays and 12,700
+  on Sundays. 84-87% of public calls have an actual time.
+- Darwin writes the two clock-change nights differently: autumn stays in BST, and spring is
+  wall-clock. Both are handled and tested.
+- 29 archive hours are missing and published as `source_gap_hours`. Christmas Day and Boxing
+  Day publish thin, as the source's own quiet days.
+- The GB bbox touches no other dataset, and Eurostar is clipped at the tunnel, so the
+  cross-border layer was not rebuilt.
+- The details are in [`docs/data-notes-gb.md`](docs/data-notes-gb.md).
+- To rebuild, run `scripts/build_gb.py --fetch` (about 80 GB raw, resumable), then the
+  geometry job on `great-britain-rail.osm.pbf` (see `geometry/README.md`), then
+  `scripts/sync_dataset.py gb`. The bucket is now about 6.11 GB.
+
 ## Published snapshot
 
 | Item | Current value |
@@ -308,6 +336,12 @@ Do these in order unless product priorities change:
 - [ ] Measure cold-load and playback/query latency on desktop and mobile. Build the custom GPU path or
   change file grouping only if measurements show the current scatter/range-request path misses
   the target.
+  - The only query number so far is the "~40 ms warm windowed scrub" in the header comment of
+    `web/src/worker/legs.worker.ts`. It was measured once on 2026-07-16, when only the Swiss
+    dataset existed, and is quoted on the resume. Re-measure against the live six-country
+    bucket: a Playwright script that opens the app, scrubs a shared-coverage day, and records
+    median and p95 worker query time (warm and cold), with several countries in view. Record
+    the result here and update the worker comment.
 - [ ] Decide whether aggregates are a product requirement; `aggregates_json` is still an
   intentional `NotImplementedError` stub.
 - [ ] Audit `missing_time` and decide the zero-duration policy described above.

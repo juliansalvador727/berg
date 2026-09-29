@@ -111,6 +111,22 @@ uv run python -m berg_geometry.build --fit-bbox \
     --out ../data/datasets/de/publish/static/routes.bin                  # ~20 min
 ```
 
+Great Britain (`datasets/gb`) uses the Geofabrik extract, cut to its rail network first like
+Germany. download.geofabrik.de serves one connection at about 50 KB/s here, so the 2.2 GB file
+comes down as 24 parallel ranges (about an hour at 600 KB/s combined):
+
+```sh
+U=$(curl -sIL -o /dev/null -w '%{url_effective}' \
+    https://download.geofabrik.de/europe/great-britain-latest.osm.pbf)
+# fetch byte ranges of $U in parallel (curl -r), then concatenate them in order
+uv run python -m berg_geometry.merge_osm --extract \
+    ../data/raw/great-britain-rail.osm.pbf ../data/raw/great-britain-latest.osm.pbf  # 37 s, 7 MB
+uv run python -m berg_geometry.build --fit-bbox \
+    --pbf ../data/raw/great-britain-rail.osm.pbf \
+    --db ../data/datasets/gb/berg.duckdb --dim ../data/datasets/gb/dim_station.parquet \
+    --out ../data/datasets/gb/publish/static/routes.bin                  # ~3 min
+```
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted

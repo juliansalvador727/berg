@@ -3,7 +3,7 @@
 Historical European train movements, replayed in the browser.
 
 berg started as a Swiss train watcher and now covers Switzerland, Finland, the Netherlands,
-Belgium, Germany and Austria. Each country is its own dataset with its own source, coverage and
+Belgium, Germany, Austria and Great Britain. Each country is its own dataset with its own source, coverage and
 time semantics. A cross-border layer links them so a train can be followed from one country
 into the next.
 
@@ -22,8 +22,10 @@ intermediate stops rather than only at the ends of a trip.
 | Belgium | Infrabel punctuality files | 2023-01-01 to 2026-08-30 | 46.0M | observed |
 | Germany | DB IRIS via piebro/deutsche-bahn-data | 2025-11-03 to 2026-08-30 | 124.2M | final prediction |
 | Austria | ÖBB-Infrastruktur train runs + ÖBB-PV GTFS | 2025-12-15 to 2026-09-05 | 16.0M | scheduled + interpolated delay |
+| Great Britain | National Rail Darwin, archived Push Port | 2025-09-08 to 2026-09-26 | 84.8M | observed |
 
-All six overlap from 2025-12-15 to 2026-08-30, and the viewer opens on the first day they all
+Great Britain touches no other dataset (Eurostar stops at the tunnel), so it has no
+cross-border links. The first six overlap from 2025-12-15 to 2026-08-30, and the viewer opens on the first day they all
 share. Outside a country's coverage the map says so instead of showing an empty network.
 
 The "Times" column matters. Observed data is what the train actually did. The Netherlands only
@@ -79,7 +81,7 @@ European country follows the same pattern:
 
 ```sh
 cd pipeline
-uv run python scripts/build_nl.py --fetch   # or build_be / build_de / build_at; Finland uses fetch_fi.py then build_fi.py
+uv run python scripts/build_nl.py --fetch   # or build_be / build_de / build_at / build_gb; Finland uses fetch_fi.py then build_fi.py
 # run the geometry job for that country (see geometry/README.md)
 uv run python scripts/sync_dataset.py nl
 ```
@@ -88,7 +90,7 @@ After any dataset changes, rebuild the cross-border layer with `scripts/build_li
 `scripts/sync_links.py`.
 
 The whole bucket has to stay inside the Cloudflare R2 free tier (10 GB). Each dataset has a size
-cap and `sync_dataset.py` refuses to upload past it. It is currently around 5.6 GB.
+cap and `sync_dataset.py` refuses to upload past it. It is currently around 6.1 GB.
 
 ## Documentation
 
@@ -96,7 +98,7 @@ cap and `sync_dataset.py` refuses to upload past it. It is currently around 5.6 
 - [`europe.md`](europe.md): the European plan, R2 budget, identity model and country research
 - [`docs/cross-border.md`](docs/cross-border.md): station crosswalk, dedup and journey links
 - [`docs/data-notes.md`](docs/data-notes.md): Swiss source-data behavior and design decisions
-- `docs/data-notes-{fi,nl,be,de,at}.md`: the same for each European dataset
+- `docs/data-notes-{fi,nl,be,de,at,gb}.md`: the same for each European dataset
 - [`docs/product-roadmap.md`](docs/product-roadmap.md): observer UI, GLB, detailed rail map,
   terrain, search and station-board plan
 - [`infra/README.md`](infra/README.md): bucket contract, CORS and steady-state operations
@@ -110,6 +112,8 @@ cap and `sync_dataset.py` refuses to upload past it. It is currently around 5.6 
 - Germany: Deutsche Bahn Timetables and StaDa APIs via
   [piebro/deutsche-bahn-data](https://huggingface.co/datasets/piebro/deutsche-bahn-data), CC BY 4.0
 - Austria: ÖBB-Infrastruktur (CC BY 3.0 AT) and ÖBB-Personenverkehr (CC BY 4.0)
+- Great Britain: National Rail Enquiries (Darwin, OGL v2.0 as amended by NRE), archived by
+  [ilovetrains.co.uk](https://ilovetrains.co.uk/darwin-push-port); stations from NaPTAN (OGL v3.0)
 - Rail geometry and map data: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
   ODbL
 - Planned production basemap packaging: [Protomaps](https://protomaps.com)

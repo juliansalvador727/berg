@@ -111,7 +111,7 @@ NL_COUNTRY = {
     "L": "LU",
 }
 # Geometry job station ids must be unique across datasets.
-GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5, "at": 6}
+GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5, "at": 6, "gb": 7}
 
 FLAG_ROUTE_FRACTION = 1 << 2
 
