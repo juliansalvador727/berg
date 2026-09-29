@@ -290,6 +290,50 @@ AUSTRIA = DatasetConfig(
     ),
 )
 
+GREAT_BRITAIN = DatasetConfig(
+    dataset_id="gb",
+    country="GB",
+    name="Great Britain",
+    timezone="Europe/London",
+    bbox=(-8.7, 49.8, 1.9, 60.9),
+    # Darwin sends an actual time ("at") per call from track circuits, TRUST and GPS, in whole
+    # minutes; forecasts are never read. See docs/data-notes-gb.md.
+    time_semantics="observed",
+    timestamp_precision_s=60,
+    scope="national-passenger",
+    provider="National Rail Enquiries Darwin, via the Rail Data Marketplace",
+    # Darwin's terms of access are OGL v2.0 with NRE amendments and require attribution to
+    # National Rail Enquiries. The third-party archive states no licence of its own.
+    license="Darwin: OGL v2.0 as amended by NRE; stations: NaPTAN, OGL v3.0",
+    license_url="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/2/",
+    attribution="Source: National Rail Enquiries (Darwin); archive by ilovetrains.co.uk; "
+    "stations: NaPTAN (OGL v3.0)",
+    source_urls=(
+        "https://ilovetrains.co.uk/darwin-push-port",
+        "https://raildata.org.uk/dashboard/dataProduct/P-d3bf124c-1058-4040-8a62-87181a877d59/overview",
+        "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv",
+    ),
+    station_namespace="gb-tiploc",
+    # The ORR "on time" measure: arrival within 59 seconds of the timetable. The wire's
+    # whole-minute actuals make the 3-minute European threshold the useful one in the UI.
+    punctuality_threshold_s=60,
+    min_legs_per_day=20_000,
+    # The archive starts with a partial 2025-09-07. The last UTC day needs the next archive
+    # day for trains past midnight.
+    coverage_start="2025-09-08",
+    coverage_end="2026-09-26",
+    # Measured on 2025-09-08..11: 5.5 B/leg incl. sidecar, ~1.34 MB per day.
+    storage_cap_bytes=650_000_000,
+    countries=("GB",),
+    compression_level=19,
+    notes=(
+        "Actual times are Darwin's reported actuals; a call without one falls back to the "
+        "timetable, flagged as scheduled.",
+        "Only public calls of passenger trains are published; passing points are dropped.",
+        "Only legs between British stations are published; Eurostar is clipped at the tunnel.",
+    ),
+)
+
 DATASETS: dict[str, DatasetConfig] = {
-    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY, AUSTRIA)
+    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY, AUSTRIA, GREAT_BRITAIN)
 }

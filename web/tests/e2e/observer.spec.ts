@@ -343,6 +343,34 @@ test("flies to Austria and labels interpolated-delay times", async ({ page }) =>
   await expect(page.locator("#details .source")).toContainText("ÖBB-Infrastruktur");
 });
 
+test("flies to Great Britain and labels observed times", async ({ page }) => {
+  await openObserver(page);
+
+  await page.keyboard.press("Control+k");
+  await page.locator("#command-input").fill("Great Britain");
+  const fly = page.locator("#command-results .command-item", { hasText: "Fly to Great Britain" });
+  await expect(fly).toBeVisible();
+  await fly.evaluate((element: HTMLElement) => element.click());
+
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? []), { timeout: 60_000 })
+    .toContain("gb");
+  await expect
+    .poll(
+      async () => (await trainPoints(page)).filter((train) => train.dataset === "gb").length,
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#hud-date")).toContainText("London");
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("London Euston"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+  await expect(page.locator(".board-departure").first()).toBeVisible();
+  // Darwin's actual times are observations; forecasts are never read.
+  await expect(page.locator("#details .eyebrow")).toContainText("observed");
+  await expect(page.locator("#details .source")).toContainText("National Rail Enquiries");
+});
+
 test("follows a train across the Swiss–German border and draws the border belt once", async ({ page }) => {
   await openObserver(page);
   await expect
