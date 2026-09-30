@@ -1,0 +1,77 @@
+name,code,display,lat,lon,note
+MODUGNO,S11516,,,,"Two codes 5 km apart; the Bari-Taranto trains call at the one in the current registry"
+VILLANOVA,S00458,Villanova d'Asti,44.96311,7.94706,"Torino-Asti line; the name index gives a Ferrara-area code"
+PALAZZOLO,S01083,,,,"Between Varedo and Paderno Dugnano: Palazzolo Milanese"
+SAN MAURIZIO,S00089,S.Maurizio Canavese,45.21651,7.6304,"Torino-Ceres line; list coordinates wrong"
+S.MAURIZIO CANAVESE,S00089,S.Maurizio Canavese,45.21651,7.6304,"Registry coordinates near 0N 0E"
+SAN MAURIZIO CANAVESE,S00089,S.Maurizio Canavese,45.21651,7.6304,
+ACQUAVIVA,X00001,Acquaviva Platani,37.57042,13.67481,"Palermo-Agrigento line between Campofranco and Cammarata; the index code is Acquaviva delle Fonti"
+ROVERETO-S.VITO-MEDELANA,S05173,Rovereto-S.Vito-Medelana,44.76703,11.87459,"FER Ferrara-Codigoro; list coordinates wrong"
+ROVERETO - S.V. - MEDELANA,S05173,Rovereto-S.Vito-Medelana,44.76703,11.87459,
+Sferracavallo,S12066,,,,"Pre-2025 spelling"
+MILANO BOVISA FNM,S01642,,,,
+TORINO C.SO GROSSETO,S00097,Torino Grosseto,45.10524,7.66713,
+TORINO CORSO GROSSETO,S00097,Torino Grosseto,45.10524,7.66713,"Opened 2025; not in the registry"
+FRASSO TELESINO-DUGENTA,S09305,,,,
+MILANO BRUZZANO,S01079,,,,
+BOVISO MASCIAGO - MOMBELLO,S01085,,,,"Misspelling of Bovisio Masciago-Mombello"
+GAZZERA,S02719,,,,
+BUSTO ARSIZIO RFI,S01031,,,,
+BORGO S. GIOVANNI,S01797,,,,"Brescia-Iseo line"
+PADERNO,S01794,,,,"Paderno Franciacorta, Brescia-Iseo line"
+PIANCAMUNO - GRATACASOLO,X00002,Piancamuno-Gratacasolo,45.84004,10.1388,"FNM Brescia-Iseo-Edolo"
+Brindisi-Perrino,X00003,Brindisi Perrino,40.62844,17.91494,
+BAGGIOVARA,S05185,Baggiovara,44.59924,10.86202,"FER Modena-Sassuolo (OSM: Bertola-Baggiovara)"
+BAGGIOVARA OSPEDALE,S05186,Baggiovara Ospedale,44.60336,10.87452,"FER Modena-Sassuolo; registry coordinates 109 km off"
+SASSUOLO TERMINAL,S05180,Sassuolo Terminal,44.54424,10.78677,
+SASSUOLO,S05180,Sassuolo Terminal,44.54424,10.78677,"Pre-2025 name"
+SASSUOLO QUATTROPONTI,S05181,Sassuolo Quattroponti,44.553,10.79764,
+QUATTROPONTI,S05181,Sassuolo Quattroponti,44.553,10.79764,"Pre-2025 name"
+MODENA FORNACI,S05187,Modena Fornaci,44.61395,10.88985,
+FORNACI,S05187,Modena Fornaci,44.61395,10.88985,"Pre-2025 name"
+REGGIO S.STEFANO,S05935,Reggio Santo Stefano,44.70547,10.62388,"FER Reggio-Ciano"
+S.POLO D'ENZA,S05923,San Polo d'Enza,44.62458,10.42359,
+BARCO,S05929,Barco,44.69042,10.49307,"Registry coordinates 226 km off"
+BIVIO BARCO,X00004,Bivio Barco,44.69458,10.49848,"A FER halt, not a junction"
+BIBBIANO FOSSA,X00005,Bibbiano Fossa,44.67285,10.478,
+FOSSA,X00005,Bibbiano Fossa,44.67285,10.478,"Pre-2025 name"
+REGGIO VIA FANTI TRIBUNALE,S05936,Reggio Via Fanti,44.7059,10.63379,
+VIA FANTI - TRIBUNALE,S05936,Reggio Via Fanti,44.7059,10.63379,"Pre-2025 name"
+S.LAZZARO,S05192,Reggio San Lazzaro,44.68999,10.66707,"FER Reggio-Sassuolo, pre-2025 name"
+REGGIO S.LAZZARO,S05192,Reggio San Lazzaro,44.68999,10.66707,"Registry point 1 km off the track"
+BAGNOLO SOAVE,S05945,Bagnolo Soave,44.77105,10.68042,"FER Reggio-Guastalla"
+PIEVE ROSSA,S05944,Pieve Rossa,44.77917,10.68438,
+S.TOMASO,S05943,San Tomaso,44.794,10.69137,
+S.GIOVANNI (FER),S05941,San Giovanni,44.81309,10.70398,
+S.BERNARDINO,S05939,San Bernardino,44.86977,10.68665,
+S.GIACOMO (FER),S05938,San Giacomo,44.89463,10.65839,
+S.GIACOMO (FSC),S05938,San Giacomo,44.89463,10.65839,"Pre-2025 name"
+BRESCELLO VIADANA,X00007,Brescello-Viadana,44.89798,10.519,"FER Parma-Suzzara"
+BRESCELLO-VIADANA,X00007,Brescello-Viadana,44.89798,10.519,
+LENTIGIONE,S05965,Lentigione,44.86491,10.48197,
+SORBOLO,S05966,Sorbolo,44.84318,10.44629,
+BOLOGNA ROVERI,S05019,Bologna Roveri,44.49829,11.40935,"FER Bologna-Portomaggiore"
+ROVERI,S05019,Bologna Roveri,44.49829,11.40935,"Pre-2025 name"
+CA' DELL'ORBO,X00008,Ca' dell'Orbo,44.5019,11.43488,
+FERRARA CITTA' DEL RAGAZZO,X00009,Ferrara Citta' del Ragazzo,44.81561,11.66057,"FER Ferrara-Codigoro"
+CITTA' DEL RAGAZZO,X00009,Ferrara Citta' del Ragazzo,44.81561,11.66057,"Pre-2025 name"
+CERETOLO,X00010,Casalecchio Ceretolo,44.48146,11.26292,"FER Bologna-Vignola"
+RIATE,X00011,Riale,44.48548,11.24107,"Typo of Riale, between Casalecchio Palasport and Pilastrino"
+RIALE,X00011,Riale,44.48548,11.24107,
+SAVIGNANO COMUNE,X00012,Savignano Comune,44.48329,11.03287,
+SAVIGNANO CENTRO,S05977,Savignano Centro,44.48329,11.03287,"Same stop as Savignano Comune (renamed)"
+VIGNOLA,S05978,Vignola,44.48178,11.00846,
+MARTINA FRANCA,S13104,Martina Franca,40.70061,17.33159,"FSE Martina Franca-Taranto"
+MARTINA FRANCA-COLONNE GRASSI,S13128,Martina Franca-Colonne Grassi,40.68516,17.33142,
+MARTINA FRANCA COLONNE GRASSI,S13128,Martina Franca-Colonne Grassi,40.68516,17.33142,
+S.PAOLO (FSC),S13129,San Paolo,40.64584,17.31506,
+S.PAOLO (FSE),S13129,San Paolo,40.64584,17.31506,
+CRISPIANO,S13131,Crispiano,40.60503,17.23793,
+STATTE,S13132,Statte,40.56579,17.21252,
+ROCCELLA,S12032,Palermo Roccella,38.08731,13.4077,"Palermo-Messina line; registry point 1.3 km off the track"
+L'AQUILA SASSA NUCLEO SVILUPPO,S07415,L'Aquila Sassa NSI,42.36387,13.31286,"Registry point 2 km off the track"
+PALAZZOLO M.SE,S01083,,,,"FerrovieNord's old name; the Figshare code S00114 has a point off the track"
+PERCA,S02018,,,,"Old name of Perca-Plan de Corones; its 2024 code is today's Brunico Nord"
+OLBIA TERRANOVA,X00013,Olbia Terranova,40.92203,9.49383,"Its own station 0.5 km from Olbia, sharing Olbia's code in the 2024 list"
+PORTA OVEST,S02833,Venezia Porta Ovest,45.46355,12.17938,"Opened 2025; registry point 2.7 km off"
+GUIDONIA-MONTECELIO,S08506,,,,"Old name of Guidonia-Montecelio-S.Angelo"

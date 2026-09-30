@@ -93,6 +93,15 @@ if all of these hold:
 - At least 60% of its crossings take within 30% (at least 5 minutes) of the pair's median
   duration.
 
+A single crossing is not a bridge candidate at all if the train turns back more than 135° on
+either side of the gap, measured against the stop before and the stop after it. A train that
+crosses a border without being seen there keeps running in the same general direction. Swiss
+TILO trains (Locarno/Bellinzona → Castione-Arbedo) and Italian Trenord trains (Melegnano →
+Milano Bovisa, S. Giuliano Milanese → Lodi) share 256xx/257xx numbers. That coincidence passed
+every count above at up to 20 a day, turning 150–170° at Castione-Arbedo. Across every
+accepted bridge from 2023-02 to 2026-09, the sharpest real turn on either side is 117°
+(Maastricht → Herzogenrath).
+
 A crossing on an accepted pair is still dropped when its duration is off the pair's median by
 more than 35% (at least 10 minutes). One example is IC 2872 → L 2872, which took 78 minutes on
 the 40-minute Rotterdam → Antwerp pair. The manifest lists every candidate pair with its

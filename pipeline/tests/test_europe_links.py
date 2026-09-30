@@ -27,6 +27,7 @@ CH_STATIONS = [
     (8500090, "Basel Bad Bf", 7.6075, 47.5673),
     (8500010, "Basel SBB", 7.5895, 47.5474),
     (8014442, "Weil am Rhein", 7.6205, 47.5906),  # a German station in the Swiss archive
+    (8500023, "Liestal", 7.7336, 47.4843),
 ]
 DE_STATIONS = [
     (8000107, "Freiburg (Breisgau) Hbf", 7.8412, 47.9977),
@@ -90,13 +91,13 @@ def world(tmp_path: Path, monkeypatch) -> dict[str, links.Source]:
     write_source(
         ch.publish_root,
         CH_STATIONS,
-        {1: (8500090, 8500010), 2: (8014442, 8500090), 3: (8500010, 8500090)},
+        {1: (8500090, 8500010), 2: (8014442, 8500090), 3: (8500010, 8500023)},
         legs=[
             # ICE 275 from Basel Bad Bf, 35 minutes after Germany's last stop at Freiburg.
             (1, 0, t(10, 35), 300, 7, 0, 0),
             # RB 17001 carried on from Weil am Rhein, where Germany's journey ends.
             (2, 1, t(10, 50), 300, 3, 60, 0),
-            # S 999 at Basel SBB: its number matches a German train that ends at Freiburg.
+            # S 999 Basel SBB → Liestal: its number matches a German train that ends at Freiburg.
             (3, 2, t(11, 0), 240, 5, 0, 0),
         ],
         journeys=[
@@ -176,6 +177,43 @@ def test_a_bridge_never_spans_what_the_other_dataset_sees(world):
     for (ds, _), g in canon.items():
         seen_by.setdefault(g, set()).add(ds)
     assert links._judge(first, second, world["de"], world["ch"], stations, canon, seen_by) is None
+
+
+def test_a_bridge_never_doubles_back(world):
+    """Two trains that share a number, where one turns round at the gap, are not one train
+    crossing: the TILO Castione-Arbedo → Trenord S. Giuliano Milanese case. A train running on
+    through the gap (Freiburg → Müllheim, then Basel Bad Bf → Basel SBB) is kept."""
+    stations = served(world)
+    canon = links.canonical_map(links.build_crosswalk(stations))
+
+    def first(origin):
+        return (
+            1,
+            "RB 17100",
+            [
+                {"station": origin, "t": t(10, 30), "side": "dep", "type": 2, "delay": 0},
+                {"station": 8000108, "t": t(10, 48), "side": "arr", "type": 2, "delay": 0},
+            ],
+        )
+
+    def second(towards):
+        return (
+            2,
+            "S 17100",
+            [
+                {"station": 8500090, "t": t(11, 10), "side": "dep", "type": 5, "delay": 0},
+                {"station": towards, "t": t(11, 15), "side": "arr", "type": 5, "delay": 0},
+            ],
+        )
+
+    def judge(origin, towards):
+        return links._judge(
+            first(origin), second(towards), world["de"], world["ch"], stations, canon, {}
+        )
+
+    assert judge(8000107, 8500010)["kind"] == "bridge"  # south throughout
+    assert judge(8000107, 8014442) is None  # back north to Weil am Rhein after the gap
+    assert judge(8006000, 8500010) is None  # came north from Weil, then south across the gap
 
 
 def bridge_link(frm, to, number, dur, day):

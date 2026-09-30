@@ -73,6 +73,13 @@ BRIDGE_MIN_NUMBERS_ONE_WAY = 8
 BRIDGE_EDGE_M = 60_000  # each end this close to a station the other dataset serves
 BRIDGE_CONSISTENT_SHARE = 0.6  # most crossings take about the pair's median time
 BRIDGE_DUR_TOLERANCE = 0.3  # "about": within 30% (at least 5 min) of the median
+# A train crossing a border it is not seen on runs on through: it does not double back at
+# either end of the gap. CH TILO 256xx trains share numbers with IT Trenord REG 256xx trains.
+# TILO runs Locarno/Bellinzona → Castione-Arbedo and Trenord Melegnano → Milano Bovisa or
+# S. Giuliano Milanese. They passed every count above at up to 20 a day, turning 150-170° at
+# the Swiss end. Across every accepted bridge of 2023-02..2026-09, the sharpest real turn on
+# either side is 117° (Maastricht → Herzogenrath).
+BRIDGE_MAX_TURN_DEG = 135.0
 
 # Europe.md: "apply a documented source-priority rule to the rendered duplicate".
 EVIDENCE_RANK = {
@@ -111,7 +118,7 @@ NL_COUNTRY = {
     "L": "LU",
 }
 # Geometry job station ids must be unique across datasets.
-GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5, "at": 6, "gb": 7}
+GEOMETRY_ID_PREFIX = {"ch": 1, "fi": 2, "nl": 3, "be": 4, "de": 5, "at": 6, "gb": 7, "it": 8}
 
 FLAG_ROUTE_FRACTION = 1 << 2
 
@@ -214,6 +221,16 @@ def distance_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     x = math.radians(lon2 - lon1) * math.cos(math.radians((lat1 + lat2) / 2))
     y = math.radians(lat2 - lat1)
     return 6_371_000 * math.hypot(x, y)
+
+
+def bearing_deg(a: dict, b: dict) -> float:
+    """Initial direction from station a to station b, degrees clockwise from north."""
+    x = (b["lon"] - a["lon"]) * math.cos(math.radians((a["lat"] + b["lat"]) / 2))
+    return math.degrees(math.atan2(x, b["lat"] - a["lat"]))
+
+
+def turn_deg(b1: float, b2: float) -> float:
+    return abs((b2 - b1 + 180) % 360 - 180)
 
 
 def station_country(src: Source, station_id: int, dim_country: str | None) -> str:
@@ -442,12 +459,16 @@ def link_day(
     if not (journey_visits(con, a, day, "_va") and journey_visits(con, b, day, "_vb")):
         return []
     rows = {}
-    for tag, src in (("a", a), ("b", b)):
+    for tag, other in (("a", "b"), ("b", "a")):
+        # Only a number both datasets run can link. Fetching every journey of Germany's day into
+        # Python, once per neighbour pair, took most of the build and its memory.
         visits = con.execute(f"""
             SELECT journey_id, any_value(trip_id), any_value(number),
                    list(struct_pack(station := station, t := t, side := side,
                                     type := type, delay := delay) ORDER BY t, side)
-            FROM _v{tag} WHERE number IS NOT NULL GROUP BY journey_id""").fetchall()
+            FROM _v{tag}
+            WHERE number IN (SELECT number FROM _v{other} WHERE number IS NOT NULL)
+            GROUP BY journey_id""").fetchall()
         by_number: dict[str, list] = {}
         for jid, trip, number, calls in visits:
             by_number.setdefault(number, []).append((jid, trip, calls))
@@ -534,6 +555,29 @@ def _judge(first, second, fs: Source, ss: Source, stations, canon, seen_by) -> d
         and BRIDGE_MIN_SPEED_MS <= dist / gap_s <= BRIDGE_MAX_SPEED_MS
     ):
         return None
+    before = next(
+        (
+            stations[fs.dataset_id].get(c["station"])
+            for c in reversed(calls_f)
+            if c["station"] != last["station"]
+        ),
+        None,
+    )
+    after = next(
+        (
+            stations[ss.dataset_id].get(c["station"])
+            for c in calls_s
+            if c["station"] != start["station"]
+        ),
+        None,
+    )
+    if before is not None and after is not None:
+        across = bearing_deg(st_f, st_s)
+        if (
+            turn_deg(bearing_deg(before, st_f), across) > BRIDGE_MAX_TURN_DEG
+            or turn_deg(across, bearing_deg(st_s, after)) > BRIDGE_MAX_TURN_DEG
+        ):
+            return None  # doubles back: two trains sharing a number
     return base | {
         "kind": "bridge",
         "at": int(start["t"]),
@@ -606,6 +650,9 @@ def build(
         days = {d: p for d, p in days.items() if d <= last}
     con = duckdb.connect()
     con.execute("SET enable_progress_bar = false")
+    # DuckDB's default (80% of RAM) plus the per-day links held in Python ran a 7.5 GB machine
+    # out of memory around the day Germany's larger files start being read.
+    con.execute("SET memory_limit = '3GB'")
     per_day: dict[date, list[dict]] = {}
     for n, day in enumerate(sorted(days), 1):
         links = []

@@ -29,6 +29,8 @@ RAIL_INPUTS = {
     # The Overpass rail export merged with the lines OSM tags as under construction in 2026
     # (Wien Stammstrecke, Feldkirch - Buchs), which carried trains in the window.
     "at": RAW / "austria-rail.osm.pbf",
+    # Italy's rail cut before its border boxes are merged in (geometry/README.md).
+    "it": RAW / "italy-rail-only.osm.pbf",
 }
 
 

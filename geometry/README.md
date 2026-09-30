@@ -127,6 +127,31 @@ uv run python -m berg_geometry.build --fit-bbox \
     --out ../data/datasets/gb/publish/static/routes.bin                  # ~3 min
 ```
 
+Italy (`datasets/it`) uses the Geofabrik extract (2.2 GB, 8 parallel ranges at ~2 MB/s each
+here, about 5 minutes), cut to rail *including* track OSM tags as under construction: the
+Bergamo – Montello doubling, Castenaso and Decimomannu – Villamassargia carried trains all
+window. Border approaches come from the Swiss rail file and two small Overpass boxes (the
+Roya valley and Modane in France, Gorizia – Nova Gorica). Rail never crosses the Strait of
+Messina, so Villa San Giovanni – Messina stays a flagged straight line:
+
+```sh
+uv run python -m berg_geometry.merge_osm --extract-with-construction \
+    ../data/raw/italy-rail-only.osm.pbf ../data/raw/italy-260928.osm.pbf     # ~2 min
+for b in "43.70,7.30,44.30,7.80" "44.95,6.50,45.30,6.95" "45.60,13.45,46.10,13.95"; do
+  curl -s -A "berg-geometry/1.0" -o "../data/raw/italy-border-$b.osm" --data-urlencode \
+    "data=[out:xml][timeout:300];way[\"railway\"~\"^(rail|narrow_gauge|light_rail)\$\"]($b);(._;>;);out body;" \
+    https://overpass.kumi.systems/api/interpreter
+done
+uv run python -m berg_geometry.merge_osm ../data/raw/italy-rail.osm.pbf \
+    ../data/raw/italy-rail-only.osm.pbf ../data/raw/switzerland-rail.osm.pbf \
+    ../data/raw/italy-border-*.osm
+uv run python -m berg_geometry.build --fit-bbox --pbf ../data/raw/italy-rail.osm.pbf \
+    --db ../data/datasets/it/berg.duckdb --dim ../data/datasets/it/dim_station.parquet \
+    --out ../data/datasets/it/publish/static/routes.bin                  # ~4 min
+```
+
+`routes.report.json` lists every straight-line route as `fallback_pairs` for review.
+
 ## How it works
 
 1. Load `railway=rail|narrow_gauge|light_rail` ways from the Geofabrik extract into a weighted

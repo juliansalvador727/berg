@@ -334,6 +334,60 @@ GREAT_BRITAIN = DatasetConfig(
     ),
 )
 
+ITALY = DatasetConfig(
+    dataset_id="it",
+    country="IT",
+    name="Italy",
+    timezone="Europe/Rome",
+    bbox=(6.6, 36.6, 18.6, 47.1),
+    # TrainStats records ViaggiaTreno's scheduled time and the final reported deviation in
+    # whole minutes per stop — never an absolute actual time. See docs/data-notes-it.md.
+    time_semantics="delay_only",
+    timestamp_precision_s=60,
+    # ViaggiaTreno's passenger coverage as TrainStats collected it: Trenitalia, Trenitalia
+    # TPER, Trenord and a few regional operators; not Italo, not most concession railways.
+    scope="viaggiatreno-passenger",
+    provider="TrainStats (ViaggiaTreno / RFI / Trenitalia data)",
+    license="TrainStats: free reuse without restriction; underlying data from ViaggiaTreno",
+    license_url="https://trainstats.altervista.org/readme.php",
+    attribution="Source: TrainStats (trainstats.altervista.org), collected from ViaggiaTreno",
+    source_urls=(
+        "https://trainstats.altervista.org/",
+        "https://github.com/emanu37429/trainstats",
+        "https://www.dropbox.com/scl/fo/uv5rz6y6gqpkpciyymg0b/ALu4uc7oD0v_iGdFsSYYJZE",
+        "https://mega.nz/folder/aQRUAAiY",
+        "https://doi.org/10.6084/m9.figshare.28891607",
+    ),
+    station_namespace="it-viaggiatreno",
+    # Trenitalia and TrainStats count a train on time up to 5 minutes late.
+    punctuality_threshold_s=300,
+    # Measured 2023-02..2026-09: 56k-103k published legs per UTC day, 14k on the thinnest
+    # strike day (published thin, source-attested). Collection outages are not published.
+    min_legs_per_day=20_000,
+    # TrainStats' current format starts 2023-02-01 (see docs/data-notes-it.md); the archive
+    # was fetched on 2026-09-29 through 2026-09-27, and the last UTC day needs the next
+    # service day's first hours.
+    coverage_start="2023-02-01",
+    coverage_end="2026-09-26",
+    # Measured: 696.5 MB for 1,326 days (6.32 B/leg incl. sidecar).
+    storage_cap_bytes=800_000_000,
+    countries=("IT",),
+    compression_level=19,
+    notes=(
+        "Times are scheduled plus the final reported delay in whole minutes; not observations.",
+        "Departure delays run 1-2 min above the previous arrival's: dwell looks long and running "
+        "short, as reported. An arrival not after the previous departure uses the timetable.",
+        "Before 2023-11-04 FerrovieNord stations reported zero delay; those calls are shown as "
+        "scheduled.",
+        "Only trains ViaggiaTreno lists are covered (~93% of the trains Trenitalia counts): no "
+        "Italo, few concession railways; mixed RFI/FerrovieNord trains are reliable on RFI only.",
+        "Days TrainStats did not collect are missing, not quiet: 2023-06-04/05, 2023-11-01, "
+        "2024-06-08, 2024-12-12/13, 2026-06-28, 2026-07-07.",
+        "Only legs between Italian stations are published; cross-border legs are clipped. The "
+        "Messina strait ferry is drawn as a flagged straight line.",
+    ),
+)
+
 DATASETS: dict[str, DatasetConfig] = {
-    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY, AUSTRIA, GREAT_BRITAIN)
+    d.dataset_id: d for d in (FINLAND, NETHERLANDS, BELGIUM, GERMANY, AUSTRIA, GREAT_BRITAIN, ITALY)
 }

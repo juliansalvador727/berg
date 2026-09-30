@@ -6,6 +6,7 @@ id once, nodes before ways, so `load_rail_network` resolves every location in on
 
     uv run python -m berg_geometry.merge_osm out.osm.pbf tile1.osm tile2.osm ...
     uv run python -m berg_geometry.merge_osm --extract out.osm.pbf germany-latest.osm.pbf
+    uv run python -m berg_geometry.merge_osm --extract-with-construction out.osm.pbf italy.osm.pbf
 """
 
 import sys
@@ -36,13 +37,17 @@ def merge(out: Path, inputs: list[Path]) -> dict:
     return {"nodes": len(seen_nodes), "ways": len(seen_ways), "bytes": out.stat().st_size}
 
 
-def extract_rail(out: Path, pbf: Path) -> dict:
+def extract_rail(out: Path, pbf: Path, construction: bool = False) -> dict:
     """A country extract → only its rail ways and their nodes, in two passes.
 
     `load_rail_network` resolves node locations with an in-memory index over every node in
     the file, which a 4.8 GB country extract does not fit on an 8 GB machine. Ways first
     (collecting the node ids they need), then only those nodes, keeps memory to the rail
     network itself.
+
+    construction=True also keeps rail under construction, retagged as rail: OSM marks track
+    that trains ran on throughout a dataset's window as railway=construction while it is
+    being doubled or rebuilt (Bergamo – Montello, Decimomannu – Villamassargia in Italy).
     """
     from berg_geometry.pbf import RAIL_TYPES
 
@@ -50,10 +55,17 @@ def extract_rail(out: Path, pbf: Path) -> dict:
     needed: set[int] = set()
     rail_filter = osmium.filter.KeyFilter("railway")
     for w in osmium.FileProcessor(str(pbf), osmium.osm.WAY).with_filter(rail_filter):
-        if w.tags.get("railway") in RAIL_TYPES:
+        tags = dict(w.tags)
+        if (
+            construction
+            and tags.get("railway") == "construction"
+            and tags.get("construction", "rail") in RAIL_TYPES
+        ):
+            tags["railway"] = tags.get("construction", "rail")
+        if tags.get("railway") in RAIL_TYPES:
             refs = [n.ref for n in w.nodes]
             needed.update(refs)
-            ways.append((w.id, refs, dict(w.tags)))
+            ways.append((w.id, refs, tags))
     if out.exists():
         out.unlink()
     writer = osmium.SimpleWriter(str(out))
@@ -72,7 +84,8 @@ def extract_rail(out: Path, pbf: Path) -> dict:
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "--extract":
-        print(extract_rail(Path(sys.argv[2]), Path(sys.argv[3])))
+    if sys.argv[1] in ("--extract", "--extract-with-construction"):
+        construction = sys.argv[1] == "--extract-with-construction"
+        print(extract_rail(Path(sys.argv[2]), Path(sys.argv[3]), construction))
     else:
         print(merge(Path(sys.argv[1]), [Path(p) for p in sys.argv[2:]]))
