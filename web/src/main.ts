@@ -104,6 +104,8 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       be: new Set(["S"]),
       de: new Set(["S"]),
       at: new Set(["S"]),
+      // GB codes are operators (Darwin's train category is blank), so these are per operator.
+      gb: new Set(["LO", "XR", "ME", "TL"]),
     },
   },
   {
@@ -117,6 +119,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       de: new Set(["RB", "RE", "IRE", "MEX", "RS", "FEX", "R", "OS"]),
       at: new Set(["R", "REX", "CJX", "CAT", "OS", "RB"]),
       it: new Set(["REG", "MET", "IR"]),
+      gb: new Set(["NT", "SR", "AW", "LM", "SN", "SE", "SW", "LE", "GN", "CC", "CH", "IL"]),
     },
   },
   {
@@ -130,6 +133,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       de: new Set(["IC", "IR", "D", "FLX", "WB"]),
       at: new Set(["IC", "IR", "D"]),
       it: new Set(["IC"]),
+      gb: new Set(["GW", "EM", "TP", "GX", "HX"]),
     },
   },
   {
@@ -143,6 +147,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       de: new Set(["ICE", "ECE", "EC", "RJ", "RJX", "TGV", "EST"]),
       at: new Set(["ICE", "EC", "RJ", "RJX"]),
       it: new Set(["FR", "FA", "FB", "EC"]),
+      gb: new Set(["VT", "GR", "XC", "LD", "HT", "GC", "ES"]),
     },
   },
   {
@@ -156,6 +161,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       de: new Set(["NJ", "EN", "ES"]),
       at: new Set(["NJ", "EN"]),
       it: new Set(["ICN", "EN", "EXP"]),
+      gb: new Set(["CS"]),
     },
   },
 ];
