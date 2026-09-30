@@ -150,5 +150,7 @@ def route_all(
         "ratio_p50": round(float(np.median(r)), 3) if len(r) else None,
         "ratio_p99": round(float(np.percentile(r, 99)), 3) if len(r) else None,
         "ratio_max": round(float(r.max()), 3) if len(r) else None,
+        # Every straight-line route, for review: [from, to, reason].
+        "fallback_pairs": sorted([p.from_bpuic, p.to_bpuic, r_] for p, r_ in fallback),
     }
     return routes, report

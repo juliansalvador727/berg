@@ -128,6 +128,13 @@ datasets, and none of them is edited.
     [`docs/cross-border.md`](docs/cross-border.md) and `links/manifest.json`.
 - **Rebuilt 2026-09-25** over the extended window: 101,190 overlaps, 6,434 handovers and
   177,904 bridged crossings over 1,338 days, 65 bridge routes, 0 fallbacks.
+- **Rebuilt 2026-09-30** with Italy: 155,025 overlaps, 36,586 handovers and 199,168 bridged
+  crossings over 1,344 days. There are 80 bridge routes and 0 fallbacks. Italy's real bridges
+  are Brennero ↔ Innsbruck, Brennero ↔ Steinach and Chiasso ↔ Seregno.
+  - Swiss TILO and Italian Trenord trains share 256xx/257xx numbers, which produced false
+    bridges out of Castione-Arbedo. A crossing is now rejected when the train turns back
+    more than 135° on either side of the gap.
+  - The build fetches only numbers both datasets run, so it takes ~42 min and < 1 GB.
 - **Size and rebuild:** the bucket is ~5.46 GB (15,824 objects) after the 2026-09-25 extension. To rebuild after any dataset
   changes, run `scripts/build_links.py`, then `scripts/sync_links.py`.
 
@@ -202,6 +209,31 @@ Stations come from NaPTAN (`9100` + TIPLOC).
 - To rebuild, run `scripts/build_gb.py --fetch` (about 80 GB raw, resumable), then the
   geometry job on `great-britain-rail.osm.pbf` (see `geometry/README.md`), then
   `scripts/sync_dataset.py gb`. The bucket is now about 6.11 GB.
+
+**Italy** is `datasets/it`, integrated 2026-09-29. The source is TrainStats' daily archive of
+ViaggiaTreno (Dropbox from 2024-06-08, Mega before that). It gives scheduled times plus the
+final reported delay in whole minutes, so Italy is labelled `delay_only`, never observed. The
+window starts on 2023-02-01, where TrainStats' current export format begins. Stations are
+resolved from names against OSM, the station lists and the trains' own neighbouring stops,
+because ViaggiaTreno reuses codes and many list coordinates are wrong.
+
+| Italy | Value |
+|---|---:|
+| Source | TrainStats archive (ViaggiaTreno) + OSM |
+| Coverage | 2023-02-01 → 2026-09-26, 1,326 UTC days, 8 missing (collection outages, source gaps) |
+| Published legs | 110,298,251 (21.9% scheduled fallback) |
+| Routes / fallbacks | 12,157 / 101 (62 unsnapped stations, 19 across the Strait of Messina) |
+| Leg + journey bytes | 700.3 MB of its 800 MB allocation (zstd level 19) |
+
+- Coverage is ViaggiaTreno's: Trenitalia, Trenitalia TPER, Trenord and some regional
+  operators, about 93% of the trains Trenitalia counts. No Italo.
+- Twenty strike days publish thin and are listed as `source_quiet_days`; 33 neighbouring
+  hours of the missing days are `source_gap_hours`.
+- The details are in [`docs/data-notes-it.md`](docs/data-notes-it.md).
+- To rebuild, run `scripts/fetch_it.py` (resumable; Mega's anonymous quota makes it sleep),
+  then `scripts/build_it.py` (about 10 minutes), then the geometry job on
+  `italy-rail.osm.pbf` (see `geometry/README.md`), then `scripts/sync_dataset.py it` and
+  the cross-border layer. The bucket is now about 6.81 GB.
 
 ## Published snapshot
 

@@ -67,7 +67,8 @@ def main(pbf: Path, db: Path, dim: Path, out: Path, fit_bbox: bool = False) -> d
     report_path.write_text(json.dumps(report, indent=2))
 
     for k, v in report.items():
-        print(f"{k:>22}: {v}")
+        if k != "fallback_pairs":
+            print(f"{k:>22}: {v}")
     return report
 
 

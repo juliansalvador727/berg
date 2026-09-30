@@ -371,6 +371,34 @@ test("flies to Great Britain and labels observed times", async ({ page }) => {
   await expect(page.locator("#details .source")).toContainText("National Rail Enquiries");
 });
 
+test("flies to Italy and labels reported-delay times", async ({ page }) => {
+  await openObserver(page);
+
+  await page.keyboard.press("Control+k");
+  await page.locator("#command-input").fill("Italy");
+  const fly = page.locator("#command-results .command-item", { hasText: "Fly to Italy" });
+  await expect(fly).toBeVisible();
+  await fly.evaluate((element: HTMLElement) => element.click());
+
+  await expect
+    .poll(() => page.evaluate(() => window.__BERG_E2E__?.loadedDatasets() ?? []), { timeout: 60_000 })
+    .toContain("it");
+  await expect
+    .poll(
+      async () => (await trainPoints(page)).filter((train) => train.dataset === "it").length,
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
+  await expect(page.locator("#hud-date")).toContainText("Rome");
+
+  expect(await page.evaluate(() => window.__BERG_E2E__?.openStation("MILANO CENTRALE"))).toBe(true);
+  await expect(page.locator(".board h3")).toHaveText("Departures", { timeout: 30_000 });
+  await expect(page.locator(".board-departure").first()).toBeVisible();
+  // Scheduled time plus the final reported whole-minute delay: never "observed".
+  await expect(page.locator("#details .eyebrow")).toContainText("scheduled + reported delay");
+  await expect(page.locator("#details .source")).toContainText("TrainStats");
+});
+
 test("follows a train across the Swiss–German border and draws the border belt once", async ({ page }) => {
   await openObserver(page);
   await expect

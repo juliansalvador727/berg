@@ -99,7 +99,7 @@ def publish_days(
     print("train types:", ingest.export_train_types(con, static / "train_types.json"))
     print("route pairs:", ingest.export_route_pairs(con, static / "route_pairs.json"))
 
-    skipped = ", ".join(str((d - date(1970, 1, 1)).days) for d in skip_days) or "NULL"
+    skipped = ", ".join(str((d - date(1970, 1, 1)).days) for d in skip_days) or "-1"
     summary = con.execute(
         f"""SELECT count(*), count(*) FILTER (flags & 1 > 0),
                    count(DISTINCT (service_day, trip_id))

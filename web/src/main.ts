@@ -116,6 +116,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       be: new Set(["L", "P"]),
       de: new Set(["RB", "RE", "IRE", "MEX", "RS", "FEX", "R", "OS"]),
       at: new Set(["R", "REX", "CJX", "CAT", "OS", "RB"]),
+      it: new Set(["REG", "MET", "IR"]),
     },
   },
   {
@@ -128,6 +129,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       be: new Set(["IC"]),
       de: new Set(["IC", "IR", "D", "FLX", "WB"]),
       at: new Set(["IC", "IR", "D"]),
+      it: new Set(["IC"]),
     },
   },
   {
@@ -140,6 +142,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       be: new Set(["ICE", "THA", "EST", "TGV", "EC", "INT"]),
       de: new Set(["ICE", "ECE", "EC", "RJ", "RJX", "TGV", "EST"]),
       at: new Set(["ICE", "EC", "RJ", "RJX"]),
+      it: new Set(["FR", "FA", "FB", "EC"]),
     },
   },
   {
@@ -152,6 +155,7 @@ const SERVICE_GROUPS: ServiceGroup[] = [
       be: new Set(["NJ", "EN", "ES"]),
       de: new Set(["NJ", "EN", "ES"]),
       at: new Set(["NJ", "EN"]),
+      it: new Set(["ICN", "EN", "EXP"]),
     },
   },
 ];
