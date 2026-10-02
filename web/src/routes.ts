@@ -223,21 +223,143 @@ export class Routes {
   }
 
   /** Decode every observed station-pair route once for the low-opacity network layer. */
-  paths(): RoutePath[] {
-    const out: RoutePath[] = new Array(this.routeIds.length);
-    for (let i = 0; i < this.routeIds.length; i++) {
-      const start = this.offsets[i]!;
-      const end = this.offsets[i + 1]!;
-      const path: [number, number][] = new Array(end - start);
-      for (let j = start; j < end; j++) {
-        path[j - start] = this.toLonLat(this.points[j * 2]!, this.points[j * 2 + 1]!);
-      }
-      out[i] = {
-        routeId: this.routeIds[i]!,
-        path,
-        fallback: (this.flags[i]! & FLAG_STRAIGHT_FALLBACK) !== 0,
-      };
+  /** One route's path, or undefined for an unknown id. */
+  path(routeId: number): RoutePath | undefined {
+    const i = this.indexOf(routeId);
+    return i < 0 ? undefined : this.pathAt(i);
+  }
+
+  private pathAt(i: number): RoutePath {
+    const start = this.offsets[i]!;
+    const end = this.offsets[i + 1]!;
+    const path: [number, number][] = new Array(end - start);
+    for (let j = start; j < end; j++) {
+      path[j - start] = this.toLonLat(this.points[j * 2]!, this.points[j * 2 + 1]!);
     }
+    return {
+      routeId: this.routeIds[i]!,
+      path,
+      fallback: (this.flags[i]! & FLAG_STRAIGHT_FALLBACK) !== 0,
+    };
+  }
+
+  /**
+   * The rail network to draw: every distinct segment once, chained into polylines.
+   *
+   * Routes are station pairs, so a busy corridor is stored once per pair that runs along it:
+   * Switzerland's 505K route segments hold only 62K distinct ones, Europe's 3M about 450K.
+   * Drawing every route put each corridor on the GPU ~7 times over. Vertices are shared exactly
+   * because they sit on the uint16 grid. A segment is a fallback only if every route using it
+   * is, and chains break where that changes so each polyline keeps a single style.
+   */
+  network(): RoutePath[] {
+    // Open-addressing tables over typed arrays rather than Maps: this runs on the main thread
+    // as a country loads, and Germany alone has 920K points to dedupe.
+    const nPoints = this.points.length / 2;
+    const nodeIds = new Int32Array(nPoints);
+    // Keys are (x << 16 | y) as int32: values past 2^31 would leave V8's small-integer path.
+    const nodeKeys = new Int32Array(nPoints);
+    let nNodes = 0;
+    {
+      const bits = tableBits(nPoints);
+      const keys = new Int32Array(1 << bits);
+      const ids = new Int32Array(1 << bits).fill(-1);
+      const mask = (1 << bits) - 1;
+      for (let p = 0; p < nPoints; p++) {
+        const key = (this.points[p * 2]! << 16) | this.points[p * 2 + 1]!;
+        let slot = Math.imul(key, 0x9e3779b1) >>> (32 - bits);
+        while (ids[slot] !== -1 && keys[slot] !== key) slot = (slot + 1) & mask;
+        if (ids[slot] === -1) {
+          keys[slot] = key;
+          ids[slot] = nNodes;
+          nodeKeys[nNodes++] = key;
+        }
+        nodeIds[p] = ids[slot]!;
+      }
+    }
+
+    // Distinct undirected segments. A segment is real if any non-fallback route uses it.
+    const edgeA: number[] = [];
+    const edgeB: number[] = [];
+    const edgeReal: number[] = [];
+    {
+      const bits = tableBits(nPoints);
+      const lows = new Int32Array(1 << bits);
+      const highs = new Int32Array(1 << bits);
+      const ids = new Int32Array(1 << bits).fill(-1);
+      const mask = (1 << bits) - 1;
+      for (let i = 0; i < this.routeIds.length; i++) {
+        const real = (this.flags[i]! & FLAG_STRAIGHT_FALLBACK) === 0 ? 1 : 0;
+        for (let p = this.offsets[i]!; p + 1 < this.offsets[i + 1]!; p++) {
+          const a = nodeIds[p]!;
+          const b = nodeIds[p + 1]!;
+          if (a === b) continue;
+          const low = a < b ? a : b;
+          const high = a < b ? b : a;
+          let slot = Math.imul(Math.imul(low, 0x9e3779b1) ^ high, 0x85ebca6b) >>> (32 - bits);
+          while (ids[slot] !== -1 && (lows[slot] !== low || highs[slot] !== high)) slot = (slot + 1) & mask;
+          if (ids[slot] === -1) {
+            lows[slot] = low;
+            highs[slot] = high;
+            ids[slot] = edgeA.length;
+            edgeA.push(low);
+            edgeB.push(high);
+            edgeReal.push(real);
+          } else {
+            edgeReal[ids[slot]!]! |= real;
+          }
+        }
+      }
+    }
+    const nEdges = edgeA.length;
+
+    // Adjacency in CSR form.
+    const degree = new Int32Array(nNodes + 1);
+    for (let e = 0; e < nEdges; e++) {
+      degree[edgeA[e]! + 1]!++;
+      degree[edgeB[e]! + 1]!++;
+    }
+    for (let n = 0; n < nNodes; n++) degree[n + 1]! += degree[n]!;
+    const adjStart = degree;
+    const fill = adjStart.slice(0, nNodes);
+    const adj = new Int32Array(nEdges * 2);
+    for (let e = 0; e < nEdges; e++) {
+      adj[fill[edgeA[e]!]!++] = e;
+      adj[fill[edgeB[e]!]!++] = e;
+    }
+    /** A polyline passes through a node only if exactly two edges of one style meet there. */
+    const passThrough = (node: number): boolean => {
+      const start = adjStart[node]!;
+      return adjStart[node + 1]! - start === 2 && edgeReal[adj[start]!] === edgeReal[adj[start + 1]!];
+    };
+
+    const nodeLonLat = new Array<[number, number]>(nNodes);
+    for (let n = 0; n < nNodes; n++) nodeLonLat[n] = this.toLonLat(nodeKeys[n]! >>> 16, nodeKeys[n]! & 0xffff);
+
+    const used = new Uint8Array(nEdges);
+    const out: RoutePath[] = [];
+    const walk = (from: number, firstEdge: number) => {
+      const path: [number, number][] = [nodeLonLat[from]!];
+      let node = from;
+      let edge = firstEdge;
+      for (;;) {
+        used[edge] = 1;
+        node = edgeA[edge] === node ? edgeB[edge]! : edgeA[edge]!;
+        path.push(nodeLonLat[node]!);
+        if (node === from || !passThrough(node)) break;
+        const start = adjStart[node]!;
+        const next = adj[start] === edge ? adj[start + 1]! : adj[start]!;
+        if (used[next]) break;
+        edge = next;
+      }
+      out.push({ routeId: -1, path, fallback: edgeReal[firstEdge] === 0 });
+    };
+    for (let n = 0; n < nNodes; n++) {
+      if (passThrough(n)) continue;
+      for (let k = adjStart[n]!; k < adjStart[n + 1]!; k++) if (!used[adj[k]!]) walk(n, adj[k]!);
+    }
+    // Whatever is left is closed loops of pass-through nodes.
+    for (let e = 0; e < nEdges; e++) if (!used[e]) walk(edgeA[e]!, e);
     return out;
   }
 
@@ -253,4 +375,9 @@ export async function fetchRoutes(
   const r = await get(url);
   if (!r.ok) throw new Error(`routes.bin: HTTP ${r.status} from ${url}`);
   return new Routes(await r.arrayBuffer());
+}
+
+/** log2 of an open-addressing table size that keeps n entries at most half full. */
+function tableBits(n: number): number {
+  return Math.max(4, Math.ceil(Math.log2(Math.max(1, n) * 2)));
 }

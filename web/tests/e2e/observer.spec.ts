@@ -177,6 +177,11 @@ test("clicks train arrows and preserves unspectate controls on station boards", 
   await page.mouse.wheel(0, 1_600);
   await page.waitForTimeout(800);
 
+  // Stations are hidden by default.
+  const stationsToggle = page.locator("#layer-toggles button", { hasText: "Stations" });
+  await stationsToggle.evaluate((element: HTMLElement) => element.click());
+  await expect(stationsToggle).toHaveAttribute("aria-checked", "true");
+
   const liveTrains = await trainPoints(page);
   const stations = (await stationPoints(page)).filter(({ x, y }) => {
     if (x < 80 || x > 980 || y < 220 || y > 820) return false;

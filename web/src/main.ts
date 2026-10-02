@@ -1,7 +1,7 @@
 /** Browser-only historical train observer. */
 
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer } from "@deck.gl/layers";
 import maplibregl from "maplibre-gl";
 import "@fontsource-variable/noto-sans";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -62,7 +62,8 @@ interface DatasetView {
   /** Service-group id per type id, resolved once against this dataset's own codes. */
   groupOfType: string[];
   colors: RGB[];
-  trackPaths: TrackPath[];
+  /** The deduplicated network drawn as the track layer; see Routes.network(). */
+  networkPaths: TrackPath[];
 }
 
 interface BergE2ETestHook {
@@ -377,7 +378,7 @@ async function loadDatasetView(info: DatasetInfo, manifest: Manifest): Promise<D
     types,
     groupOfType,
     colors,
-    trackPaths: routes.paths().map((route) => ({ ...route, dataset: info.index })),
+    networkPaths: routes.network().map((route) => ({ ...route, dataset: info.index })),
   };
 }
 
@@ -539,12 +540,14 @@ async function main(): Promise<void> {
     }
   }
 
+  /** Stations are a MapLibre layer; deck owns the cursor, so it asks about them here. */
+  let stationHovered = false;
   const overlay = new MapboxOverlay({
     interleaved: false,
     useDevicePixels: pixelRatio,
     layers: [],
     getCursor: ({ isDragging, isHovering }) =>
-      isDragging ? "grabbing" : isHovering ? "pointer" : "grab",
+      isDragging ? "grabbing" : isHovering || stationHovered ? "pointer" : "grab",
   });
   map.addControl(overlay);
 
@@ -604,7 +607,7 @@ async function main(): Promise<void> {
   const filterChips = byId<HTMLDivElement>("filter-chips");
   const legendElement = byId<HTMLDivElement>("legend");
   const activity = new ActivityChart(byId("activity-chart"), fmtShortTime);
-  let colorMode: ColorMode = "type";
+  let colorMode: ColorMode = "delay";
   let visibleStationBoard: { station: Station; departures: StationBoardDeparture[] } | null = null;
   let stationBoardGeneration = 0;
 
@@ -650,12 +653,14 @@ async function main(): Promise<void> {
     return button;
   };
 
-  const layerVisible = { trains: true, tracks: true, stations: true };
+  // Stations start hidden: at national zoom they clutter the map without telling much.
+  const layerVisible = { trains: true, tracks: true, stations: false };
   const layerToggles = byId<HTMLDivElement>("layer-toggles");
   for (const [key, label] of [["trains", "Trains"], ["tracks", "Tracks"], ["stations", "Stations"]] as const) {
     layerToggles.appendChild(
-      toggleRow(label, true, (on) => {
+      toggleRow(label, layerVisible[key], (on) => {
         layerVisible[key] = on;
+        if (key !== "trains") applyStaticVisibility();
       }),
     );
   }
@@ -750,53 +755,139 @@ async function main(): Promise<void> {
   }
   renderLegend();
 
-  const trackPathById = new Map<number, TrackPath>();
-  let trackLayer: PathLayer<TrackPath> | null = null;
-  let stationLayer: ScatterplotLayer<Station> | null = null;
+  /**
+   * One route's path, for highlighting a selected train's or station's routes. Built on first
+   * use: only a handful of routes are ever highlighted, out of Europe's 70K.
+   */
+  const trackPathCache = new Map<number, TrackPath>();
+  const trackPath = (dataset: number, routeId: number): TrackPath | undefined => {
+    const key = trackKey(dataset, routeId);
+    const cached = trackPathCache.get(key);
+    if (cached) return cached;
+    const route = views[dataset]?.routes.path(routeId);
+    if (!route) return undefined;
+    const track = { ...route, dataset };
+    trackPathCache.set(key, track);
+    return track;
+  };
+  /**
+   * Tracks and stations are drawn by MapLibre, not deck. deck repaints its whole canvas every
+   * animation frame to move the trains, so static layers there were redrawn ~60 times a second
+   * while nothing about them changed. MapLibre repaints only when the camera moves, and tiles
+   * and simplifies per zoom. Each country gets its own sources and layers, added once when its
+   * static layer arrives: tracks below the first station layer, stations below the labels.
+   */
+  const trackLayerIds = new Map<number, string>();
+  const stationLayerIds = new Map<number, string>();
+  const firstLayerOf = (type: string) => map.getStyle().layers?.find((layer) => layer.type === type)?.id;
+  const addTrackLayer = (view: DatasetView) => {
+    const index = view.info.index;
+    const id = `berg-tracks-${index}`;
+    const lines = (fallback: boolean) => ({
+      type: "Feature" as const,
+      properties: { fallback },
+      geometry: {
+        type: "MultiLineString" as const,
+        coordinates: view.networkPaths.filter((route) => route.fallback === fallback).map((route) => route.path),
+      },
+    });
+    // Fallback (straight-line) segments first, so real track draws over them.
+    map.addSource(id, { type: "geojson", data: { type: "FeatureCollection", features: [lines(true), lines(false)] } });
+    map.addLayer(
+      {
+        id,
+        type: "line",
+        source: id,
+        paint: {
+          "line-color": ["case", ["get", "fallback"], "rgba(92, 102, 116, 0.12)", "rgba(105, 124, 143, 0.33)"],
+          "line-width": 1,
+        },
+      },
+      stationLayerIds.values().next().value ?? firstLayerOf("symbol"),
+    );
+    trackLayerIds.set(index, id);
+  };
+  const addStationLayer = (view: DatasetView) => {
+    const index = view.info.index;
+    const id = `berg-stations-${index}`;
+    map.addSource(id, {
+      type: "geojson",
+      promoteId: "id",
+      data: {
+        type: "FeatureCollection",
+        features: view.stations.map((station) => ({
+          type: "Feature" as const,
+          properties: { id: station.id },
+          geometry: { type: "Point" as const, coordinates: [station.lon, station.lat] },
+        })),
+      },
+    });
+    const hover: maplibregl.ExpressionSpecification = ["boolean", ["feature-state", "hover"], false];
+    map.addLayer(
+      {
+        id,
+        type: "circle",
+        source: id,
+        layout: { visibility: "none" },
+        paint: {
+          // 80 m at Swiss latitudes, clamped to 2.5–15 px, as when deck drew them in metres.
+          "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 11.76, 2.5, 14.36, 15],
+          "circle-color": ["case", hover, "rgba(229, 72, 77, 0.9)", "rgba(177, 190, 205, 0.65)"],
+          "circle-stroke-color": "rgba(7, 11, 17, 0.86)",
+          "circle-stroke-width": 1,
+        },
+      },
+      firstLayerOf("symbol"),
+    );
+    map.on("mousemove", id, (event) => {
+      const feature = event.features?.[0];
+      if (feature?.id !== undefined) setHoveredStation({ source: id, id: Number(feature.id) });
+    });
+    map.on("mouseleave", id, () => {
+      if (hoveredStation?.source === id) setHoveredStation(null);
+    });
+    map.on("click", id, (event) => {
+      // A train drawn over the station takes the click, as it did when deck picked both.
+      if (overlay.pickObject({ x: event.point.x, y: event.point.y })) return;
+      const station = view.stationById.get(Number(event.features?.[0]?.id));
+      if (station) void openStation(station);
+    });
+    stationLayerIds.set(index, id);
+  };
+  let hoveredStation: { source: string; id: number } | null = null;
+  const setHoveredStation = (next: { source: string; id: number } | null) => {
+    if (hoveredStation?.source === next?.source && hoveredStation?.id === next?.id) return;
+    if (hoveredStation) map.setFeatureState(hoveredStation, { hover: false });
+    hoveredStation = next;
+    if (hoveredStation) map.setFeatureState(hoveredStation, { hover: true });
+    stationHovered = hoveredStation !== null;
+  };
+  const applyStaticVisibility = () => {
+    for (const [ids, kind] of [[trackLayerIds, "tracks"], [stationLayerIds, "stations"]] as const) {
+      for (const [index, id] of ids) {
+        const on = layerVisible[kind] && enabledDatasets.has(index);
+        map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+        // A hidden layer fires no mouseleave.
+        if (!on && hoveredStation?.source === id) setHoveredStation(null);
+      }
+    }
+  };
   let allStations: Station[] = [];
   let builtStaticVersion = -1;
-  /** Rebuild the static layers only when a country's static layer has arrived. */
+  /** Pick up countries whose static layer has arrived, or whose toggle changed. */
   const refreshStaticLayers = () => {
     if (builtStaticVersion === staticVersion) return;
     builtStaticVersion = staticVersion;
     const loaded = loadedViews();
-    trackPathById.clear();
-    for (const route of loaded.flatMap((view) => view.trackPaths)) {
-      trackPathById.set(trackKey(route.dataset, route.routeId), route);
+    for (const view of loaded) {
+      const index = view.info.index;
+      if (stationLayerIds.has(index)) continue;
+      // Browser tests omit the track layer so software WebGL can keep up in CI.
+      if (!e2eMode) addTrackLayer(view);
+      addStationLayer(view);
     }
-    const shown = loaded.filter((view) => enabledDatasets.has(view.info.index));
-    allStations = shown.flatMap((view) => view.stations);
-    trackLayer = new PathLayer<TrackPath>({
-      id: "observed-rail-network",
-      data: shown.flatMap((view) => view.trackPaths),
-      getPath: (route) => route.path,
-      getColor: (route) => (route.fallback ? [92, 102, 116, 30] : [105, 124, 143, 85]),
-      getWidth: 1,
-      widthUnits: "pixels",
-      widthMinPixels: 0.65,
-      pickable: false,
-    });
-    stationLayer = new ScatterplotLayer<Station>({
-      id: "stations",
-      data: allStations,
-      getPosition: (station) => [station.lon, station.lat],
-      getFillColor: [177, 190, 205, 165],
-      getLineColor: [7, 11, 17, 220],
-      // A geographic radius naturally grows on screen as the user zooms in. Pixel clamps keep
-      // stations usable at national zoom without letting them dominate close-up views.
-      getRadius: 80,
-      radiusUnits: "meters",
-      radiusMinPixels: 2.5,
-      radiusMaxPixels: 15,
-      stroked: true,
-      lineWidthMinPixels: 1,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [229, 72, 77, 230],
-      onClick: ({ object }) => {
-        if (object) void openStation(object);
-      },
-    });
+    applyStaticVisibility();
+    allStations = loaded.filter((view) => enabledDatasets.has(view.info.index)).flatMap((view) => view.stations);
   };
 
   let selectedJourney: JourneySearchResult | null = null;
@@ -1211,7 +1302,7 @@ async function main(): Promise<void> {
       });
       if (stillSelected() && routeResponse.kind === "journey-route-result") {
         selectedJourneyTracks = routeResponse.routeIds
-          .map((routeId) => trackPathById.get(trackKey(result.dataset, routeId)))
+          .map((routeId) => trackPath(result.dataset, routeId))
           .filter((route): route is TrackPath => route !== undefined);
       }
     } catch (error) {
@@ -1587,11 +1678,11 @@ async function main(): Promise<void> {
     e2ePositionedTrains = items;
     const selectedItem = selected === null ? undefined : items.find((item) => isJourney(item.leg, selected));
     const selectedTrack = selectedItem && selectedItem.leg.route_id < BRIDGE_ROUTE_BASE
-      ? trackPathById.get(trackKey(selectedItem.leg.dataset, selectedItem.leg.route_id))
+      ? trackPath(selectedItem.leg.dataset, selectedItem.leg.route_id)
       : undefined;
     const stationBoardTracks = highlightedStationRoutes
       ? highlightedStationRoutes.routeIds
-          .map((routeId) => trackPathById.get(trackKey(highlightedStationRoutes!.dataset, routeId)))
+          .map((routeId) => trackPath(highlightedStationRoutes!.dataset, routeId))
           .filter((route): route is TrackPath => route !== undefined)
       : [];
     const highlightedTracks = stationBoardTracks.length > 0
@@ -1624,12 +1715,10 @@ async function main(): Promise<void> {
       (item) => void spectatePositionedTrain(item),
     );
     overlay.setProps({
-      // The full national track layer contains 512k vertices. Browser tests validate its
-      // selected route IDs but omit that visual layer so software WebGL can keep up in CI.
+      // Browser tests validate selected route IDs but omit the highlight layer so software WebGL
+      // can keep up in CI.
       layers: [
-        layerVisible.tracks && !e2eMode ? trackLayer : null,
         e2eMode ? null : selectedTrackLayer,
-        layerVisible.stations ? stationLayer : null,
         layerVisible.trains ? trainIcons : null,
       ],
     });

@@ -1,6 +1,7 @@
 # berg
 
-Historical European train movements, replayed in the browser.
+Historical European train movements, replayed in the browser, coloured by how late each train
+is running.
 
 berg started as a Swiss train watcher and now covers Switzerland, Finland, the Netherlands,
 Belgium, Germany, Austria and Great Britain. Each country is its own dataset with its own source, coverage and
