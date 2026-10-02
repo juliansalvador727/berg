@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "bench": "playwright test -c playwright.bench.config.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.e2e.json --noEmit"
   },
   "dependencies": {

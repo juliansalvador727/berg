@@ -172,6 +172,49 @@ export const isJourney = (leg: Leg, ref: JourneyRef | null): boolean =>
  * ingest, so a backfill that discovers new station pairs runs ahead of it until it is re-run.
  * The caller is expected to surface `dropped`, not swallow it.
  */
+/**
+ * A window's legs grouped by journey, each group sorted by departure, in order of each
+ * journey's first leg. Built once per legs array: grouping ~100K legs every frame was the
+ * frame loop's largest cost and its main source of garbage.
+ */
+const journeyIndex = new WeakMap<Leg[], { keys: number[]; groups: Leg[][] }>();
+function journeysOf(legs: Leg[]): { keys: number[]; groups: Leg[][] } {
+  let index = journeyIndex.get(legs);
+  if (index) return index;
+  // Group on a small-integer key (days since the window's first day, dataset, journey id):
+  // journeyKey's ~1e15 values are heap numbers, slow to hash and garbage on every leg.
+  let firstDay = Infinity;
+  let lastDay = -Infinity;
+  for (const leg of legs) {
+    const day = Math.floor(leg.t_dep / 86_400);
+    if (day < firstDay) firstDay = day;
+    if (day > lastDay) lastDay = day;
+  }
+  const compact = lastDay - firstDay < 32 && legs.every((leg) => leg.dataset < 64);
+  const byKey = new Map<number, Leg[]>();
+  for (const leg of legs) {
+    const key = compact
+      ? ((Math.floor(leg.t_dep / 86_400) - firstDay) * 64 + leg.dataset) * 65_536 + leg.journey_id
+      : journeyKey(leg);
+    const group = byKey.get(key);
+    if (group) group.push(leg);
+    else byKey.set(key, [leg]);
+  }
+  const groups = [...byKey.values()];
+  // Stable, so legs departing at the same second keep their listed order.
+  for (const group of groups) {
+    for (let i = 1; i < group.length; i++) {
+      if (group[i]!.t_dep < group[i - 1]!.t_dep) {
+        group.sort((a, b) => a.t_dep - b.t_dep);
+        break;
+      }
+    }
+  }
+  index = { keys: groups.map((group) => journeyKey(group[0]!)), groups };
+  journeyIndex.set(legs, index);
+  return index;
+}
+
 export function positioned(
   legs: Leg[],
   simTime: number,
@@ -179,21 +222,29 @@ export function positioned(
   bearingWindowM = 0,
   linked: LinkedEnds | null = null,
 ): { items: PositionedLeg[]; dropped: number } {
-  const previous = new Map<number, Leg>();
-  const upcoming = new Map<number, Leg>();
-  for (const leg of legs) {
-    const key = journeyKey(leg);
-    if (leg.t_dep <= simTime) {
-      const current = previous.get(key);
-      if (!current || leg.t_dep > current.t_dep) previous.set(key, leg);
-    } else {
-      const current = upcoming.get(key);
-      if (!current || leg.t_dep < current.t_dep) upcoming.set(key, leg);
-    }
-  }
-
+  const { keys, groups } = journeysOf(legs);
   const visible: LegAtPosition[] = [];
-  for (const [key, leg] of previous) {
+  const startingOnly: number[] = [];
+  for (let g = 0; g < groups.length; g++) {
+    const group = groups[g]!;
+    const key = keys[g]!;
+    // Legs in the group departed by simTime: the latest of them is the train's current leg.
+    let departed = 0;
+    let hi = group.length;
+    while (departed < hi) {
+      const mid = (departed + hi) >>> 1;
+      if (group[mid]!.t_dep <= simTime) departed = mid + 1;
+      else hi = mid;
+    }
+    if (departed === 0) {
+      startingOnly.push(g);
+      continue;
+    }
+    // Of several legs departing at the same second, the first listed wins, as it always has.
+    let current = departed - 1;
+    while (current > 0 && group[current - 1]!.t_dep === group[current]!.t_dep) current--;
+    const leg = group[current]!;
+    const hasUpcoming = departed < group.length;
     const arrival = leg.t_dep + leg.dur;
     if (simTime <= arrival) {
       const local = leg.dur > 0 ? (simTime - leg.t_dep) / leg.dur : 0;
@@ -205,7 +256,7 @@ export function positioned(
       continue;
     }
 
-    if (upcoming.has(key)) {
+    if (hasUpcoming) {
       // The vehicle is dwelling at the station between two observed movements.
       visible.push({ leg, fraction: leg.route_end, opacity: 1 });
       continue;
@@ -223,8 +274,9 @@ export function positioned(
     }
   }
 
-  for (const [key, leg] of upcoming) {
-    if (previous.has(key)) continue;
+  for (const g of startingOnly) {
+    const key = keys[g]!;
+    const leg = groups[g]![0]!;
     const untilDeparture = leg.t_dep - simTime;
     if (untilDeparture <= ENDPOINT_GRACE_S) {
       // A continuation stands at full strength where the previous country's train stopped;
