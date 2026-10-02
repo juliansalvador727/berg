@@ -24,6 +24,7 @@ import {
   type PositionedLeg,
   typeColors,
 } from "./render/trains";
+import { legsFromColumns } from "./legColumns";
 import { BRIDGE_ROUTE_BASE, CrossBorder, dedupe, FLAG_BRIDGE, type Link } from "./links";
 import { type DatasetInfo, FLAG_SCHEDULED_FALLBACK, type Leg, type Manifest, type TimeSemantics } from "./types";
 import type {
@@ -283,6 +284,31 @@ function ask(worker: Worker, payload: WorkerRequestPayload): Promise<WorkerRespo
     worker.addEventListener("message", onMessage);
     worker.postMessage({ ...payload, requestId });
   });
+}
+
+function setText(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
+}
+
+function setClass(element: Element, name: string, on: boolean): void {
+  if (element.classList.contains(name) !== on) element.classList.toggle(name, on);
+}
+
+/** Two departure-sorted leg lists as one, without re-sorting the whole window. */
+function mergeByDeparture(a: Leg[], b: Leg[]): Leg[] {
+  const out: Leg[] = new Array(a.length + b.length);
+  let i = 0;
+  let j = 0;
+  let k = 0;
+  while (i < a.length && j < b.length) out[k++] = b[j]!.t_dep < a[i]!.t_dep ? b[j++]! : a[i++]!;
+  while (i < a.length) out[k++] = a[i++]!;
+  while (j < b.length) out[k++] = b[j++]!;
+  return out;
+}
+
+/** A request with no reply. The worker logs its own failures. */
+function tell(worker: Worker, payload: WorkerRequestPayload): void {
+  worker.postMessage({ ...payload, requestId: nextRequestId++ });
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -1038,7 +1064,9 @@ async function main(): Promise<void> {
         selectedJourney = null;
         selectedJourneyTracks = [];
         closeCommand();
-        void refill(requestedTime);
+        void refill(requestedTime).then(() =>
+          prefetchDays([utcDay(requestedTime - 86_400), utcDay(requestedTime + 86_400)]),
+        );
       };
       commandResults.appendChild(button);
       return;
@@ -1291,6 +1319,8 @@ async function main(): Promise<void> {
   }
 
   /** One window of legs → drawn once, with bridge legs where a train crosses between datasets. */
+  /** Each route's two cross-border station groups, or null when either end is only one country's. */
+  const endpointGroups = new Map<number, [number, number] | null>();
   async function applyCrossBorder(next: typeof win): Promise<typeof win> {
     const layer = crossBorder;
     if (!layer) {
@@ -1309,11 +1339,18 @@ async function main(): Promise<void> {
     const { kept, hidden } = next.datasets.length < 2 ? { kept: next.legs, hidden: [] } : dedupe(
       next.legs,
       (leg) => {
-        const pair = views[leg.dataset]?.routePairs[String(leg.route_id)];
-        if (!pair) return undefined;
-        const a = layer.stationGroup(leg.dataset, pair[0]);
-        const b = layer.stationGroup(leg.dataset, pair[1]);
-        return a === undefined || b === undefined ? undefined : [a, b];
+        // Memoized per route: the lookup builds strings, and this runs for every leg in the window.
+        const key = leg.dataset * 0x10000 + leg.route_id;
+        const cached = endpointGroups.get(key);
+        if (cached !== undefined) return cached ?? undefined;
+        const view = views[leg.dataset];
+        if (!view) return undefined;
+        const pair = view.routePairs[String(leg.route_id)];
+        const a = pair && layer.stationGroup(leg.dataset, pair[0]);
+        const b = pair && layer.stationGroup(leg.dataset, pair[1]);
+        const ends: [number, number] | null = a === undefined || b === undefined ? null : [a, b];
+        endpointGroups.set(key, ends);
+        return ends ?? undefined;
       },
       (dataset) => layer.rank(dataset),
       layer.manifest.dedup_window_s,
@@ -1323,7 +1360,7 @@ async function main(): Promise<void> {
     hiddenLegs = hidden;
     linkedEnds = layer.linkedEnds(days, (a, b) => inWindow(a) && inWindow(b));
     windowLinks = days.flatMap(({ day, links }) => links.map((link) => ({ day, link })));
-    const legs = bridges.length > 0 ? [...kept, ...bridges].sort((a, b) => a.t_dep - b.t_dep) : kept;
+    const legs = bridges.length > 0 ? mergeByDeparture(kept, bridges.sort((a, b) => a.t_dep - b.t_dep)) : kept;
     return { ...next, legs };
   }
 
@@ -1375,6 +1412,22 @@ async function main(): Promise<void> {
     return lines.map((line) => `<div class="sub cross-border">${escapeHtml(line)}</div>`).join("");
   };
 
+  /** Warm the worker's day-file cache; each dataset/day is asked for once per session. */
+  const prefetched = new Set<string>();
+  const prefetchDays = (days: string[]): void => {
+    for (const index of wantedDatasets()) {
+      const fresh = days.filter((day) => !prefetched.has(`${index}:${day}`) && day in manifests[index]!.days);
+      if (fresh.length === 0) continue;
+      for (const day of fresh) prefetched.add(`${index}:${day}`);
+      tell(worker, { kind: "prefetch", dataset: index, days: fresh });
+    }
+  };
+  /** Within two lookaheads of UTC midnight, the next day's files are about to be needed. */
+  const prefetchNearMidnight = (time: number): void => {
+    const nextMidnight = (Math.floor(time / 86_400) + 1) * 86_400;
+    if (nextMidnight - time <= lookahead() * 2) prefetchDays([utcDay(nextMidnight)]);
+  };
+
   async function refill(time: number): Promise<void> {
     // If another window is being fetched, wait for it and then decide whether it covered this
     // seek. Spectating must not silently lose its load because ordinary playback was fetching.
@@ -1390,7 +1443,11 @@ async function main(): Promise<void> {
           lookahead: lookahead(),
           datasets: wanted,
         });
-        if (response.kind === "window") win = await applyCrossBorder(response);
+        if (response.kind === "window") {
+          const { from, to, datasets: loaded, columns } = response;
+          win = await applyCrossBorder({ from, to, datasets: loaded, legs: legsFromColumns(columns) });
+          prefetchNearMidnight(time);
+        }
       } catch (error) {
         console.error("window fetch failed", error);
       }
@@ -1436,6 +1493,38 @@ async function main(): Promise<void> {
     else requestAnimationFrame(callback);
   };
 
+  /**
+   * The window's legs that pass the filters. Kept until the window, a filter or the selection
+   * changes: re-filtering ~100K legs every frame cost time and a fresh array of garbage, and a
+   * stable array lets positioned() keep its journey index.
+   */
+  let relevantCache: { legs: Leg[]; source: Leg[]; hidden: Leg[]; signature: string } | null = null;
+  const relevantLegsFor = (selected: JourneyRef | null): Leg[] => {
+    const signature = [
+      [...enabledDatasets].join(","),
+      [...enabledGroups].join(","),
+      selected ? `${selected.dataset}:${selected.journeyId}` : "",
+      views.filter((view) => view !== undefined).length,
+    ].join("|");
+    const cached = relevantCache;
+    if (cached && cached.source === win.legs && cached.hidden === hiddenLegs && cached.signature === signature) {
+      return cached.legs;
+    }
+    // Resolve the filters once per (dataset, type) rather than once per leg.
+    const allowed = datasets.map(({ index }) => {
+      const types = new Uint8Array(256);
+      if (enabledDatasets.has(index)) for (let type = 0; type < 256; type++) types[type] = typeEnabled(index, type) ? 1 : 0;
+      return types;
+    });
+    const legs = win.legs.filter(
+      (leg) => allowed[leg.dataset]?.[leg.type] === 1 || isJourney(leg, selected),
+    );
+    // A leg drawn by a stronger dataset is hidden, except on the train being spectated.
+    if (selected) for (const leg of hiddenLegs) if (isJourney(leg, selected)) legs.push(leg);
+    relevantCache = { legs, source: win.legs, hidden: hiddenLegs, signature };
+    return legs;
+  };
+
   function frame(): void {
     const time = clock.tick();
     if (time > tMax) clock.seek(tMin);
@@ -1446,12 +1535,7 @@ async function main(): Promise<void> {
     if (!windowCovers(time, wantedDatasets())) void refill(time);
 
     const selected = selectedRef();
-    const relevantLegs = win.legs.filter(
-      (leg) =>
-        (enabledDatasets.has(leg.dataset) && typeEnabled(leg.dataset, leg.type)) || isJourney(leg, selected),
-    );
-    // A leg drawn by a stronger dataset is hidden, except on the train being spectated.
-    if (selected) for (const leg of hiddenLegs) if (isJourney(leg, selected)) relevantLegs.push(leg);
+    const relevantLegs = relevantLegsFor(selected);
     // Average the route tangent across roughly six screen pixels. At national zoom this removes
     // noisy vertex-to-vertex heading changes; close up it converges to the precise local track.
     const bearingWindowM = Math.max(
@@ -1529,32 +1613,38 @@ async function main(): Promise<void> {
 
     const focus = focusDataset();
     const zone = focus.timezone.split("/").at(-1)!.replaceAll("_", " ");
-    hudDateElement.textContent = `${fmtHudDate(time, focus.timezone)} · ${zone}`;
-    timeElement.textContent = fmtHudTime(time, focus.timezone);
-    timeElement.dateTime = new Date(time * 1000).toISOString();
-    playIcon.classList.toggle("hidden", !clock.paused);
-    pauseIcon.classList.toggle("hidden", clock.paused);
-    playbackLabel.textContent = clock.paused ? "Resume playback" : "Pause playback";
+    // Every write below is skipped when unchanged: a DOM write per frame dirties style and layout.
+    setText(hudDateElement, `${fmtHudDate(time, focus.timezone)} · ${zone}`);
+    setText(timeElement, fmtHudTime(time, focus.timezone));
+    const iso = new Date(Math.floor(time) * 1000).toISOString();
+    if (timeElement.dateTime !== iso) timeElement.dateTime = iso;
+    setClass(playIcon, "hidden", !clock.paused);
+    setClass(pauseIcon, "hidden", clock.paused);
+    setText(playbackLabel, clock.paused ? "Resume playback" : "Pause playback");
     for (const { speed, button } of speedButtons) {
       const active = speed === clock.speed;
-      button.classList.toggle("on", active);
-      button.setAttribute("aria-pressed", String(active));
+      setClass(button, "on", active);
+      if (button.getAttribute("aria-pressed") !== String(active)) button.setAttribute("aria-pressed", String(active));
     }
-    countElement.textContent = items.length.toLocaleString("en-GB");
-    countElement.title = dropped ? `${dropped} trains could not be placed on a route` : "";
+    setText(countElement, items.length.toLocaleString("en-GB"));
+    const countTitle = dropped ? `${dropped} trains could not be placed on a route` : "";
+    if (countElement.title !== countTitle) countElement.title = countTitle;
     // The count covers the countries whose trains are loaded, whether or not the train layer is drawn.
     const counted = win.datasets.filter((index) => enabledDatasets.has(index));
-    activityScope.textContent = multiCountry
-      ? counted.map((index) => datasets[index]!.country).join(" · ") || "No country in view"
-      : datasets[0]!.name;
+    setText(
+      activityScope,
+      multiCountry
+        ? counted.map((index) => datasets[index]!.country).join(" · ") || "No country in view"
+        : datasets[0]!.name,
+    );
     // A window still loading would draw as an empty map; that is latency, not a count.
     const loaded = time >= win.from && time <= win.to && wantedDatasets().every((index) => win.datasets.includes(index));
     if (loaded) {
       activity.record(time, items.length, `${counted.join(",")}|${[...enabledGroups].sort().join(",")}`, focus.timezone);
     }
     const notice = coverageNotice(time);
-    coverageElement.textContent = notice;
-    coverageElement.classList.toggle("hidden", notice === "");
+    setText(coverageElement, notice);
+    setClass(coverageElement, "hidden", notice === "");
     scheduleFrame(frame);
   }
   requestAnimationFrame(frame);

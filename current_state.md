@@ -368,12 +368,38 @@ Do these in order unless product priorities change:
 - [ ] Measure cold-load and playback/query latency on desktop and mobile. Build the custom GPU path or
   change file grouping only if measurements show the current scatter/range-request path misses
   the target.
-  - The only query number so far is the "~40 ms warm windowed scrub" in the header comment of
-    `web/src/worker/legs.worker.ts`. It was measured once on 2026-07-16, when only the Swiss
-    dataset existed, and is quoted on the resume. Re-measure against the live six-country
-    bucket: a Playwright script that opens the app, scrubs a shared-coverage day, and records
-    median and p95 worker query time (warm and cold), with several countries in view. Record
-    the result here and update the worker comment.
+  - [x] Desktop worker query latency, measured 2026-09-30 against the live bucket with
+    `npm run bench` (`web/tests/perf/window.bench.ts`, not in CI): 2026-05-13, lookahead 3000 s,
+    40 seeded scrubs per country set. The old "~40 ms" (2026-07-16, Swiss only) no longer held:
+    every `read_parquet('https://…')` paid a blocking, sequential HEAD per file per query.
+    The worker now fetches each day file whole, in parallel, into a 96 MB LRU cache of
+    registered buffers (`registerFileBuffer`), prefetches the next UTC day near midnight, warms
+    the parquet reader during init, and decodes legs by column.
+
+    | Countries | Warm scrub p50 / p95 before | After | Parquet requests per warm scrub |
+    |---|---|---|---|
+    | CH | 142 / 190 ms | 24 / 36 ms | 1 → 0 |
+    | CH+DE+AT+IT | 629 / 727 ms | 143 / 177 ms | 4 → 0 |
+    | All 8 | 1,116 / 1,340 ms | 164 / 219 ms | 8 → 0 |
+
+    Cold first window after init: 0.2–0.5 s for CH; 0.6–3.2 s for all 8, bound by r2.dev
+    download speed for ~6 MB across 8 parallel GETs. The cache holds ~16 days of all 8 countries
+    before it evicts. Mobile is still unmeasured.
+
+    Follow-up the same day: windows now cross to the main thread as transferred typed-array
+    columns (`web/src/legColumns.ts`) instead of ~100K cloned objects. Warm round-trip p50/p95 is
+    now 7/16 ms (CH), 25/34 ms (CH+DE+AT+IT), 36/49 ms (all 8), plus ~20 ms on the main thread to
+    build the Leg objects.
+  - [x] Main-thread jank while panning, measured 2026-09-30 by CPU-profiling Chromium on the real
+    GPU (WSL: `--use-angle=gl`, `GALLIUM_DRIVER=d3d12`; headless SwiftShader is unrepresentative)
+    at Europe zoom, all 8 countries, 600× playback. Each window refill (~every 3 s) froze the main
+    thread for ~130 ms: unpacking the cloned legs, cross-border `dedupe` building strings per leg,
+    a 100K-element re-filter and journey regrouping every frame, then ~80 ms of GC. Fixed by
+    transferring columns, memoizing route endpoint groups, caching the filtered legs, indexing
+    journeys once per window (`positioned` binary-searches per journey), merging bridge legs
+    instead of re-sorting, and skipping unchanged HUD DOM writes. Refill stalls are now ~45 ms.
+    Over ~22 s of panning: frames >50 ms 6 → 1–2, >33 ms 12–13 → 7, worst 100–133 → 83–100 ms.
+    What remains is mostly outside JS (basemap tiles and GPU).
 - [ ] Decide whether aggregates are a product requirement; `aggregates_json` is still an
   intentional `NotImplementedError` stub.
 - [ ] Audit `missing_time` and decide the zero-duration policy described above.
