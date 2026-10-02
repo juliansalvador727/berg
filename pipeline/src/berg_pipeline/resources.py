@@ -1,6 +1,9 @@
+import gzip
 import hashlib
 import hmac
 import os
+import shutil
+import tempfile
 import sys
 import time
 from collections.abc import Callable
@@ -14,6 +17,37 @@ from berg_pipeline import paths
 
 R2_OUTER_ATTEMPTS = 6
 R2_RETRY_MAX_DELAY_S = 30
+
+# r2.dev serves objects byte for byte and never compresses on the fly, so text-like files are
+# stored gzipped with Content-Encoding: gzip and the browser inflates them transparently. Parquet
+# is already compressed and is left alone. Measured: duckdb-eh.wasm 34.2 MB -> 7.6 MB,
+# stations.json 3.1 MB -> 0.7 MB, manifest.json 195 KB -> 31 KB.
+GZIP_SUFFIXES = {".json", ".bin", ".wasm"}
+# Always explicit: left unset, boto guesses from the temp file's .gz name and stores
+# application/gzip, which tells a browser the body is still a gzip file after decoding.
+CONTENT_TYPES = {".json": "application/json", ".bin": "application/octet-stream", ".wasm": "application/wasm"}
+
+
+def _gzip_copy(path: Path) -> Path:
+    """A deterministic (mtime 0) gzip of path, cached by content so resumed syncs compare equal."""
+    with path.open("rb") as fh:
+        digest = hashlib.file_digest(fh, "sha256").hexdigest()
+    out = Path(tempfile.gettempdir()) / "berg-gzip" / f"{digest}.gz"
+    if not out.exists():
+        out.parent.mkdir(parents=True, exist_ok=True)
+        partial = out.with_suffix(f".{os.getpid()}.part")
+        with path.open("rb") as src, partial.open("wb") as raw:
+            with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=9, mtime=0, filename="") as dst:
+                shutil.copyfileobj(src, dst, 1 << 20)
+        partial.replace(out)
+    return out
+
+
+def _wire_file(local_path: Path, key: str) -> tuple[Path, str | None]:
+    """The bytes actually stored under key, and their Content-Encoding."""
+    if Path(key).suffix in GZIP_SUFFIXES:
+        return _gzip_copy(local_path), "gzip"
+    return local_path, None
 
 
 class R2Resource(dg.ConfigurableResource):
@@ -96,16 +130,20 @@ class R2Resource(dg.ConfigurableResource):
         content_type: str | None = None,
         cache_control: str | None = None,
     ) -> None:
-        checksum = self._digest(local_path, "sha256")
+        wire_path, encoding = _wire_file(local_path, key)
+        checksum = self._digest(wire_path, "sha256")
         client = client or self.client()
         extra_args = {"Metadata": {"berg-sha256": checksum}}
+        content_type = content_type or CONTENT_TYPES.get(Path(key).suffix)
         if content_type:
             extra_args["ContentType"] = content_type
         if cache_control:
             extra_args["CacheControl"] = cache_control
+        if encoding:
+            extra_args["ContentEncoding"] = encoding
         self._with_transient_retries(
             lambda: client.upload_file(
-                str(local_path),
+                str(wire_path),
                 self.bucket,
                 key,
                 ExtraArgs=extra_args,
@@ -127,12 +165,16 @@ class R2Resource(dg.ConfigurableResource):
 
         client = client or self.client()
         try:
-            body = client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+            obj = client.get_object(Bucket=self.bucket, Key=key)
+            body = obj["Body"].read()
         except Exception as e:  # noqa: BLE001 — only "absent" is ours; anything else is real
             code = getattr(e, "response", {}).get("Error", {}).get("Code")
             if code in ("NoSuchKey", "404", "NoSuchBucket"):
                 return None
             raise
+        # boto hands back the stored bytes; it does not undo Content-Encoding.
+        if obj.get("ContentEncoding") == "gzip" or body[:2] == b"\x1f\x8b":
+            body = gzip.decompress(body)
         return json.loads(body)
 
     def existing_objects(self, client=None) -> dict[str, dict]:
@@ -155,6 +197,7 @@ class R2Resource(dg.ConfigurableResource):
         S3-compatible single-part ETags are MD5 digests. Multipart ETags are not, so uploads
         carry an explicit SHA-256 metadata value and resumed syncs verify that instead.
         """
+        local_path, _ = _wire_file(local_path, key)
         if remote.get("size") != local_path.stat().st_size:
             return False
 
