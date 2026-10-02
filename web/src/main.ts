@@ -311,8 +311,23 @@ function tell(worker: Worker, payload: WorkerRequestPayload): void {
   worker.postMessage({ ...payload, requestId: nextRequestId++ });
 }
 
+/**
+ * Requests started before anyone asked for them, so the Swiss static layer downloads while
+ * DuckDB is still starting. Each is handed out once, then forgotten.
+ */
+const earlyFetches = new Map<string, Promise<Response>>();
+const startFetch = (url: string): void => {
+  if (!earlyFetches.has(url)) earlyFetches.set(url, fetch(url));
+};
+const fetchOnce = (url: string): Promise<Response> => {
+  const early = earlyFetches.get(url);
+  earlyFetches.delete(url);
+  return early ?? fetch(url);
+};
+const staticFiles = ["routes.bin", "stations.json", "train_types.json", "route_pairs.json"] as const;
+
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetchOnce(url);
   if (!response.ok) throw new Error(`HTTP ${response.status} from ${url}`);
   return (await response.json()) as T;
 }
@@ -320,7 +335,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 /** Everything static for one dataset, fetched once when the country first comes into view. */
 async function loadDatasetView(info: DatasetInfo, manifest: Manifest): Promise<DatasetView> {
   const [routes, allStations, typeMap, routePairs] = await Promise.all([
-    fetchRoutes(datasetUrl(info.path, "static/routes.bin")),
+    fetchRoutes(datasetUrl(info.path, "static/routes.bin"), fetchOnce),
     fetchJson<Array<Omit<Station, "dataset">>>(datasetUrl(info.path, "static/stations.json")),
     fetchJson<Record<string, string>>(datasetUrl(info.path, "static/train_types.json")),
     fetchJson<Record<string, [number, number]>>(datasetUrl(info.path, "static/route_pairs.json")),
@@ -378,6 +393,26 @@ async function main(): Promise<void> {
     loadingLabel.textContent = label;
   };
 
+  // Nothing below needs DuckDB until the first window, so everything that can download does so
+  // while it starts: the basemap and its tiles, and Switzerland's static layer (Switzerland is
+  // always dataset 0, at the bucket root). On a phone these were each a serial wait.
+  for (const file of staticFiles) startFetch(datasetUrl("", `static/${file}`));
+  // Phones report a devicePixelRatio of 3; drawing at 2 costs 2.25x fewer pixels per frame and
+  // looks the same at arm's length.
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const map = new maplibregl.Map({
+    container: "map",
+    style: MAP_STYLE_URL,
+    center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude],
+    zoom: INITIAL_VIEW.zoom,
+    pitch: e2eMode ? 0 : 24,
+    bearing: 0,
+    maxPitch: 70,
+    pixelRatio,
+    attributionControl: { compact: true },
+  });
+  const mapLoaded = map.once("load");
+
   setProgress(8, "Starting the in-browser database…");
   const worker = new Worker(new URL("./worker/legs.worker.ts", import.meta.url), { type: "module" });
   const ready = await ask(worker, { kind: "init" });
@@ -387,6 +422,38 @@ async function main(): Promise<void> {
   const multiCountry = datasets.length > 1;
   for (const manifest of manifests) {
     if (!manifest.start || !manifest.end) throw new Error("a manifest advertises no days");
+  }
+
+  const swissDays = Object.keys(manifests[0]!.days).sort();
+  const allDays = [...new Set(manifests.flatMap((manifest) => Object.keys(manifest.days)))].sort();
+  const substantialDays = swissDays.filter((day) => manifests[0]!.days[day]!.legs >= 10_000);
+  // Start on the first day every dataset has published, so the whole map is populated from the
+  // first frame. With a single dataset, or none in common, keep the Swiss default.
+  const sharedDays = multiCountry
+    ? swissDays.filter((day) => manifests.every((manifest) => day in manifest.days))
+    : [];
+  const initialDay = sharedDays[0] ?? (DEFAULT_DAY in manifests[0]!.days
+    ? DEFAULT_DAY
+    : (substantialDays[substantialDays.length - 1] ?? swissDays[swissDays.length - 1]!));
+  const tMin = Date.parse(`${allDays[0]}T00:00:00Z`) / 1000;
+  const tMax = Date.parse(`${allDays[allDays.length - 1]}T23:59:59Z`) / 1000;
+  const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);
+  clock.setSpeed(600);
+  clock.play();
+
+  // Start the first window's day files now, so they download alongside the static layer and the
+  // basemap instead of after them. Same countries the first refill will ask for: in view, and
+  // with data that day. The worker shares the download with the window query that follows.
+  {
+    const bounds = map.getBounds();
+    for (const { index, bbox: [west, south, east, north] } of datasets) {
+      const inView =
+        west <= bounds.getEast() && east >= bounds.getWest() && south <= bounds.getNorth() && north >= bounds.getSouth();
+      const days = [utcDay(clock.simTime - manifests[index]!.max_leg_duration_s), initialDay].filter(
+        (day, i, all) => all.indexOf(day) === i && day in manifests[index]!.days,
+      );
+      if (inView && days.length > 0) tell(worker, { kind: "prefetch", dataset: index, days });
+    }
   }
 
   setProgress(24, "Loading routes, stations, and train classes…");
@@ -420,7 +487,7 @@ async function main(): Promise<void> {
     return load;
   };
   // Switzerland is dataset 0 and the initial view; other countries load when panned into view.
-  const swiss = await ensureView(0);
+  const [swiss] = await Promise.all([ensureView(0), mapLoaded]);
   if (!swiss) throw new Error("the Swiss static layer could not be loaded");
   const loadedViews = (): DatasetView[] => views.filter((view): view is DatasetView => view !== undefined);
 
@@ -434,17 +501,6 @@ async function main(): Promise<void> {
   const typeColor = (leg: Leg): RGB => views[leg.dataset]?.colors[leg.type] ?? [200, 200, 200];
 
   setProgress(64, "Loading the map and mountain relief…");
-  const map = new maplibregl.Map({
-    container: "map",
-    style: MAP_STYLE_URL,
-    center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude],
-    zoom: INITIAL_VIEW.zoom,
-    pitch: e2eMode ? 0 : 24,
-    bearing: 0,
-    maxPitch: 70,
-    attributionControl: { compact: true },
-  });
-  await map.once("load");
   // The basemap is context, not content: drop road names, house numbers, and POIs.
   for (const layer of map.getStyle().layers ?? []) {
     if (/^(roadname_|housenumber|poi_)/.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
@@ -485,6 +541,7 @@ async function main(): Promise<void> {
 
   const overlay = new MapboxOverlay({
     interleaved: false,
+    useDevicePixels: pixelRatio,
     layers: [],
     getCursor: ({ isDragging, isHovering }) =>
       isDragging ? "grabbing" : isHovering ? "pointer" : "grab",
@@ -522,22 +579,6 @@ async function main(): Promise<void> {
     );
   };
 
-  const swissDays = Object.keys(manifests[0]!.days).sort();
-  const allDays = [...new Set(manifests.flatMap((manifest) => Object.keys(manifest.days)))].sort();
-  const substantialDays = swissDays.filter((day) => manifests[0]!.days[day]!.legs >= 10_000);
-  // Start on the first day every dataset has published, so the whole map is populated from the
-  // first frame. With a single dataset, or none in common, keep the Swiss default.
-  const sharedDays = multiCountry
-    ? swissDays.filter((day) => manifests.every((manifest) => day in manifest.days))
-    : [];
-  const initialDay = sharedDays[0] ?? (DEFAULT_DAY in manifests[0]!.days
-    ? DEFAULT_DAY
-    : (substantialDays[substantialDays.length - 1] ?? swissDays[swissDays.length - 1]!));
-  const tMin = Date.parse(`${allDays[0]}T00:00:00Z`) / 1000;
-  const tMax = Date.parse(`${allDays[allDays.length - 1]}T23:59:59Z`) / 1000;
-  const clock = new Clock(Date.parse(`${initialDay}T06:00:00Z`) / 1000);
-  clock.setSpeed(600);
-  clock.play();
 
   const topbar = byId<HTMLElement>("topbar");
   const filters = byId<HTMLElement>("filters");

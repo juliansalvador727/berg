@@ -195,6 +195,18 @@ async function init(): Promise<{
   skipped: string[];
   links: string | null;
 }> {
+  // The catalog and manifests need no database: fetch them while the WASM module downloads and
+  // compiles, which is by far the longest step on a phone.
+  const catalogLoad = loadCatalog().then(async (catalog) => {
+    const entries = Object.entries(catalog.datasets).sort(([a], [b]) =>
+      a === "ch" ? -1 : b === "ch" ? 1 : a.localeCompare(b),
+    );
+    const loaded = await Promise.allSettled(entries.map(([, entry]) => fetchManifest(entry)));
+    return { catalog, entries, loaded };
+  });
+  // Never an unhandled rejection while instantiate is still running; awaited below.
+  catalogLoad.catch(() => {});
+
   const wasmBaseUrl = `${DATA_BASE_URL}/static/duckdb-wasm/${duckdbRuntime.version}`;
   const bundle = await duckdb.selectBundle({
     mvp: {
@@ -220,11 +232,7 @@ async function init(): Promise<{
 
   // Switzerland first, so it is always dataset 0 and a Swiss-only session behaves exactly as
   // before. A broken foreign manifest costs that country, never the Swiss archive.
-  const catalog = await loadCatalog();
-  const entries = Object.entries(catalog.datasets).sort(([a], [b]) =>
-    a === "ch" ? -1 : b === "ch" ? 1 : a.localeCompare(b),
-  );
-  const loaded = await Promise.allSettled(entries.map(([, entry]) => fetchManifest(entry)));
+  const { catalog, entries, loaded } = await catalogLoad;
   const skipped: string[] = [];
   datasets = [];
   manifests = [];

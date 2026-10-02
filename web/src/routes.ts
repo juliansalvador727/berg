@@ -246,8 +246,11 @@ export class Routes {
   }
 }
 
-export async function fetchRoutes(url: string): Promise<Routes> {
-  const r = await fetch(url);
+export async function fetchRoutes(
+  url: string,
+  get: (url: string) => Promise<Response> = fetch,
+): Promise<Routes> {
+  const r = await get(url);
   if (!r.ok) throw new Error(`routes.bin: HTTP ${r.status} from ${url}`);
   return new Routes(await r.arrayBuffer());
 }
